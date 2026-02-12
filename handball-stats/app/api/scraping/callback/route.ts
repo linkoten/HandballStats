@@ -3,9 +3,10 @@ import prisma from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { competitionId, status, progress, matches, error } = await req.json();
+    const { competitionId, status, progress, matches, error } =
+      await req.json();
 
-    // Vérifier une clé d'authentification simple  
+    // Vérifier une clé d'authentification simple
     const authKey = req.headers.get("x-webhook-auth");
     if (authKey !== process.env.WEBHOOK_AUTH_SECRET) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
@@ -19,8 +20,8 @@ export async function POST(req: NextRequest) {
           scrapingStatus: status,
           scrapingProgress: progress,
           scrapingError: error || null,
-          lastScrapedAt: status === "COMPLETED" ? new Date() : undefined
-        }
+          lastScrapedAt: status === "COMPLETED" ? new Date() : undefined,
+        },
       });
     }
 
@@ -38,29 +39,33 @@ export async function POST(req: NextRequest) {
               competition_name: matchData.competition_name,
               competitionId: competitionId,
               score_final: matchData.score_final,
-              date_match: matchData.date_match ? new Date(matchData.date_match) : null,
+              date_match: matchData.date_match
+                ? new Date(matchData.date_match)
+                : null,
               // ... autres champs
             },
             update: {
               pdf_url: matchData.pdf_url,
               score_final: matchData.score_final,
-              date_match: matchData.date_match ? new Date(matchData.date_match) : null,
-              // ... autres champs  
-            }
+              date_match: matchData.date_match
+                ? new Date(matchData.date_match)
+                : null,
+              // ... autres champs
+            },
           });
         } catch (matchError) {
-          console.error("Erreur insertion match:", matchData.match_url, matchError);
+          console.error(
+            "Erreur insertion match:",
+            matchData.match_url,
+            matchError,
+          );
         }
       }
     }
 
     return NextResponse.json({ success: true });
-
   } catch (error) {
     console.error("Erreur callback scraping:", error);
-    return NextResponse.json(
-      { error: "Erreur interne" }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
   }
 }

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     // Au lieu d'exécuter le scraping directement, déclencher un webhook externe
     const webhookUrl = process.env.SCRAPING_WEBHOOK_URL;
-    
+
     if (webhookUrl) {
       // Déclencher le scraping sur un service externe (Render gratuit)
       fetch(webhookUrl, {
@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           competitionIds,
           equipeId,
-          callbackUrl: `${process.env.VERCEL_URL}/api/scraping/callback`
-        })
+          callbackUrl: `${process.env.VERCEL_URL}/api/scraping/callback`,
+        }),
       }).catch(console.error);
     } else {
       // Mode simulation pour développement
@@ -34,23 +34,19 @@ export async function POST(req: NextRequest) {
     if (competitionIds) {
       await prisma.competition.updateMany({
         where: { id: { in: competitionIds } },
-        data: { 
+        data: {
           scrapingStatus: "IN_PROGRESS",
-          scrapingProgress: 0 
-        }
+          scrapingProgress: 0,
+        },
       });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Scraping démarré en arrière-plan" 
+    return NextResponse.json({
+      success: true,
+      message: "Scraping démarré en arrière-plan",
     });
-
   } catch (error) {
     console.error("Erreur scraping:", error);
-    return NextResponse.json(
-      { error: "Erreur interne" }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
   }
 }

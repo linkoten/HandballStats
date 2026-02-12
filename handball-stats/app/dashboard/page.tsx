@@ -332,32 +332,6 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* PowerBI Card */}
-          <Link
-            href="/powerbi"
-            className="group relative flex flex-col justify-between bg-card/40 backdrop-blur-md rounded-lg border border-white/20 shadow-sm p-6 transition-all hover:scale-[1.02] hover:shadow-xl hover:bg-card/60 overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Activity className="w-24 h-24 rotate-12" />
-            </div>
-            <div>
-              <div className="text-orange-500 mb-4">
-                <Activity className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-sport uppercase tracking-wide text-foreground mb-2 group-hover:text-orange-500 transition-colors">
-                Power BI
-              </h2>
-              <p className="text-muted-foreground text-sm font-medium">
-                Tableaux de bord avancés.
-              </p>
-            </div>
-            <div className="mt-4">
-              <span className="inline-block text-xs font-sport uppercase tracking-wider text-orange-500 border-b border-orange-500/20 group-hover:border-orange-500 transition-all">
-                Ouvrir les rapports →
-              </span>
-            </div>
-          </Link>
-
           {/* Admin Card - Gestion des Joueurs */}
           {userData &&
             ["ENTRAINEUR", "ADMIN_CLUB", "ADMIN_GENERAL"].includes(

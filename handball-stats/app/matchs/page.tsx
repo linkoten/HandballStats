@@ -55,7 +55,7 @@ export default async function MatchsPage() {
 
   // Grouper par compétition
   const matchsParCompetition = matchs.reduce((acc, match) => {
-    const comp = match.competition_name;
+    const comp = match.competition_name || "Non défini";
     if (!acc[comp]) acc[comp] = [];
     acc[comp].push(match);
     return acc;

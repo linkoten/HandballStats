@@ -4,13 +4,15 @@ import { auth } from "@clerk/nextjs/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
+
+    const { id } = await params;
 
     // Récupérer l'utilisateur
     const user = await prisma.user.findUnique({
@@ -24,7 +26,7 @@ export async function GET(
       );
     }
 
-    const matchId = parseInt(params.id);
+    const matchId = parseInt(id);
 
     const match = await prisma.matchs.findUnique({
       where: { id: matchId },

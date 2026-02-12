@@ -140,21 +140,21 @@ export default async function EquipeDetailPage({
                               variant="secondary"
                               className={`
                               ${
-                                competition.status === "COMPLETED"
+                                competition.scrapingStatus === "COMPLETED"
                                   ? "bg-green-500/10 text-green-600 border-green-500/20"
-                                  : competition.status === "IN_PROGRESS"
+                                  : competition.scrapingStatus === "IN_PROGRESS"
                                     ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
-                                    : competition.status === "FAILED"
+                                    : competition.scrapingStatus === "FAILED"
                                       ? "bg-destructive/10 text-destructive border-destructive/20"
                                       : "bg-muted/50 text-muted-foreground border-border/50"
                               }
                             `}
                             >
-                              {competition.status === "COMPLETED"
+                              {competition.scrapingStatus === "COMPLETED"
                                 ? "✓ Complète"
-                                : competition.status === "IN_PROGRESS"
+                                : competition.scrapingStatus === "IN_PROGRESS"
                                   ? "⏳ En cours"
-                                  : competition.status === "FAILED"
+                                  : competition.scrapingStatus === "FAILED"
                                     ? "✗ Échouée"
                                     : "⏸ En attente"}
                             </Badge>

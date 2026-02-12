@@ -15,8 +15,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Ignorer uniquement les lib python, pas le dossier lib de Next.js
+backend/lib/
+backend/lib64/
 parts/
 sdist/
 var/

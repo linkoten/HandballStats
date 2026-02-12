@@ -4,7 +4,8 @@
   "framework": "nextjs",
   "functions": {
     "app/api/**/*.ts": {
-      "runtime": "@vercel/node"
+      "runtime": "@vercel/node",
+      "maxDuration": 10
     }
   },
   "env": {
@@ -17,8 +18,17 @@
     "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL": "/onboarding",
     "STRIPE_SECRET_KEY": "@stripe_secret_key",
     "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret",
-    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@next_public_stripe_publishable_key"
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@next_public_stripe_publishable_key",
+    "SCRAPING_WEBHOOK_URL": "@scraping_webhook_url",
+    "WEBHOOK_AUTH_SECRET": "@webhook_auth_secret"
   },
   "installCommand": "npm install",
-  "regions": ["cle1"]
+  "regions": ["cle1"],
+  "redirects": [
+    {
+      "source": "/api/scraper/:path*",
+      "destination": "/api/trigger-scraping",
+      "permanent": false
+    }
+  ]
 }

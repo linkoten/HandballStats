@@ -5,10 +5,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Force la résolution des modules
-  experimental: {
-    typedRoutes: true,
-  },
 };
 
 export default nextConfig;

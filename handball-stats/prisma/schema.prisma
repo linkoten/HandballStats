@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MODÈLE UTILISATEUR (avec Clerk sync)
+// ============================================
+model User {
+  id        String  @id @default(uuid())
+  clerkId   String  @unique @map("clerk_id")
+  email     String  @unique
+  firstName String? @map("first_name")
+  lastName  String? @map("last_name")
+
+  // Stripe
+  stripeCustomerId       String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map("stripe_subscription_id")
+  stripePriceId          String?   @map("stripe_price_id")
+  stripeCurrentPeriodEnd DateTime? @map("stripe_current_period_end")
+
+  // Abonnement et rôle
+  subscription SubscriptionType @default(GRATUIT)
+  role         UserRole         @default(UTILISATEUR)
+
+  // Gestion des tokens
+  tokensRemaining Int @default(0) @map("tokens_remaining") // Tokens disponibles
+  tokensUsed      Int @default(0) @map("tokens_used") // Tokens consommés
+
+  // Relations
+  clubs             UserClub[]
+  competitionAccess CompetitionAccess[]
+  tokenUsageHistory TokenUsageHistory[]
+  equipeMetadata    UserEquipeMetadata[]
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([clerkId])
+  @@index([email])
+  @@index([subscription])
+  @@map("users")
+}
+
+// ============================================
+// NOUVEAU : MODÈLE CLUB
+// ============================================
+model Club {
+  id          Int     @id @default(autoincrement())
+  nom         String  @db.VarChar(255)
+  ville       String? @db.VarChar(255)
+  region      String? @db.VarChar(50)
+  departement String? @db.VarChar(3)
+
+  // Code unique FFHB si disponible
+  codeFfhb String? @unique @db.VarChar(50)
+
+  // Codes d'accès pour rôles
+  coachCode  String @unique @default("TEMP") @db.VarChar(12) // Code pour entraîneur
+  playerCode String @unique @default("TEMP") @db.VarChar(12) // Code pour joueur
+
+  // Relations
+  equipes   equipes[]
+  userClubs UserClub[]
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([departement])
+  @@index([region])
+  @@map("clubs")
+}
+
+// ============================================
+// TABLE DE LIAISON UTILISATEUR <-> CLUB
+// ============================================
+model UserClub {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  clubId Int    @map("club_id")
+
+  // Club principal de l'utilisateur (1 seul par utilisateur)
+  isPrincipal Boolean @default(false) @map("is_principal")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  @@unique([userId, clubId])
+  @@index([userId])
+  @@index([clubId])
+  @@map("user_clubs")
+}
+
+// ============================================
+// MÉTADONNÉES PERSONNALISÉES PAR UTILISATEUR
+// ============================================
+model UserEquipeMetadata {
+  id       String @id @default(uuid())
+  userId   String @map("user_id")
+  equipeId Int    @map("equipe_id")
+
+  // Données personnalisables par l'utilisateur
+  ville       String? @db.VarChar(255)
+  region      String? @db.VarChar(50)
+  departement String? @db.VarChar(3)
+  notes       String? @db.Text
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipe equipes @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, equipeId])
+  @@index([userId])
+  @@index([equipeId])
+  @@map("user_equipe_metadata")
+}
+
+// ============================================
+// NOUVEAU : MODÈLE COMPETITION
+// ============================================
+model Competition {
+  id       Int    @id @default(autoincrement())
+  nom      String @db.VarChar(255)
+  saison   String @db.VarChar(20) // ex: "2025-2026"
+  equipeId Int    @map("equipe_id")
+
+  // URL de base pour le scraping
+  baseUrl      String? @db.Text
+  poule        String? @db.VarChar(50) // ex: "poule-123456"
+  max_journees Int?    @map("max_journees") // Nombre de journées dans la compétition
+
+  // Nom de l'équipe tel qu'affiché sur le site FFHB
+  equipeFFHB String @default("ASC RENNAIS 1") @map("equipe_ffhb") @db.VarChar(255)
+
+  // Métadonnées
+  niveau String? @db.VarChar(100) // ex: "Régional", "Départemental"
+  phase  String? @db.VarChar(50) // ex: "Poule", "Phase finale"
+
+  // Statut du scraping
+  scrapingStatus   ScrapingStatus @default(PENDING) @map("scraping_status")
+  scrapingProgress Int            @default(0) @map("scraping_progress") // 0-100
+  scrapingStep     String?        @map("scraping_step") @db.VarChar(255) // Description de l'étape en cours
+  lastScrapedAt    DateTime?      @map("last_scraped_at")
+  scrapingError    String?        @db.Text
+
+  // Relations
+  equipe            equipes             @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+  matchs            matchs[]
+  competitionAccess CompetitionAccess[]
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([equipeId, saison, nom, phase]) // Une équipe ne peut avoir qu'une fois la même compétition/phase pour une saison
+  @@index([equipeId])
+  @@index([saison])
+  @@index([scrapingStatus])
+  @@map("competitions")
+}
+
+// ============================================
+// GESTION DES ACCÈS AUX COMPÉTITIONS
+// ============================================
+model CompetitionAccess {
+  id            String @id @default(uuid())
+  userId        String @map("user_id")
+  competitionId Int    @map("competition_id")
+
+  // Token dépensé ?
+  tokenUsed Boolean @default(false) @map("token_used")
+
+  // Date d'expiration de l'accès (optionnel, pour gérer les abonnements)
+  expiresAt DateTime? @map("expires_at")
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, competitionId])
+  @@index([userId])
+  @@index([competitionId])
+  @@index([expiresAt])
+  @@map("competition_access")
+}
+
+// ============================================
+// HISTORIQUE D'UTILISATION DES TOKENS
+// ============================================
+model TokenUsageHistory {
+  id            String @id @default(uuid())
+  userId        String @map("user_id")
+  competitionId Int?   @map("competition_id")
+
+  action TokenAction // SCRAPE, REFUND, PURCHASE, etc.
+  amount Int // Nombre de tokens (positif ou négatif)
+  reason String?     @db.Text
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("token_usage_history")
+}
+
+// ============================================
+// LIMITES PAR TYPE D'ABONNEMENT
+// ============================================
+model SubscriptionLimit {
+  id               Int              @id @default(autoincrement())
+  subscriptionType SubscriptionType @unique @map("subscription_type")
+
+  // Limites
+  maxTokens       Int @map("max_tokens") // Tokens inclus dans l'abonnement
+  maxClubs        Int @map("max_clubs") // Nombre de clubs max
+  maxEquipes      Int @map("max_equipes") // Nombre d'équipes max par club
+  maxCompetitions Int @map("max_competitions") // Nombre de compétitions max
+
+  // Features
+  advancedStats Boolean @default(false) @map("advanced_stats")
+
+  @@map("subscription_limits")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+enum SubscriptionType {
+  GRATUIT // 0 token, découverte
+  STARTER // 3 tokens
+  PRO // 10 tokens
+  CLUB // 25 tokens
+  PREMIUM // Illimité
+}
+
+enum UserRole {
+  UTILISATEUR
+  ENTRAINEUR
+  JOUEUR
+  ADMIN_CLUB
+  ADMIN_GENERAL
+}
+
+enum ScrapingStatus {
+  PENDING // En attente de scraping
+  IN_PROGRESS // Scraping en cours
+  COMPLETED // Scraping terminé avec succès
+  FAILED // Échec du scraping
+}
+
+enum TokenAction {
+  SCRAPE // Dépense d'un token pour scraper
+  REFUND // Remboursement d'un token (erreur de scraping)
+  PURCHASE // Achat de tokens supplémentaires
+  SUBSCRIPTION // Attribution de tokens via abonnement
+  ADMIN // Ajustement manuel par admin
+}
+
+// ============================================
+// TABLES EXISTANTES (handball data)
+// ============================================
+
+model equipes {
+  id          Int     @id @default(autoincrement())
+  nom         String  @unique @default("AS Default") @db.VarChar(255)
+  ville       String? @default("Rennes") @db.VarChar(255)
+  clubId      Int?    @map("club_id") // NOUVEAU : lien vers le club parent
+  region      String? @db.VarChar(50)
+  departement String? @db.VarChar(3)
+  status      String  @default("INACTIVE") @db.VarChar(20)
+
+  // Relations
+  club                                       Club?                 @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  competitions                               Competition[]
+  joueurs                                    joueurs[]
+  matchs_matchs_equipe_exterieur_idToequipes matchs[]              @relation("matchs_equipe_exterieur_idToequipes")
+  matchs_matchs_equipe_recevant_idToequipes  matchs[]              @relation("matchs_equipe_recevant_idToequipes")
+  statistiques_joueur                        statistiques_joueur[]
+  userMetadata                               UserEquipeMetadata[]
+
+  @@index([departement], map: "idx_equipes_departement")
+  @@index([region], map: "idx_equipes_region")
+  @@index([status], map: "idx_equipes_status")
+  @@index([clubId])
+}
+
+model joueurs {
+  id                  Int                   @id @default(autoincrement())
+  nom_prenom          String                @db.VarChar(255)
+  num_maillot         Int?
+  id_equipe           Int?
+  poste_principal     String?               @db.VarChar(50)
+  postes_secondaires  String[]              @db.VarChar(50)
+  equipes             equipes?              @relation(fields: [id_equipe], references: [id], onUpdate: NoAction)
+  statistiques_joueur statistiques_joueur[]
+
+  @@unique([nom_prenom, id_equipe])
+  @@index([poste_principal], map: "idx_joueurs_poste_principal")
+  @@index([postes_secondaires], map: "idx_joueurs_postes_secondaires", type: Gin)
+}
+
+model matchs {
+  id                              Int       @id @default(autoincrement())
+  match_url                       String    @unique
+  pdf_url                         String?
+  competition_name                String?   @db.VarChar(255)
+  competitionId                   Int?      @map("competition_id") // NOUVEAU : lien vers Competition
+  recevant_nom_display            String?   @db.VarChar(255) // Nom affiché de l'équipe recevante
+  exterieur_nom_display           String?   @db.VarChar(255) // Nom affiché de l'équipe extérieure
+  equipe_recevant_id              Int?
+  equipe_exterieur_id             Int?
+  score_final                     String?   @db.VarChar(10)
+  date_match                      DateTime? @default(dbgenerated("'2025-11-17 00:00:00'::timestamp without time zone")) @db.Timestamp(6)
+  arbitre_1                       String?   @default("Aucun/non défini") @db.VarChar(255)
+  arbitre_2                       String?   @default("Aucun/non défini") @db.VarChar(255)
+  cartons_jaunes_adversaire       Int?      @default(0)
+  exclusions_2min_adversaire      Int?      @default(0)
+  cartons_rouges_adversaire       Int?      @default(0)
+  sept_metres_adversaire          Int?      @default(0)
+  classement_equipe_recevant      Int?
+  partie_tableau_equipe_recevant  String?   @db.VarChar(20)
+  classement_equipe_exterieur     Int?
+  partie_tableau_equipe_exterieur String?   @db.VarChar(20)
+
+  // Relations
+  competition                                 Competition?          @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  equipes_matchs_equipe_exterieur_idToequipes equipes?              @relation("matchs_equipe_exterieur_idToequipes", fields: [equipe_exterieur_id], references: [id], onUpdate: NoAction)
+  equipes_matchs_equipe_recevant_idToequipes  equipes?              @relation("matchs_equipe_recevant_idToequipes", fields: [equipe_recevant_id], references: [id], onUpdate: NoAction)
+  statistiques_joueur                         statistiques_joueur[]
+
+  @@index([competitionId])
+  @@index([cartons_jaunes_adversaire], map: "idx_matchs_cartons_jaunes_adv")
+  @@index([cartons_rouges_adversaire], map: "idx_matchs_cartons_rouges_adv")
+  @@index([classement_equipe_exterieur], map: "idx_matchs_classement_exterieur")
+  @@index([classement_equipe_recevant], map: "idx_matchs_classement_recevant")
+  @@index([exclusions_2min_adversaire], map: "idx_matchs_exclusions_2min_adv")
+  @@index([partie_tableau_equipe_exterieur], map: "idx_matchs_partie_tableau_exterieur")
+  @@index([partie_tableau_equipe_recevant], map: "idx_matchs_partie_tableau_recevant")
+  @@index([sept_metres_adversaire], map: "idx_matchs_sept_metres_adv")
+}
+
+model statistiques_joueur {
+  id                Int      @id @default(autoincrement())
+  id_match          Int?
+  id_joueur         Int?
+  buts              Int?     @default(0)
+  sept_metres       Int?     @default(0)
+  tirs              Int?     @default(0)
+  arrets            Int?     @default(0)
+  avertissements    Int?     @default(0)
+  exclusions_2min   Int?     @default(0)
+  discipline        Int?     @default(0)
+  id_equipe_adverse Int?
+  equipes           equipes? @relation(fields: [id_equipe_adverse], references: [id], onUpdate: NoAction, map: "fk_stats_equipe_adverse")
+  joueurs           joueurs? @relation(fields: [id_joueur], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  matchs            matchs?  @relation(fields: [id_match], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_match, id_joueur])
+  @@index([id_equipe_adverse], map: "idx_stats_equipe_adverse")
+}

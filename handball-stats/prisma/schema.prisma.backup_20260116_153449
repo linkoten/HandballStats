@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MODÈLE UTILISATEUR (avec Clerk sync)
+// ============================================
+model User {
+  id        String  @id @default(uuid())
+  clerkId   String  @unique @map("clerk_id")
+  email     String  @unique
+  firstName String? @map("first_name")
+  lastName  String? @map("last_name")
+
+  // Stripe
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+
+  // Abonnement et rôle
+  subscription SubscriptionType @default(GRATUIT)
+  role         UserRole         @default(UTILISATEUR)
+
+  // Relations avec les clubs et compétitions
+  clubs              UserClub[]
+  competitionTokens  CompetitionToken[]
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([clerkId])
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================
+// TABLE DE LIAISON UTILISATEUR <-> CLUB
+// ============================================
+model UserClub {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  clubId Int    @map("club_id")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipe equipes @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  @@unique([userId, clubId])
+  @@index([userId])
+  @@index([clubId])
+  @@map("user_clubs")
+}
+
+// ============================================
+// TOKENS DE COMPÉTITION
+// ============================================
+model CompetitionToken {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  equipeId          Int      @map("equipe_id")
+  saison            String   @db.VarChar(20)
+  isClubPrincipal   Boolean  @default(true) @map("is_club_principal")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipe equipes @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, equipeId, saison], name: "userId_equipeId_saison")
+  @@index([userId])
+  @@index([equipeId])
+  @@map("competition_tokens")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+enum SubscriptionType {
+  GRATUIT
+  STARTER
+  PRO
+  CLUB
+  PREMIUM
+}
+
+enum UserRole {
+  UTILISATEUR
+  ENTRAINEUR
+  ADMIN_CLUB
+  ADMIN_GENERAL
+}
+
+// ============================================
+// TABLES EXISTANTES (importées de la BDD)
+// ============================================
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model equipes {
+  id                                         Int                   @id @default(autoincrement())
+  nom                                        String                @unique @default("AS Default") @db.VarChar(255)
+  ville                                      String?               @default("Rennes") @db.VarChar(255)
+  club                                       String?               @db.VarChar(100)
+  region                                     String?               @db.VarChar(50)
+  departement                                String?               @db.VarChar(3)
+  status                                     String                @default("INACTIVE") @db.VarChar(20)
+  userClubs                                  UserClub[]
+  competitionTokens                          CompetitionToken[]
+  joueurs                                    joueurs[]
+  matchs_matchs_equipe_exterieur_idToequipes matchs[]              @relation("matchs_equipe_exterieur_idToequipes")
+  matchs_matchs_equipe_recevant_idToequipes  matchs[]              @relation("matchs_equipe_recevant_idToequipes")
+  statistiques_joueur                        statistiques_joueur[]
+
+  @@index([departement], map: "idx_equipes_departement")
+  @@index([region], map: "idx_equipes_region")
+  @@index([status], map: "idx_equipes_status")
+}
+
+model joueurs {
+  id                  Int                   @id @default(autoincrement())
+  nom_prenom          String                @db.VarChar(255)
+  num_maillot         Int?
+  id_equipe           Int?
+  poste_principal     String?               @db.VarChar(50)
+  postes_secondaires  String[]              @db.VarChar(50)
+  equipes             equipes?              @relation(fields: [id_equipe], references: [id], onUpdate: NoAction)
+  statistiques_joueur statistiques_joueur[]
+
+  @@unique([nom_prenom, id_equipe])
+  @@index([poste_principal], map: "idx_joueurs_poste_principal")
+  @@index([postes_secondaires], map: "idx_joueurs_postes_secondaires", type: Gin)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model matchs {
+  id                                          Int                   @id @default(autoincrement())
+  match_url                                   String                @unique
+  pdf_url                                     String?
+  competition_name                            String?               @db.VarChar(255)
+  equipe_recevant_id                          Int?
+  equipe_exterieur_id                         Int?
+  score_final                                 String?               @db.VarChar(10)
+  date_match                                  DateTime?             @default(dbgenerated("'2025-11-17 00:00:00'::timestamp without time zone")) @db.Timestamp(6)
+  arbitre_1                                   String?               @default("Aucun/non défini") @db.VarChar(255)
+  arbitre_2                                   String?               @default("Aucun/non défini") @db.VarChar(255)
+  cartons_jaunes_adversaire                   Int?                  @default(0)
+  exclusions_2min_adversaire                  Int?                  @default(0)
+  cartons_rouges_adversaire                   Int?                  @default(0)
+  sept_metres_adversaire                      Int?                  @default(0)
+  classement_equipe_recevant                  Int?
+  partie_tableau_equipe_recevant              String?               @db.VarChar(20)
+  classement_equipe_exterieur                 Int?
+  partie_tableau_equipe_exterieur             String?               @db.VarChar(20)
+  equipes_matchs_equipe_exterieur_idToequipes equipes?              @relation("matchs_equipe_exterieur_idToequipes", fields: [equipe_exterieur_id], references: [id], onUpdate: NoAction)
+  equipes_matchs_equipe_recevant_idToequipes  equipes?              @relation("matchs_equipe_recevant_idToequipes", fields: [equipe_recevant_id], references: [id], onUpdate: NoAction)
+  statistiques_joueur                         statistiques_joueur[]
+
+  @@index([cartons_jaunes_adversaire], map: "idx_matchs_cartons_jaunes_adv")
+  @@index([cartons_rouges_adversaire], map: "idx_matchs_cartons_rouges_adv")
+  @@index([classement_equipe_exterieur], map: "idx_matchs_classement_exterieur")
+  @@index([classement_equipe_recevant], map: "idx_matchs_classement_recevant")
+  @@index([exclusions_2min_adversaire], map: "idx_matchs_exclusions_2min_adv")
+  @@index([partie_tableau_equipe_exterieur], map: "idx_matchs_partie_tableau_exterieur")
+  @@index([partie_tableau_equipe_recevant], map: "idx_matchs_partie_tableau_recevant")
+  @@index([sept_metres_adversaire], map: "idx_matchs_sept_metres_adv")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model statistiques_joueur {
+  id                Int      @id @default(autoincrement())
+  id_match          Int?
+  id_joueur         Int?
+  buts              Int?     @default(0)
+  sept_metres       Int?     @default(0)
+  tirs              Int?     @default(0)
+  arrets            Int?     @default(0)
+  avertissements    Int?     @default(0)
+  exclusions_2min   Int?     @default(0)
+  discipline        Int?     @default(0)
+  id_equipe_adverse Int?
+  equipes           equipes? @relation(fields: [id_equipe_adverse], references: [id], onUpdate: NoAction, map: "fk_stats_equipe_adverse")
+  joueurs           joueurs? @relation(fields: [id_joueur], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  matchs            matchs?  @relation(fields: [id_match], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_match, id_joueur])
+  @@index([id_equipe_adverse], map: "idx_stats_equipe_adverse")
+}

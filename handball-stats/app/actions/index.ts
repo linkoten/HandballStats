@@ -26,7 +26,6 @@ export {
 export {
   getMatchs,
   getMatchById,
-  createMatch,
   updateMatch,
   deleteMatch,
   getMatchsByUser,

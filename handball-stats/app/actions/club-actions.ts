@@ -245,7 +245,7 @@ export async function getUserClubs(): Promise<ClubResponse> {
         },
       },
       orderBy: {
-        joinedAt: "desc",
+        assignedAt: "desc",
       },
     });
 
@@ -272,7 +272,7 @@ export async function createClub(data: ClubFormData): Promise<ClubResponse> {
       throw new Error("Non authentifié");
     }
 
-    const { nom, ville, region, departement, email, telephone } = data;
+    const { nom, ville, region, departement } = data;
 
     if (!nom) {
       throw new Error("Nom du club requis");
@@ -324,8 +324,6 @@ export async function createClub(data: ClubFormData): Promise<ClubResponse> {
           ville,
           region,
           departement,
-          email,
-          telephone,
           coachCode,
           playerCode,
         },

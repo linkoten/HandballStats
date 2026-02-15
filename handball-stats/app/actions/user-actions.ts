@@ -176,8 +176,6 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
         user.stripeCurrentPeriodEnd?.toISOString() || null,
       clubs: user.clubs.map((uc) => ({
         ...uc.club,
-        role: uc.role,
-        joinedAt: uc.joinedAt,
       })),
       recentCompetitions: user.competitionAccess.map((ca) => ca.competition),
     };

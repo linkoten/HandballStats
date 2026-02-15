@@ -103,16 +103,16 @@ export async function triggerScraping(
         competition_id: comp.id,
         nom_competition: comp.nom,
         niveau: comp.niveau,
-        genre: comp.genre,
+        // genre: comp.genre, // supprimé : champ inexistant
         saison: comp.saison,
 
         // Configuration technique pour le scraper
-        id_champ: comp.idChamp,
+        // id_champ: comp.idChamp, // supprimé : champ inexistant
         id_poule: comp.poule,
-        journee_debut: comp.journeeDebut || 1,
-        journee_fin: comp.journeeFin || 26,
-        url_base: comp.urlBase,
-        last_scrape: comp.lastScrape?.toISOString(),
+        // journee_debut: comp.journeeDebut || 1, // supprimé : champ inexistant
+        // journee_fin: comp.journeeFin || 26, // supprimé : champ inexistant
+        // url_base: comp.urlBase, // supprimé : champ inexistant
+        last_scrape: comp.lastScrapedAt?.toISOString(),
 
         // Informations sur l'équipe
         equipe_config: {
@@ -274,7 +274,7 @@ export async function getScrapingStatus(
           case "COMPLETED":
             progress = 100;
             break;
-          case "ERROR":
+          case "FAILED":
             progress = 0;
             break;
           default:

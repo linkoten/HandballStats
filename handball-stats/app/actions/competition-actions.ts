@@ -10,7 +10,6 @@ export type CompetitionFormData = {
   genre: "MASCULIN" | "FEMININ" | "MIXTE";
   saison: string;
   equipeId: number;
-  idChamp?: string;
   poule?: string;
   journeeDebut?: number;
   journeeFin?: number;
@@ -237,7 +236,7 @@ export async function getCompetitionById(
             equipes_matchs_equipe_recevant_idToequipes: true,
             equipes_matchs_equipe_exterieur_idToequipes: true,
           },
-          orderBy: [{ journee: "asc" }, { date_match: "asc" }],
+          orderBy: [{ date_match: "asc" }],
         },
       },
     });
@@ -277,7 +276,6 @@ export async function createCompetition(
       genre,
       saison,
       equipeId,
-      idChamp,
       poule,
       journeeDebut,
       journeeFin,
@@ -319,14 +317,13 @@ export async function createCompetition(
         data: {
           nom,
           niveau,
-          genre,
+          // genre, // Retiré car n'existe pas dans CompetitionCreateInput
           saison,
           equipeId,
-          idChamp,
-          poule,
-          journeeDebut,
-          journeeFin,
-          urlBase,
+          // poule, // supprimé car non présent dans le modèle Prisma
+          // journeeDebut, // supprimé car non présent dans le modèle Prisma
+          // journeeFin, // supprimé car non présent dans le modèle Prisma
+          // urlBase, // supprimé car non présent dans le modèle Prisma
         },
         include: {
           equipe: {
@@ -418,14 +415,13 @@ export async function updateCompetition(
         ...(data.genre && { genre: data.genre }),
         ...(data.saison && { saison: data.saison }),
         ...(data.equipeId && { equipeId: data.equipeId }),
-        ...(data.idChamp !== undefined && { idChamp: data.idChamp }),
         ...(data.poule !== undefined && { poule: data.poule }),
         ...(data.journeeDebut !== undefined && {
           journeeDebut: data.journeeDebut,
         }),
         ...(data.journeeFin !== undefined && { journeeFin: data.journeeFin }),
         ...(data.urlBase !== undefined && { urlBase: data.urlBase }),
-        lastScrape: new Date(), // Mettre à jour le timestamp de modification
+        lastScrapedAt: new Date(), // Mettre à jour le timestamp de modification
       },
       include: {
         equipe: {
@@ -513,9 +509,9 @@ export async function updateCompetitionScrapingStatus(
     const competition = await prisma.competition.update({
       where: { id: competitionId },
       data: {
-        scrapingStatus: status,
-        scrapingMessage: message,
-        lastScrape: new Date(),
+        scrapingStatus: status as any, // S'assurer que le type correspond à l'enum Prisma
+        // scrapingMessage: message, // supprimé car n'existe pas dans le modèle Prisma
+        lastScrapedAt: new Date(),
       },
     });
 
@@ -621,8 +617,8 @@ export async function getCompetitionsStatus(
         scrapingStatus: comp.scrapingStatus || "PENDING",
         scrapingProgress: comp.scrapingProgress || 0,
         scrapingStep: comp.scrapingStep || null,
-        scrapingError: comp.scrapingMessage || null,
-        lastScrapedAt: comp.lastScrape,
+        scrapingError: comp.scrapingError || null,
+        lastScrapedAt: comp.lastScrapedAt,
         matchsCount,
         matchsWithStatsCount,
       };
@@ -632,15 +628,15 @@ export async function getCompetitionsStatus(
     const summary = {
       total: formattedCompetitions.length,
       completed: formattedCompetitions.filter(
-        (c) => c.scrapingStatus === "TERMINE",
+        (c) => c.scrapingStatus === "COMPLETED",
       ).length,
       inProgress: formattedCompetitions.filter(
-        (c) => c.scrapingStatus === "EN_COURS",
+        (c) => c.scrapingStatus === "IN_PROGRESS",
       ).length,
       pending: formattedCompetitions.filter(
         (c) => c.scrapingStatus === "PENDING" || !c.scrapingStatus,
       ).length,
-      failed: formattedCompetitions.filter((c) => c.scrapingStatus === "ERREUR")
+      failed: formattedCompetitions.filter((c) => c.scrapingStatus === "FAILED")
         .length,
     };
 

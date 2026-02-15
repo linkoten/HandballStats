@@ -130,9 +130,9 @@ export async function getMatchs(params?: {
         equipes_matchs_equipe_exterieur_idToequipes: {
           include: { club: true },
         },
-        competitions: true,
+        competition: true,
       },
-      orderBy: [{ date_match: "desc" }, { journee: "asc" }],
+      orderBy: [{ date_match: "desc" }],
       take: params?.limit || undefined,
     });
 
@@ -142,12 +142,11 @@ export async function getMatchs(params?: {
       date_match: match.date_match,
       equipe_recevant_id: match.equipe_recevant_id,
       equipe_exterieur_id: match.equipe_exterieur_id,
-      score_recevant: match.score_recevant,
-      score_exterieur: match.score_exterieur,
-      journee: match.journee,
-      lieu: match.lieu,
-      statut: match.statut,
-      competition_id: match.competition_id,
+      competitionId: match.competitionId,
+      competition_name: match.competition_name,
+      recevant_nom_display: match.recevant_nom_display,
+      exterieur_nom_display: match.exterieur_nom_display,
+      score_final: match.score_final,
       equipe_recevant: match.equipes_matchs_equipe_recevant_idToequipes
         ? {
             id: match.equipes_matchs_equipe_recevant_idToequipes.id,
@@ -166,12 +165,12 @@ export async function getMatchs(params?: {
               match.equipes_matchs_equipe_exterieur_idToequipes.club?.nom || "",
           }
         : null,
-      competition: match.competitions
+      competition: match.competition
         ? {
-            id: match.competitions.id,
-            nom: match.competitions.nom,
-            niveau: match.competitions.niveau,
-            genre: match.competitions.genre,
+            id: match.competition.id,
+            nom: match.competition.nom,
+            niveau: match.competition.niveau,
+            saison: match.competition.saison,
           }
         : null,
     }));
@@ -231,7 +230,7 @@ export async function getMatchById(matchId: number): Promise<MatchResponse> {
             },
           },
           {
-            competitions: {
+            competition: {
               competitionAccess: {
                 some: { userId: user.id },
               },
@@ -246,7 +245,7 @@ export async function getMatchById(matchId: number): Promise<MatchResponse> {
         equipes_matchs_equipe_exterieur_idToequipes: {
           include: { club: true },
         },
-        competitions: true,
+        competition: true,
         statistiques_joueur: {
           include: {
             joueurs: true,
@@ -275,96 +274,6 @@ export async function getMatchById(matchId: number): Promise<MatchResponse> {
 /**
  * Crée un nouveau match
  */
-export async function createMatch(data: MatchFormData): Promise<MatchResponse> {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Non authentifié");
-    }
-
-    const {
-      date_match,
-      equipe_recevant_id,
-      equipe_exterieur_id,
-      score_recevant,
-      score_exterieur,
-      journee,
-      lieu,
-      statut,
-    } = data;
-
-    if (!date_match || !equipe_recevant_id || !equipe_exterieur_id) {
-      throw new Error("Date, équipe recevante et équipe extérieure requis");
-    }
-
-    if (equipe_recevant_id === equipe_exterieur_id) {
-      throw new Error("Une équipe ne peut pas jouer contre elle-même");
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
-
-    if (!user) {
-      throw new Error("Utilisateur introuvable");
-    }
-
-    // Vérifier l'accès aux équipes
-    const accessibleEquipes = await prisma.equipes.findMany({
-      where: {
-        id: { in: [equipe_recevant_id, equipe_exterieur_id] },
-        club: {
-          userClubs: {
-            some: { userId: user.id },
-          },
-        },
-      },
-    });
-
-    if (accessibleEquipes.length !== 2) {
-      throw new Error("Accès refusé à une ou plusieurs équipes");
-    }
-
-    // Créer le match
-    const match = await prisma.matchs.create({
-      data: {
-        date_match,
-        equipe_recevant_id,
-        equipe_exterieur_id,
-        score_recevant,
-        score_exterieur,
-        journee,
-        lieu,
-        statut: statut || "PROGRAMME",
-      },
-      include: {
-        equipes_matchs_equipe_recevant_idToequipes: {
-          include: { club: true },
-        },
-        equipes_matchs_equipe_exterieur_idToequipes: {
-          include: { club: true },
-        },
-      },
-    });
-
-    // Revalider les pages qui affichent les matchs
-    revalidatePath("/matchs");
-    revalidatePath(`/equipes/${equipe_recevant_id}`);
-    revalidatePath(`/equipes/${equipe_exterieur_id}`);
-    revalidatePath("/dashboard");
-
-    return {
-      success: true,
-      data: match,
-    };
-  } catch (error) {
-    console.error("Erreur création match:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Erreur serveur",
-    };
-  }
-}
 
 /**
  * Met à jour un match existant

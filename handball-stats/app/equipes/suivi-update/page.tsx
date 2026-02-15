@@ -52,16 +52,18 @@ type UpdateStatus = {
 
 export default function SuiviUpdateEquipePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-900/10 via-purple-900/10 to-pink-900/10">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <p className="text-muted-foreground">Chargement...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-900/10 via-purple-900/10 to-pink-900/10">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-muted-foreground">Chargement...</p>
+            </div>
           </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <SuiviUpdateEquipePageContent />
     </Suspense>
   );

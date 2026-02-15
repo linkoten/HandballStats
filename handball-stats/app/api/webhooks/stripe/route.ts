@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (!signature) {
     return NextResponse.json(
       { error: "Pas de signature Stripe" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      process.env.STRIPE_WEBHOOK_SECRET!,
     );
   } catch (error) {
     console.error("Erreur vérification signature webhook:", error);
@@ -112,7 +112,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
         stripeSubscriptionId: subscription.id,
         stripePriceId: priceId,
         stripeCurrentPeriodEnd: new Date(
-          (subscription as any).current_period_end * 1000
+          (subscription as any).current_period_end * 1000,
         ),
         tokensRemaining: tokensToSet,
       },
@@ -130,12 +130,12 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   });
 
   console.log(
-    `✅ Abonnement ${subscriptionType} activé pour user ${userId} - ${tokensToSet} tokens attribués`
+    `✅ Abonnement ${subscriptionType} activé pour user ${userId} - ${tokensToSet} tokens attribués`,
   );
 }
 
 async function handleSubscriptionCancellation(
-  subscription: Stripe.Subscription
+  subscription: Stripe.Subscription,
 ) {
   const userId = subscription.metadata.userId;
 

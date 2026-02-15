@@ -1,65 +1,40 @@
 // app/matchs/page.tsx - Page listant tous les matchs
 
 import Link from "next/link";
-import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getUserProfile, getMatchsByUser } from "@/app/actions";
+import { Badge } from "@/components/ui/badge";
 
 export default async function MatchsPage() {
   const { userId } = await auth();
-  
+
   if (!userId) {
     redirect("/sign-in");
   }
 
-  // Récupérer l'utilisateur
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-  });
+  // Récupérer le profil utilisateur via Server Action
+  const userResult = await getUserProfile();
 
-  if (!user) {
+  if (!userResult.success || !userResult.data) {
     redirect("/sign-in");
   }
 
-  // Récupérer les compétitions auxquelles l'utilisateur a accès
-  const competitionAccess = await prisma.competitionAccess.findMany({
-    where: { userId: user.id },
-    select: { competitionId: true },
-  });
+  // Récupérer les matchs via Server Action
+  const matchsResult = await getMatchsByUser();
 
-  const competitionIds = competitionAccess.map((access) => access.competitionId);
-
-  // Filtrer les matchs uniquement pour les compétitions accessibles
-  const matchs = await prisma.matchs.findMany({
-    where: {
-      competitionId: {
-        in: competitionIds,
-      },
-    },
-    include: {
-      equipes_matchs_equipe_recevant_idToequipes: {
-        select: { id: true, nom: true, ville: true },
-      },
-      equipes_matchs_equipe_exterieur_idToequipes: {
-        select: { id: true, nom: true, ville: true },
-      },
-      competition: {
-        select: { id: true, nom: true, saison: true },
-      },
-    },
-    orderBy: {
-      date_match: "desc",
-    },
-    take: 50,
-  });
+  const matchs = matchsResult.success ? matchsResult.data : [];
 
   // Grouper par compétition
-  const matchsParCompetition = matchs.reduce((acc, match) => {
-    const comp = match.competition_name || "Non défini";
-    if (!acc[comp]) acc[comp] = [];
-    acc[comp].push(match);
-    return acc;
-  }, {} as Record<string, typeof matchs>);
+  const matchsParCompetition = matchs.reduce(
+    (acc, match) => {
+      const comp = match.competition?.nom || "Non défini";
+      if (!acc[comp]) acc[comp] = [];
+      acc[comp].push(match);
+      return acc;
+    },
+    {} as Record<string, typeof matchs>,
+  );
 
   return (
     <div className="min-h-screen">
@@ -108,7 +83,8 @@ export default async function MatchsPage() {
                       {competition}
                     </h2>
                     <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                      {matchsComp.length} match{matchsComp.length > 1 ? "s" : ""}
+                      {matchsComp.length} match
+                      {matchsComp.length > 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
@@ -124,21 +100,28 @@ export default async function MatchsPage() {
                           {/* Noms des équipes */}
                           <div className="flex items-center gap-4 mb-3">
                             <span className="text-lg font-sport uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">
-                              {match.equipes_matchs_equipe_recevant_idToequipes?.nom || match.recevant_nom_display || "Équipe inconnue"}
+                              {match.equipes_matchs_equipe_recevant_idToequipes
+                                ?.nom || "Équipe inconnue"}
                             </span>
-                            <span className="text-muted-foreground font-black text-xs px-2 py-1 bg-muted rounded-sm">VS</span>
+                            <span className="text-muted-foreground font-black text-xs px-2 py-1 bg-muted rounded-sm">
+                              VS
+                            </span>
                             <span className="text-lg font-sport uppercase tracking-tight text-foreground group-hover:text-primary transition-colors">
-                              {match.equipes_matchs_equipe_exterieur_idToequipes?.nom || match.exterieur_nom_display || "Équipe inconnue"}
+                              {match.equipes_matchs_equipe_exterieur_idToequipes
+                                ?.nom || "Équipe inconnue"}
                             </span>
                           </div>
-                          
+
                           {/* Score */}
                           <div className="flex items-center gap-3 mb-2">
-                             <div className="font-mono font-bold text-2xl text-foreground tracking-widest group-hover:text-secondary transition-colors">
-                              {match.score_final || "- -"}
+                            <div className="font-mono font-bold text-2xl text-foreground tracking-widest group-hover:text-secondary transition-colors">
+                              {match.score_recevant !== null &&
+                              match.score_exterieur !== null
+                                ? `${match.score_recevant} - ${match.score_exterieur}`
+                                : "- -"}
                             </div>
                           </div>
-                          
+
                           {/* Date */}
                           {match.date_match && (
                             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -151,19 +134,17 @@ export default async function MatchsPage() {
                                     year: "numeric",
                                     month: "short",
                                     day: "numeric",
-                                  }
+                                  },
                                 )}
                               </span>
-                              <span className="text-border">
-                                •
-                              </span>
+                              <span className="text-border">•</span>
                               <span>
                                 {new Date(match.date_match).toLocaleTimeString(
                                   "fr-FR",
                                   {
                                     hour: "2-digit",
                                     minute: "2-digit",
-                                  }
+                                  },
                                 )}
                               </span>
                             </div>
@@ -184,7 +165,7 @@ export default async function MatchsPage() {
                   ))}
                 </div>
               </div>
-            )
+            ),
           )}
         </div>
       </div>

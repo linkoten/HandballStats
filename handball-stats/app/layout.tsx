@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Navbar } from "@/components/navbar";
 import { UserSync } from "@/components/user-sync";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 const russoOne = Russo_One({
   weight: "400",
@@ -37,6 +38,7 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${russoOne.variable} antialiased min-h-screen bg-slate-50`}
         >
+          <Toaster />
           <UserSync />
           <Navbar />
           <main className="pb-20">{children}</main>

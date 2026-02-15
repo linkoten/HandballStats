@@ -1,9 +1,9 @@
 // app/matchs/[id]/page.tsx - Page de détails d'un match
 
 import Link from "next/link";
-import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getMatchById, getUserProfile } from "@/app/actions";
 
 export default async function MatchDetailPage({
   params,
@@ -19,14 +19,17 @@ export default async function MatchDetailPage({
   const { id } = await params;
   const matchId = parseInt(id);
 
-  // Récupérer l'utilisateur
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-  });
-
-  if (!user) {
+  // Récupérer le profil utilisateur
+  const userResult = await getUserProfile();
+  
+  if (!userResult.success || !userResult.data) {
     redirect("/sign-in");
   }
+
+  // Récupérer le match via Server Action
+  const matchResult = await getMatchById(matchId);
+
+  if (!matchResult.success || !matchResult.data) {
 
   // Récupérer le match avec toutes les relations
   const match = await prisma.matchs.findUnique({

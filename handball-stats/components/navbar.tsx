@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getUserProfile } from "@/app/actions";
 
 type UserData = {
   subscription: string;
@@ -30,12 +31,11 @@ export function Navbar() {
       }
 
       try {
-        const response = await fetch("/api/user/me");
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data);
+        const result = await getUserProfile();
+        if (result.success) {
+          setUserData(result.data);
         } else {
-          console.error("Erreur API /user/me:", response.status);
+          console.error("Erreur getUserProfile:", result.error);
         }
       } catch (error) {
         console.error("Erreur chargement données utilisateur:", error);

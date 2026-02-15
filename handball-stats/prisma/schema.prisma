@@ -282,7 +282,7 @@ enum TokenAction {
 
 model equipes {
   id          Int     @id @default(autoincrement())
-  nom         String  @unique @default("AS Default") @db.VarChar(255)
+  nom         String  @default("AS Default") @db.VarChar(255)
   ville       String? @default("Rennes") @db.VarChar(255)
   clubId      Int?    @map("club_id") // NOUVEAU : lien vers le club parent
   region      String? @db.VarChar(50)
@@ -298,6 +298,7 @@ model equipes {
   statistiques_joueur                        statistiques_joueur[]
   userMetadata                               UserEquipeMetadata[]
 
+  @@unique([nom]) // Contrainte unique pour éviter les doublons d'équipes
   @@index([departement], map: "idx_equipes_departement")
   @@index([region], map: "idx_equipes_region")
   @@index([status], map: "idx_equipes_status")

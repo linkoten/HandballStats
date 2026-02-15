@@ -67,10 +67,14 @@ export default function ScrapingProgressClient({
         const completed = comps.filter(
           (c) => c.scrapingStatus === "COMPLETED",
         ).length;
-        
+
         // Moyenne des progress individuels pour un suivi en temps réel
-        const totalProgress = comps.reduce((sum, comp) => sum + (comp.progress || 0), 0);
-        const globalProg = comps.length > 0 ? Math.round(totalProgress / comps.length) : 0;
+        const totalProgress = comps.reduce(
+          (sum, comp) => sum + (comp.progress || 0),
+          0,
+        );
+        const globalProg =
+          comps.length > 0 ? Math.round(totalProgress / comps.length) : 0;
 
         setCompletedCount(completed);
         setGlobalProgress(Math.round(globalProg));

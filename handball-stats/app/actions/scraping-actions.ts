@@ -241,10 +241,10 @@ export async function getScrapingStatus(
         equipe: {
           club: {
             userClubs: {
-              some: { userId: user.id }
-            }
-          }
-        }
+              some: { userId: user.id },
+            },
+          },
+        },
       },
       include: {
         equipe: {
@@ -261,7 +261,7 @@ export async function getScrapingStatus(
     const formattedCompetitions = competitions.map((comp) => {
       // Utiliser le vrai progress de la DB
       let progress = comp.scrapingProgress || 0;
-      
+
       // Fallback si pas de progress numérique
       if (!comp.scrapingProgress) {
         switch (comp.scrapingStatus) {
@@ -286,7 +286,7 @@ export async function getScrapingStatus(
         id: comp.id,
         nom: comp.nom,
         scrapingStatus: comp.scrapingStatus,
-        equipe: comp.equipe?.nom || 'Équipe inconnue',
+        equipe: comp.equipe?.nom || "Équipe inconnue",
         saison: comp.saison,
         progress,
       };

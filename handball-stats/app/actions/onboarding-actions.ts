@@ -13,8 +13,11 @@ import path from "path";
  */
 async function startScrapingProcess(competitionIds: number[]) {
   try {
-    console.log("🔄 Démarrage du scraping pour les compétitions:", competitionIds);
-    
+    console.log(
+      "🔄 Démarrage du scraping pour les compétitions:",
+      competitionIds,
+    );
+
     // Récupérer les compétitions avec toutes leurs données
     const competitions = await prisma.competition.findMany({
       where: { id: { in: competitionIds } },
@@ -23,18 +26,21 @@ async function startScrapingProcess(competitionIds: number[]) {
           select: {
             id: true,
             nom: true,
-          }
-        }
-      }
+          },
+        },
+      },
     });
 
     if (competitions.length === 0) {
-      console.error("❌ Aucune compétition trouvée avec ces IDs:", competitionIds);
+      console.error(
+        "❌ Aucune compétition trouvée avec ces IDs:",
+        competitionIds,
+      );
       return;
     }
 
     // Construire la configuration pour le script Python
-    const config = competitions.map(comp => ({
+    const config = competitions.map((comp) => ({
       competitionId: comp.id,
       equipeId: comp.equipeId,
       url: comp.baseUrl,
@@ -44,12 +50,12 @@ async function startScrapingProcess(competitionIds: number[]) {
       poule: comp.poule || "",
       max_journees: comp.max_journees || 18,
       saison: comp.saison,
-      phase: comp.phase || "Poule"
+      phase: comp.phase || "Poule",
     }));
 
     console.log("📊 Configuration du scraping:", {
       competitionsCount: config.length,
-      competitions: config.map(c => ({
+      competitions: config.map((c) => ({
         competitionId: c.competitionId,
         nom: c.competition_name,
         url: c.url,
@@ -58,61 +64,64 @@ async function startScrapingProcess(competitionIds: number[]) {
         saison: c.saison,
         poule: c.poule,
         max_journees: c.max_journees,
-      }))
+      })),
     });
-    
+
     // Chemin vers le script Python de scraping
     const backendPath = path.join(process.cwd(), "backend");
     const scrapingScript = path.join(backendPath, "scraper", "main.py");
-    
+
     console.log("📁 Chemin backend:", backendPath);
     console.log("🐍 Script Python:", scrapingScript);
-    
+
     // Mettre à jour le statut des compétitions
     await prisma.competition.updateMany({
       where: { id: { in: competitionIds } },
       data: { scrapingStatus: "IN_PROGRESS" },
     });
-    
+
     // Construire la commande Python avec la configuration JSON
     const configJson = JSON.stringify(config);
-    console.log("⚡ Commande Python avec config:", configJson.substring(0, 100) + "...");
-    
+    console.log(
+      "⚡ Commande Python avec config:",
+      configJson.substring(0, 100) + "...",
+    );
+
     // Lancer le processus Python avec capture des logs temps réel
     // Passer la config via stdin pour éviter les problèmes d'échappement
-    const pythonArgs = [scrapingScript, "--config", "-"];  // "-" signifie lire depuis stdin
-    const pythonProcess = spawn("python", pythonArgs, { 
+    const pythonArgs = [scrapingScript, "--config", "-"]; // "-" signifie lire depuis stdin
+    const pythonProcess = spawn("python", pythonArgs, {
       cwd: backendPath,
-      stdio: ['pipe', 'pipe', 'pipe'],  // stdin pipe pour envoyer la config
-      shell: true
+      stdio: ["pipe", "pipe", "pipe"], // stdin pipe pour envoyer la config
+      shell: true,
     });
-    
+
     console.log(`🚀 Processus Python lancé avec PID: ${pythonProcess.pid}`);
-    
+
     // Envoyer la configuration via stdin puis fermer
     if (pythonProcess.stdin) {
       pythonProcess.stdin.write(configJson);
       pythonProcess.stdin.end();
     }
-    
+
     // Capturer stdout en temps réel
-    pythonProcess.stdout?.on('data', (data) => {
+    pythonProcess.stdout?.on("data", (data) => {
       const message = data.toString().trim();
       if (message) {
         console.log(`[PYTHON] ${message}`);
       }
     });
-    
+
     // Capturer stderr en temps réel
-    pythonProcess.stderr?.on('data', (data) => {
+    pythonProcess.stderr?.on("data", (data) => {
       const error = data.toString().trim();
       if (error) {
         console.warn(`[PYTHON ERROR] ${error}`);
       }
     });
-    
+
     // Gérer la fin du processus
-    pythonProcess.on('close', (code) => {
+    pythonProcess.on("close", (code) => {
       if (code === 0) {
         console.log("✅ Scraping terminé avec succès");
         // Mettre à jour le statut en SUCCESS
@@ -125,27 +134,26 @@ async function startScrapingProcess(competitionIds: number[]) {
         // Mettre à jour le statut en ERROR
         prisma.competition.updateMany({
           where: { id: { in: competitionIds } },
-          data: { 
+          data: {
             scrapingStatus: "FAILED",
-            scrapingStep: `Processus terminé avec code: ${code}`
+            scrapingStep: `Processus terminé avec code: ${code}`,
           },
         });
       }
     });
-    
+
     // Gérer les erreurs du processus
-    pythonProcess.on('error', (error) => {
+    pythonProcess.on("error", (error) => {
       console.error("❌ Erreur lors du lancement du processus Python:", error);
       // Mettre à jour le statut en ERROR
       prisma.competition.updateMany({
         where: { id: { in: competitionIds } },
-        data: { 
+        data: {
           scrapingStatus: "FAILED",
-          scrapingStep: `Erreur: ${error.message}`
+          scrapingStep: `Erreur: ${error.message}`,
         },
       });
     });
-      
   } catch (error) {
     console.error("❌ Erreur startScrapingProcess:", error);
   }
@@ -475,39 +483,44 @@ export async function configureCompetitionsBatch(
       let competition;
       try {
         competition = await safeCreate(
-          () => prisma.competition.create({
-            data: {
-              nom: config.competition_name,
-              saison: config.saison,
-              equipeId: config.equipeId!,
-              baseUrl: config.url,
-              poule: config.poule || "",
-              max_journees: parseInt(config.max_journees) || 18,
-              equipeFFHB: config.equipe,
-              niveau: "Championnat",
-              phase: config.phase || "Poule",
-              scrapingStatus: "PENDING",
-            }
-          }),
-          "competitions"
+          () =>
+            prisma.competition.create({
+              data: {
+                nom: config.competition_name,
+                saison: config.saison,
+                equipeId: config.equipeId!,
+                baseUrl: config.url,
+                poule: config.poule || "",
+                max_journees: parseInt(config.max_journees) || 18,
+                equipeFFHB: config.equipe,
+                niveau: "Championnat",
+                phase: config.phase || "Poule",
+                scrapingStatus: "PENDING",
+              },
+            }),
+          "competitions",
         );
       } catch (error: any) {
         // Si la compétition existe déjà (contrainte unique), la récupérer
-        if (error.code === 'P2002') {
-          console.log(`⚠️ Compétition existante trouvée pour ${config.competition_name}, utilisation de celle-ci`);
+        if (error.code === "P2002") {
+          console.log(
+            `⚠️ Compétition existante trouvée pour ${config.competition_name}, utilisation de celle-ci`,
+          );
           competition = await prisma.competition.findFirst({
             where: {
               equipeId: config.equipeId!,
               saison: config.saison,
               nom: config.competition_name,
-              phase: config.phase || "Poule"
-            }
+              phase: config.phase || "Poule",
+            },
           });
-          
+
           if (!competition) {
-            throw new Error(`Compétition existante introuvable: ${config.competition_name}`);
+            throw new Error(
+              `Compétition existante introuvable: ${config.competition_name}`,
+            );
           }
-          
+
           // Mettre à jour les données avec les nouvelles valeurs
           competition = await prisma.competition.update({
             where: { id: competition.id },
@@ -517,7 +530,7 @@ export async function configureCompetitionsBatch(
               max_journees: parseInt(config.max_journees) || 18,
               equipeFFHB: config.equipe,
               scrapingStatus: "PENDING",
-            }
+            },
           });
         } else {
           throw error;
@@ -548,7 +561,7 @@ export async function configureCompetitionsBatch(
     // Lancer le scraping pour toutes les compétitions créées
     console.log("🚀 Lancement du scraping pour les compétitions:", {
       competitionsCount: results.length,
-      competitions: results.map(r => ({
+      competitions: results.map((r) => ({
         competitionId: r.competitionId,
         nom: r.config.competition_name,
         url: r.config.url,
@@ -557,11 +570,11 @@ export async function configureCompetitionsBatch(
         saison: r.config.saison,
         poule: r.config.poule,
         max_journees: r.config.max_journees,
-      }))
+      })),
     });
 
     // Lancer le scraping en arrière-plan
-    startScrapingProcess(results.map(r => r.competitionId));
+    startScrapingProcess(results.map((r) => r.competitionId));
 
     revalidatePath("/competitions");
     revalidatePath("/dashboard");
@@ -571,7 +584,7 @@ export async function configureCompetitionsBatch(
       data: {
         competitions: results,
         count: results.length,
-        redirectTo: `/competitions/scraping-progress?ids=${results.map(r => r.competitionId).join(',')}`,
+        redirectTo: `/competitions/scraping-progress?ids=${results.map((r) => r.competitionId).join(",")}`,
       },
     };
   } catch (error) {

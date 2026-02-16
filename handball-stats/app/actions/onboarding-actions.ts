@@ -558,23 +558,37 @@ export async function configureCompetitionsBatch(
     cookieStore.delete("onboarding-selected-club");
     cookieStore.delete("onboarding-selected-equipes");
 
-    // Lancer le scraping pour toutes les compétitions créées
-    console.log("🚀 Lancement du scraping pour les compétitions:", {
-      competitionsCount: results.length,
-      competitions: results.map((r) => ({
-        competitionId: r.competitionId,
-        nom: r.config.competition_name,
-        url: r.config.url,
-        equipe: r.config.equipe,
-        equipe_bdd: r.config.equipe_bdd,
-        saison: r.config.saison,
-        poule: r.config.poule,
-        max_journees: r.config.max_journees,
-      })),
-    });
-
-    // Lancer le scraping en arrière-plan
-    startScrapingProcess(results.map((r) => r.competitionId));
+    // Appel à l'API Render pour lancer le scraping
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      if (!apiUrl) {
+        throw new Error("NEXT_PUBLIC_API_URL non défini");
+      }
+      const response = await fetch(
+        `${apiUrl.replace(/\/$/, "")}/scrape/batch`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            competitions: results.map((r) => ({
+              competitionId: r.competitionId,
+              ...r.config,
+            })),
+          }),
+        },
+      );
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erreur API scraping:", errorText);
+      }
+    } catch (err) {
+      console.error(
+        "Erreur lors de l'appel à l'API Render pour le scraping:",
+        err,
+      );
+    }
 
     revalidatePath("/competitions");
     revalidatePath("/dashboard");

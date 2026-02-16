@@ -9,7 +9,6 @@ import sys
 import os
 import argparse
 
-# Initialisation FastAPI
 app = FastAPI(
     title="Handball Stats API",
     description="API pour les statistiques de handball ASCR",
@@ -65,12 +64,7 @@ except ImportError:
 from database.database import get_db_connection, upsert_equipe, insert_match_stats, normalize_team_name_for_classement, update_competition_progress
 from typing import Dict, Any, List, Set
 
-# Initialisation FastAPI
-app = FastAPI(
-    title="Handball Stats API",
-    description="API pour les statistiques de handball ASCR",
-    version="1.0.0"
-)
+
 
 # Configuration CORS
 app.add_middleware(

@@ -33,10 +33,14 @@ class ScrapeBatchRequest(BaseModel):
 def run_scraper_batch(competitions: list[dict]):
     import sys
     import json
-    # Appelle la fonction main() avec la config reçue
-    sys.argv = [sys.argv[0], '--config', json.dumps([dict(c) for c in competitions])]
-    # Appelle la fonction main comme en CLI
-    main()
+    # Remplace BASE_URLS par la config reçue
+    global BASE_URLS
+    original_base_urls = BASE_URLS.copy()
+    BASE_URLS = [dict(c) for c in competitions]
+    try:
+        main(mode='full')
+    finally:
+        BASE_URLS = original_base_urls
 
 
 

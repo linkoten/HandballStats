@@ -1,33 +1,25 @@
 from fastapi import FastAPI
-app = FastAPI()
-# Ajout du bloc de lancement compatible Render
-import uvicorn
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
-# main.py
-
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import sys
 import os
 import argparse
 
-# Ajouter le rpertoire parent au path pour les imports
+# Ajouter le répertoire parent au path pour les imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-# Essayer d'importer avec diffrentes mthodes pour compatibilit Docker/Local
+# Essayer d'importer avec différentes méthodes pour compatibilité Docker/Local
 try:
-    # Mthode 1: Import relatif au package scraper (pour python -m scraper.main)
+    # Méthode 1: Import relatif au package scraper (pour python -m scraper.main)
     from scraper.config import BASE_URLS
     from scraper.scraping import init_driver, get_match_data_from_journee_dynamic, get_pdf_url_from_match_page, get_referees_from_match_page
     from scraper.parsing import parse_pdf_data_pdfplumber
     from scraper.classement import scrape_classement_complet, build_classement_url
 except ImportError:
-    # Mthode 2: Import direct depuis le dossier courant
+    # Méthode 2: Import direct depuis le dossier courant
     from config import BASE_URLS
     from scraping import init_driver, get_match_data_from_journee_dynamic, get_pdf_url_from_match_page, get_referees_from_match_page
     from parsing import parse_pdf_data_pdfplumber
@@ -35,6 +27,52 @@ except ImportError:
 
 from database.database import get_db_connection, upsert_equipe, insert_match_stats, normalize_team_name_for_classement, update_competition_progress
 from typing import Dict, Any, List, Set
+
+# Initialisation FastAPI
+app = FastAPI(
+    title="Handball Stats API",
+    description="API pour les statistiques de handball ASCR",
+    version="1.0.0"
+)
+
+# Configuration CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # À restreindre en production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ============================================
+# ENDPOINTS API
+# ============================================
+
+@app.get("/")
+async def root():
+    """Point d'entrée principal de l'API"""
+    return {
+        "message": "Bienvenue sur l'API Handball Stats",
+        "status": "running",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
+@app.get("/health")
+async def health_check():
+    """Vérification de santé du service"""
+    return {"status": "healthy"}
+
+# TODO: Ajoutez vos autres endpoints ici
+# @app.post("/scrape")
+# async def trigger_scrape():
+#     """Déclencher un scraping"""
+#     # Appeler votre fonction main() de scraping
+#     return {"status": "scraping started"}
+
+# ============================================
+# FONCTIONS DE SCRAPING (votre code existant)
+# ============================================
 
 
 # Fonctions utilitaires pour la gestion incrmentale

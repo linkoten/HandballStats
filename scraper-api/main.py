@@ -1,3 +1,36 @@
+# Ajout pour endpoint /scrape/batch
+from fastapi import BackgroundTasks, Request
+from pydantic import BaseModel
+from typing import Optional
+
+class CompetitionConfig(BaseModel):
+    competitionId: Optional[int] = None
+    equipeId: Optional[int] = None
+    url: str
+    equipe: str
+    equipe_bdd: str
+    competition_name: str
+    poule: str
+    max_journees: int
+    saison: str
+    phase: Optional[str] = None
+
+class ScrapeBatchRequest(BaseModel):
+    competitions: list[CompetitionConfig]
+
+def run_scraper_batch(competitions: list[dict]):
+    import sys
+    import json
+    # Appelle la fonction main() avec la config reçue
+    sys.argv = [sys.argv[0], '--config', json.dumps([dict(c) for c in competitions])]
+    # Appelle la fonction main comme en CLI
+    main()
+
+@app.post("/scrape/batch")
+async def scrape_batch(request: ScrapeBatchRequest, background_tasks: BackgroundTasks):
+    """Déclenche le scraping batch avec la configuration envoyée par le front"""
+    background_tasks.add_task(run_scraper_batch, [c.dict() for c in request.competitions])
+    return {"status": "scraping started", "count": len(request.competitions)}
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd

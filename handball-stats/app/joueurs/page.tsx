@@ -13,7 +13,7 @@ export default async function JoueursPage() {
 
   // Récupérer le profil utilisateur via Server Action
   const userResult = await getUserProfile();
-  
+
   if (!userResult.success || !userResult.data) {
     redirect("/sign-in");
   }
@@ -22,36 +22,38 @@ export default async function JoueursPage() {
 
   // Récupérer les équipes auxquelles l'utilisateur a accès via les clubs
   const userClubs = await prisma.userClub.findMany({
-    where: { 
+    where: {
       userId: user.id,
-      club: {
-        isActive: true
-      }
     },
     select: {
-      clubId: true
-    }
+      clubId: true,
+    },
   });
 
-  const clubIds = userClubs.map(uc => uc.clubId);
+  const clubIds = userClubs.map((uc) => uc.clubId);
 
-  const equipes = await prisma.equipes.findMany({
+  const equipesRaw = await prisma.equipes.findMany({
     where: {
-      clubId: { in: clubIds }
+      clubId: { in: clubIds },
     },
     include: {
       club: {
-        select: { id: true, nom: true }
+        select: { id: true, nom: true },
       },
       _count: {
-        select: { joueurs: true }
-      }
+        select: { joueurs: true },
+      },
     },
-    orderBy: [
-      { club: { nom: 'asc' } },
-      { nom: 'asc' }
-    ]
+    orderBy: [{ club: { nom: "asc" } }, { nom: "asc" }],
   });
+
+  // Filter out equipes with null club to match Equipe type
+  const equipes = equipesRaw
+    .filter((e) => e.club !== null)
+    .map((e) => ({
+      ...e,
+      club: e.club as { id: number; nom: string },
+    }));
 
   return (
     <JoueursClient

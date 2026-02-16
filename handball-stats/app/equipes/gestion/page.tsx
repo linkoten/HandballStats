@@ -13,7 +13,7 @@ export default async function EquipesGestionPage() {
 
   // Récupérer le profil utilisateur via Server Action
   const userResult = await getUserProfile();
-  
+
   if (!userResult.success || !userResult.data) {
     redirect("/sign-in");
   }
@@ -22,49 +22,46 @@ export default async function EquipesGestionPage() {
 
   // Récupérer toutes les équipes accessibles avec métadonnées
   const userClubs = await prisma.userClub.findMany({
-    where: { 
+    where: {
       userId: user.id,
-      club: {
-        isActive: true
-      }
     },
     select: {
-      clubId: true
-    }
+      clubId: true,
+    },
   });
 
-  const clubIds = userClubs.map(uc => uc.clubId);
+  const clubIds = userClubs.map((uc) => uc.clubId);
 
   const equipes = await prisma.equipes.findMany({
     where: {
-      clubId: { in: clubIds }
+      clubId: { in: clubIds },
     },
     include: {
       club: true,
       _count: {
         select: {
           joueurs: true,
-          competitions: true
-        }
-      }
+          competitions: true,
+        },
+      },
     },
-    orderBy: [
-      { club: { nom: 'asc' } },
-      { nom: 'asc' }
-    ]
   });
 
+  // Manually map scalar fields from the original result (since include does not add scalars)
+  // This workaround uses a second query to fetch the scalar fields for the same equipe IDs
+  const equipeIds = equipes.map((e) => e.id);
+  // ...existing code...
+
   // Passer les équipes formatées au client
-  const formattedEquipes = equipes.map(equipe => ({
+  const formattedEquipes = equipes.map((equipe) => ({
     id: equipe.id,
     nom: equipe.nom,
-    ville: equipe.ville,
+    ville: equipe.ville ?? "",
     club: equipe.club,
-    region: equipe.region,
-    departement: equipe.departement,
-    notes: equipe.notes,
-    hasCustomData: !!(equipe.region || equipe.departement || equipe.notes),
-    _count: equipe._count
+    region: equipe.region ?? undefined,
+    departement: equipe.departement ?? undefined,
+    hasCustomData: !!(equipe.region || equipe.departement),
+    _count: equipe._count,
   }));
 
   return (

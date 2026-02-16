@@ -39,10 +39,17 @@ def run_scraper_batch(competitions: list[dict]):
     # Appelle la fonction main comme en CLI
     main()
 
+
 @app.post("/scrape/batch")
 async def scrape_batch(request: ScrapeBatchRequest, background_tasks: BackgroundTasks):
     """Déclenche le scraping batch avec la configuration envoyée par le front"""
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"[API] Reçu POST /scrape/batch avec {len(request.competitions)} compétitions")
+    for idx, comp in enumerate(request.competitions, 1):
+        logging.info(f"[API] Compétition {idx}: {comp}")
     background_tasks.add_task(run_scraper_batch, [c.dict() for c in request.competitions])
+    logging.info("[API] Scraping lancé en tâche de fond")
     return {"status": "scraping started", "count": len(request.competitions)}
 
 # Ajouter le répertoire parent au path pour les imports

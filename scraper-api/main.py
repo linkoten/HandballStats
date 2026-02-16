@@ -1,3 +1,5 @@
+from fastapi import FastAPI
+app = FastAPI()
 # Ajout du bloc de lancement compatible Render
 import uvicorn
 

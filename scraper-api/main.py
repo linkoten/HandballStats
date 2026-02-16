@@ -1,7 +1,20 @@
 # Ajout pour endpoint /scrape/batch
-from fastapi import BackgroundTasks, Request
+
+from fastapi import FastAPI, BackgroundTasks, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+import pandas as pd
+import sys
+import os
+import argparse
+
+# Initialisation FastAPI
+app = FastAPI(
+    title="Handball Stats API",
+    description="API pour les statistiques de handball ASCR",
+    version="1.0.0"
+)
 
 class CompetitionConfig(BaseModel):
     competitionId: Optional[int] = None
@@ -31,12 +44,6 @@ async def scrape_batch(request: ScrapeBatchRequest, background_tasks: Background
     """Déclenche le scraping batch avec la configuration envoyée par le front"""
     background_tasks.add_task(run_scraper_batch, [c.dict() for c in request.competitions])
     return {"status": "scraping started", "count": len(request.competitions)}
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import pandas as pd
-import sys
-import os
-import argparse
 
 # Ajouter le répertoire parent au path pour les imports
 current_dir = os.path.dirname(os.path.abspath(__file__))

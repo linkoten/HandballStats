@@ -5,9 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import pandas as pd
+
 import sys
 import os
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = FastAPI(
     title="Handball Stats API",
@@ -532,6 +534,7 @@ def main(mode='full', competition_id=None, equipe_id=None):
     all_match_data_initial: List[Dict[str, Any]] = []
     all_match_stats = []
     conn = get_db_connection()
+    transaction_started = False
     
     # Mettre à jour le statut de la compétition à IN_PROGRESS si competition_id fourni
     if competition_id and conn:
@@ -551,117 +554,84 @@ def main(mode='full', competition_id=None, equipe_id=None):
         urls_to_retry = get_matches_without_pdf(conn) | get_matches_without_stats(conn)
         print(f" Mode mise  jour: {len(urls_to_retry)} match(s)  retraiter\n")
 
+
     try:
         if driver is not None:
             # TAPE 0 : Scraping des classements complets pour toutes les poules
             print(f"\n[INFO] ETAPE 0: Recuperation des classements complets", flush=True)
-            
             if competition_id and conn:
                 print(f"[DEBUG] Updating progress to 5% for competition {competition_id}", flush=True)
                 update_competition_progress(conn, competition_id, 5, "Recuperation des classements...")
-            
-            classements_by_poule = {}  # Dict: poule -> dict des classements
-            
+            classements_by_poule = {}
             for competition_config in BASE_URLS:
                 competition_url = competition_config['url']
                 poule = competition_config['poule']
                 competition_name = competition_config["competition_name"]
-                
                 print(f"\n--- Classement {competition_name} ---")
                 classement_url = build_classement_url(competition_url, poule)
                 classements = scrape_classement_complet(driver, classement_url)
-                
                 if classements:
                     classements_by_poule[poule] = classements
                     print(f"    -> [OK] {len(classements)} quipes au classement")
                 else:
                     print(f"    -> [WARN] Aucun classement rcupr")
-            
             print(f"\n[OK] Classements recuperes pour {len(classements_by_poule)} poule(s)", flush=True)
-
             if competition_id and conn:
                 update_competition_progress(conn, competition_id, 15, f"Classements recuperes ({len(classements_by_poule)} poule(s))")
-            
-            # TAPE 1 : Rcupration des URLs de Matchs et des DONNES GNRALES
             print(f"\n[COMP] Mode: {mode.upper()}", flush=True)
             print(f"[COMP] Analyse de {len(BASE_URLS)} comptition(s) :", flush=True)
-            
             if competition_id and conn:
                 update_competition_progress(conn, competition_id, 20, "Recherche des matchs...")
-            
             for url_idx, competition_config in enumerate(BASE_URLS, 1):
                 competition_name = competition_config["competition_name"]
                 max_journees = competition_config.get("max_journees")
-
                 print(f"\n--- [COMP] COMPETITION {url_idx}/{len(BASE_URLS)}: {competition_name} (Max J: {max_journees}) ---", flush=True)
-
-                # Dterminer le point de dpart selon le mode
                 start_journee = 1
                 if mode == 'incremental':
                     last_journee = get_last_match_journee_for_team(conn, competition_name)
                     start_journee = last_journee + 1 if last_journee > 0 else 1
                     print(f"   [FAST] Mode incrmental: Dmarrage  la journe {start_journee}")
-                
                 competition_match_count = 0
                 new_matches_count = 0
-                pdf_not_found = False  # Flag pour arrter si pas de PDF
-                
+                pdf_not_found = False
+                # --- SCRAPING DES JOURNÉES SÉQUENTIEL (1 thread Selenium) ---
                 for j in range(start_journee, max_journees + 1):
-                    # Update progress (20-40%)
-                    if competition_id and conn:
-                         total_days = max_journees - start_journee + 1
-                         current_day_idx = j - start_journee + 1
-                         prog = 20 + int((current_day_idx / total_days) * 20) if total_days > 0 else 40
-                         print(f"[DEBUG] Analysing day {j}/{max_journees}, progress: {prog}%, matches found: {competition_match_count}", flush=True)
-                         update_competition_progress(conn, competition_id, prog, f"Analyse journee {j}/{max_journees} - {competition_match_count} match(s) trouve(s)")
-
-                    # En mode incrmental, arrter si le match prcdent n'avait pas de PDF
-                    if mode == 'incremental' and pdf_not_found:
-                        print(f"    [PAUSE]  Arrt: Match sans PDF dtect  la journe prcdente")
-                        break
-                    
-                    print(f"[DEBUG] Getting match data for day {j}...", flush=True)
                     try:
                         data_cette_journee = get_match_data_from_journee_dynamic(driver, competition_config, j)
                         print(f"[DEBUG] Day {j} returned {len(data_cette_journee) if data_cette_journee else 0} matches", flush=True)
                     except Exception as e:
                         print(f"[ERROR] Failed to get match data for day {j}: {e}", flush=True)
                         data_cette_journee = []
-                        continue
-                    
+                    if competition_id and conn:
+                        total_days = max_journees - start_journee + 1
+                        current_day_idx = j - start_journee + 1
+                        prog = 20 + int((current_day_idx / total_days) * 20) if total_days > 0 else 40
+                        update_competition_progress(conn, competition_id, prog, f"Analyse journee {j}/{max_journees} - {competition_match_count} match(s) trouve(s)")
                     for match_data in data_cette_journee:
                         match_data['competition'] = competition_name
                         match_data['equipe_cible_nom'] = competition_config["equipe"]
                         match_data['poule'] = competition_config["poule"]
                         match_data['equipe_cible_bdd_name'] = competition_config["equipe_bdd"]
-                        
                         match_url = match_data['match_url']
-                        
-                        # Filtrage selon le mode
                         if mode == 'incremental':
-                            # Mode incrmental : ne garder que les nouveaux matchs
                             if match_url not in existing_urls:
-                                # Vrifier immdiatement si le PDF existe
                                 temp_pdf_url = get_pdf_url_from_match_page(driver, match_url)
                                 if temp_pdf_url:
-                                    match_data['pdf_url_temp'] = temp_pdf_url  # Stocker temporairement
+                                    match_data['pdf_url_temp'] = temp_pdf_url
                                     all_match_data_initial.append(match_data)
                                     new_matches_count += 1
                                     print(f"       [OK] Nouveau match avec PDF trouv")
                                 else:
                                     print(f"       [PAUSE]  Match sans PDF - arrt pour cette quipe")
                                     pdf_not_found = True
-                                    break  # Sortir de la boucle des matchs
+                                    break
                         elif mode == 'update-pdf':
-                            # Mode update-pdf : ne traiter que les matchs  retraiter
                             if match_url in urls_to_retry:
                                 all_match_data_initial.append(match_data)
                                 new_matches_count += 1
                         else:
-                            # Mode full : tout traiter
                             all_match_data_initial.append(match_data)
                             new_matches_count += 1
-
                     if data_cette_journee:
                         if mode == 'incremental':
                             journee_nouveaux = new_matches_count - competition_match_count
@@ -672,9 +642,7 @@ def main(mode='full', competition_id=None, equipe_id=None):
                     else:
                         print(f"    [ERROR] Journe {j}: aucun match trouv")
                         if mode == 'incremental':
-                            # Pas de match = on arrte pour cette quipe
                             break
-
                 print(f"--- Total pour {competition_name}: {competition_match_count} match(s)  traiter ---", flush=True)
                 print(f"[DEBUG] Competition {url_idx}/{len(BASE_URLS)} complete. Moving to next...", flush=True)
 
@@ -698,42 +666,30 @@ def main(mode='full', competition_id=None, equipe_id=None):
                 else:
                     update_competition_progress(conn, competition_id, 45, f"Traitement des {total_matches} match(s) trouve(s)...")
 
-            for i, match_data in enumerate(all_match_data_initial):
-                # Update progress (45-95%)
-                if competition_id and conn:
-                    prog = 45 + int(((i) / total_matches) * 50) if total_matches > 0 else 95
-                    match_info = f"{match_data.get('equipe_recevant_nom', 'N/A')} vs {match_data.get('equipe_exterieur_nom', 'N/A')}"
-                    if len(match_info) > 40:
-                        match_info = match_info[:37] + "..."
-                    print(f"[DEBUG] Processing match {i+1}/{total_matches}, updating to {prog}%", flush=True)
-                    update_competition_progress(conn, competition_id, prog, f"Match {i+1}/{total_matches}: {match_info}")
 
+            # 1. Scraping séquentiel des liens PDF pour chaque match (Selenium, 1 driver)
+            for i, match_data in enumerate(all_match_data_initial):
                 match_url = match_data['match_url']
-                match_id = match_url.split('/rencontre-')[-1].replace('/', '')
+                pdf_url = get_pdf_url_from_match_page(driver, match_url)
+                match_data['pdf_url'] = pdf_url
+            # 2. Parallélisation du parsing PDF et insertion BDD (requests, thread-safe)
+            import asyncio
+            from parsing import parse_pdf_data_pdfplumber_async
+            async def process_match_async(i, match_data):
+                match_id = match_data['match_url'].split('/rencontre-')[-1].replace('/', '')
                 equipe_cible_nom = match_data['equipe_cible_nom']
                 equipe_cible_bdd_name = match_data['equipe_cible_bdd_name']
-
                 print(f"\n[Match {i + 1}/{len(all_match_data_initial)}] Traitement du Match ID: {match_id} - quipe BDD: {equipe_cible_bdd_name}", flush=True)
                 print(f"Date: {match_data.get('date_match_str', 'N/A')} | Score: {match_data['score_recevant']} - {match_data['score_visiteur']}", flush=True)
-
-                # Rcupration du lien PDF (utiliser celui dj rcupr en mode incrmental)
-                if 'pdf_url_temp' in match_data:
-                    pdf_url = match_data['pdf_url_temp']
-                    print(f"    -> PDF dj rcupr: {pdf_url}", flush=True)
-                else:
-                    pdf_url = get_pdf_url_from_match_page(driver, match_url)
-                
-                match_data['pdf_url'] = pdf_url
-
+                pdf_url = match_data.get('pdf_url')
                 match_result = {
                     **match_data,
                     'match_id': match_id,
                     'stats_joueurs': pd.DataFrame()
                 }
-
                 if pdf_url:
-                    print(f"    -> PDF trouve, parsing en cours...", flush=True)
-                    parsed_pdf_data = parse_pdf_data_pdfplumber(pdf_url, equipe_cible_nom)
+                    print(f"    -> PDF trouve, parsing async en cours...", flush=True)
+                    parsed_pdf_data = await parse_pdf_data_pdfplumber_async(pdf_url, equipe_cible_nom)
                     match_result.update({
                         'stats_joueurs': parsed_pdf_data.get('joueurs_recevant', pd.DataFrame()),
                         'home_away': parsed_pdf_data.get('home_away', match_data['home_away']),
@@ -757,54 +713,73 @@ def main(mode='full', competition_id=None, equipe_id=None):
                         'cartons_rouges_adversaire': 0,
                         'sept_metres_adversaire': 0
                     })
-
-                # Enrichir avec les classements des quipes
                 poule_match = match_data.get('poule')
                 if poule_match and poule_match in classements_by_poule:
                     classements_poule = classements_by_poule[poule_match]
-                    
-                    # Normaliser les noms d'quipes
                     recevant_normalized = normalize_team_name_for_classement(match_data['equipe_recevant_nom'])
                     exterieur_normalized = normalize_team_name_for_classement(match_data['equipe_exterieur_nom'])
-                    
-                    # Chercher les classements
                     if recevant_normalized in classements_poule:
                         match_result['classement_equipe_recevant'] = classements_poule[recevant_normalized]['classement']
                         match_result['partie_tableau_equipe_recevant'] = classements_poule[recevant_normalized]['partie_tableau']
                     else:
                         print(f"    -> [WARN] Classement non trouv pour {match_data['equipe_recevant_nom']} (normalis: {recevant_normalized})")
-                    
                     if exterieur_normalized in classements_poule:
                         match_result['classement_equipe_exterieur'] = classements_poule[exterieur_normalized]['classement']
                         match_result['partie_tableau_equipe_exterieur'] = classements_poule[exterieur_normalized]['partie_tableau']
                     else:
                         print(f"    -> [WARN] Classement non trouv pour {match_data['equipe_exterieur_nom']} (normalis: {exterieur_normalized})")
+                return match_result
 
-                all_match_stats.append(match_result)
+            async def process_all_matches_async():
+                tasks = [process_match_async(i, match_data) for i, match_data in enumerate(all_match_data_initial)]
+                return await asyncio.gather(*tasks)
 
-                # ENREGISTREMENT DANS LA BDD
-                if conn and not match_result['stats_joueurs'].empty:
-                    print("    -> [DB] Demarrage de l'enregistrement dans la BDD...", flush=True)
-                    
-                    # Si equipe_id est fourni (mode SaaS), l'utiliser directement
-                    # Sinon créer/récupérer l'équipe via upsert (mode legacy)
-                    if equipe_id:
-                        equipe_cible_id = equipe_id
-                        print(f"    -> [SaaS] Utilisation de l'equipe ID: {equipe_id}", flush=True)
-                    else:
-                        # Mode legacy : créer l'équipe avec upsert
-                        equipe_cible_id = upsert_equipe(conn, equipe_cible_bdd_name, status='ACTIVE')
-                    
-                    if equipe_cible_id:
-                        success = insert_match_stats(conn, match_result, equipe_cible_id, equipe_cible_bdd_name, competition_id=competition_id)
-                        if success:
-                            print("    -> [DB] Match enregistre avec succes", flush=True)
+            # --- Début de la transaction globale pour tous les matchs de la compétition ---
+            if conn:
+                try:
+                    conn.autocommit = False
+                    transaction_started = True
+                except Exception as e:
+                    print(f"[ERROR] Impossible de démarrer la transaction globale: {e}")
+            try:
+                # Lancement du parsing PDF en full async
+                all_match_stats = asyncio.run(process_all_matches_async())
+                # Insertion BDD séquentielle (pour éviter problèmes de connexion partagée)
+                for idx, match_result in enumerate(all_match_stats):
+                    if conn and not match_result['stats_joueurs'].empty:
+                        print("    -> [DB] Demarrage de l'enregistrement dans la BDD...", flush=True)
+                        if equipe_id:
+                            equipe_cible_id = equipe_id
+                            print(f"    -> [SaaS] Utilisation de l'equipe ID: {equipe_id}", flush=True)
                         else:
-                            print("    -> [DB][ERROR] Echec enregistrement du match", flush=True)
-                    else:
-                        print("    -> [ERROR] Impossible d'enregistrer l'equipe cible.", flush=True)
-                elif conn:
-                    print("    -> [WARN] Match ignore pour l'insertion BDD (manque de stats).", flush=True)
+                            equipe_cible_id = upsert_equipe(conn, match_result['equipe_cible_bdd_name'], status='ACTIVE')
+                        if equipe_cible_id:
+                            success = insert_match_stats(conn, match_result, equipe_cible_id, match_result['equipe_cible_bdd_name'], competition_id=competition_id)
+                            if success:
+                                print("    -> [DB] Match enregistre avec succes", flush=True)
+                            else:
+                                print("    -> [DB][ERROR] Echec enregistrement du match", flush=True)
+                        else:
+                            print("    -> [ERROR] Impossible d'enregistrer l'equipe cible.", flush=True)
+                    elif conn:
+                        print("    -> [WARN] Match ignore pour l'insertion BDD (manque de stats).", flush=True)
+                    # Update progress (45-95%)
+                    if competition_id and conn:
+                        prog = 45 + int(((idx) / total_matches) * 50) if total_matches > 0 else 95
+                        match_info = f"{match_result.get('equipe_recevant_nom', 'N/A')} vs {match_result.get('equipe_exterieur_nom', 'N/A')}"
+                        if len(match_info) > 40:
+                            match_info = match_info[:37] + "..."
+                        print(f"[DEBUG] Processing match {idx+1}/{total_matches}, updating to {prog}%", flush=True)
+                        update_competition_progress(conn, competition_id, prog, f"Match {idx+1}/{total_matches}: {match_info}")
+                # Commit global après tous les matchs
+                if transaction_started:
+                    conn.commit()
+                    print("[DB] Commit global effectué pour tous les matchs de la compétition.", flush=True)
+            except Exception as e:
+                print(f"[DB][ERROR] Rollback global de la transaction: {e}", flush=True)
+                if transaction_started:
+                    conn.rollback()
+                raise
 
         # Succès fin de traitement
         if competition_id and conn:

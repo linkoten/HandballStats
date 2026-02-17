@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -58,6 +59,8 @@ type Equipe = {
   id: number;
   nom: string;
   ville?: string;
+  region?: string;
+  departement?: string;
   saison?: string;
   nom_competition?: string;
   club_id?: number;
@@ -96,6 +99,12 @@ export default function CreateCompetitionClient({
   selectedClub,
   error,
 }: CreateCompetitionClientProps) {
+  // État pour la liste des équipes du club
+  const [equipes, setEquipes] = useState<Equipe[]>(selectedTeams);
+  // État pour la modale d'ajout d'équipe
+  const [showAddEquipe, setShowAddEquipe] = useState(false);
+  const [newEquipe, setNewEquipe] = useState({ nom: "", ville: "", region: "", departement: "" });
+  const [addEquipeError, setAddEquipeError] = useState<string | null>(null);
   const router = useRouter();
   const [userData] = useState<UserData | null>(initialUserData);
   const [isPending, startTransition] = useTransition();
@@ -276,7 +285,7 @@ export default function CreateCompetitionClient({
         max_journees: "",
         saison: "2024/2025",
         phase: "",
-        equipeId: null,
+        equipeId: equipes.length > 0 ? equipes[0].id : null,
       },
     ]);
   }
@@ -585,32 +594,100 @@ export default function CreateCompetitionClient({
                       )}
                     </div>
 
-                    {/* Équipe BDD */}
+                    {/* Équipe BDD (sélecteur) */}
                     <div>
-                      <Label htmlFor={`equipe_bdd-${index}`}>
-                        Nom équipe dans BDD *
-                      </Label>
+                      <Label htmlFor={`equipe_bdd-${index}`}>Nom équipe dans BDD *</Label>
                       <div className="flex items-center gap-2">
                         <Database className="w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id={`equipe_bdd-${index}`}
-                          placeholder="Ex: ASCR 1"
-                          value={competition.equipe_bdd}
-                          onChange={(e) =>
-                            handleChange(index, "equipe_bdd", e.target.value)
-                          }
-                          className={
-                            errors[index]?.equipe_bdd ? "border-red-500" : ""
-                          }
-                          disabled={isPending}
-                        />
+                        <Select
+                          value={competition.equipeId ? String(competition.equipeId) : ""}
+                          onValueChange={(value) => {
+                            const equipe = equipes.find(eq => eq.id === Number(value));
+                            handleChange(index, "equipeId", Number(value));
+                            handleChange(index, "equipe_bdd", equipe ? equipe.nom : "");
+                            handleChange(index, "equipe", equipe ? equipe.nom : "");
+                          }}
+                          disabled={isPending || equipes.length === 0}
+                        >
+                          <SelectTrigger className={errors[index]?.equipe_bdd ? "border-red-500" : ""}>
+                            <SelectValue placeholder="Sélectionner une équipe" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {equipes.map((eq) => (
+                              <SelectItem key={eq.id} value={String(eq.id)}>{eq.nom}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setShowAddEquipe(true)}>
+                          + Ajouter
+                        </Button>
                       </div>
                       {errors[index]?.equipe_bdd && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {errors[index].equipe_bdd}
-                        </p>
+                        <p className="text-sm text-red-500 mt-1">{errors[index].equipe_bdd}</p>
                       )}
                     </div>
+        {/* Modale d'ajout d'équipe */}
+        <Dialog open={showAddEquipe} onOpenChange={setShowAddEquipe}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ajouter une équipe</DialogTitle>
+              <DialogDescription>Remplis les champs pour créer une nouvelle équipe dans ce club.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                placeholder="Nom de l'équipe *"
+                value={newEquipe.nom}
+                onChange={e => setNewEquipe({ ...newEquipe, nom: e.target.value })}
+              />
+              <Input
+                placeholder="Ville"
+                value={newEquipe.ville}
+                onChange={e => setNewEquipe({ ...newEquipe, ville: e.target.value })}
+              />
+              <Input
+                placeholder="Région"
+                value={newEquipe.region}
+                onChange={e => setNewEquipe({ ...newEquipe, region: e.target.value })}
+              />
+              <Input
+                placeholder="Département"
+                value={newEquipe.departement}
+                onChange={e => setNewEquipe({ ...newEquipe, departement: e.target.value })}
+              />
+              {addEquipeError && <p className="text-sm text-red-500">{addEquipeError}</p>}
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowAddEquipe(false)}>Annuler</Button>
+                <Button
+                  onClick={async () => {
+                    setAddEquipeError(null);
+                    if (!newEquipe.nom.trim()) {
+                      setAddEquipeError("Le nom de l'équipe est obligatoire");
+                      return;
+                    }
+                    try {
+                      // Appel API pour créer l'équipe (à adapter selon ton backend)
+                      const res = await fetch("/api/equipes", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          ...newEquipe,
+                          clubId: selectedClub?.id,
+                        }),
+                      });
+                      if (!res.ok) throw new Error(await res.text());
+                      const data = await res.json();
+                      setEquipes(prev => [...prev, data]);
+                      setShowAddEquipe(false);
+                      setNewEquipe({ nom: "", ville: "", region: "", departement: "" });
+                    } catch (err: any) {
+                      setAddEquipeError(err.message || "Erreur lors de la création");
+                    }
+                  }}
+                >Créer</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
                     {/* Nom compétition */}
                     <div>

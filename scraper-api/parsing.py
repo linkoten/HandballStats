@@ -1,3 +1,147 @@
+import asyncio
+from typing import Dict, Any
+
+async def parse_pdf_data_pdfplumber_async(pdf_url: str, equipe_cible: str) -> Dict[str, Any]:
+    """
+    Version asynchrone du parsing PDF avec httpx.AsyncClient.
+    """
+    import httpx
+    import io
+    match_data = {
+        'joueurs_recevant': pd.DataFrame(),
+        'home_away': 'domicile',
+        'arbitre_1': None,
+        'arbitre_2': None,
+        'cartons_jaunes_adversaire': 0,
+        'exclusions_2min_adversaire': 0,
+        'cartons_rouges_adversaire': 0,
+        'sept_metres_adversaire': 0
+    }
+    print(f"\n--- [HANDBALL] Parsing PDF (async) pour {equipe_cible} ---")
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(pdf_url)
+        response.raise_for_status()
+        pdf_stream = io.BytesIO(response.content)
+        with pdfplumber.open(pdf_stream) as pdf:
+            page = pdf.pages[0]
+            tables = page.extract_tables()
+            if not tables or len(tables) == 0:
+                print("    -> [ERROR] Aucun tableau trouv")
+                return match_data
+            table = tables[0]
+            if len(table) < 21:
+                print(f"    -> [ERROR] Tableau trop court: {len(table)} lignes")
+                return match_data
+            try:
+                if len(table) > 4:
+                    arbitre_1_row = table[4]
+                    arbitre_1 = arbitre_1_row[12] if len(arbitre_1_row) > 12 and arbitre_1_row[12] else None
+                    match_data['arbitre_1'] = arbitre_1.strip() if arbitre_1 and isinstance(arbitre_1, str) and arbitre_1.strip() else "Aucun/non dfini"
+                if len(table) > 5:
+                    arbitre_2_row = table[5]
+                    arbitre_2 = arbitre_2_row[12] if len(arbitre_2_row) > 12 and arbitre_2_row[12] else None
+                    match_data['arbitre_2'] = arbitre_2.strip() if arbitre_2 and isinstance(arbitre_2, str) and arbitre_2.strip() else None
+                print(f"    -> Arbitres extraits du PDF: {match_data['arbitre_1']}, {match_data['arbitre_2'] or 'Aucun/non dfini'}")
+            except Exception as e:
+                print(f"    -> [WARN] Erreur extraction arbitres: {e}")
+                match_data['arbitre_1'] = "Aucun/non dfini"
+                match_data['arbitre_2'] = None
+            home_away = determine_home_away(table, equipe_cible)
+            match_data['home_away'] = home_away
+            # --- Extraction stats joueurs (copie logique existante) ---
+            def _extract_stats(current_header_line: int, current_start_line: int, pdf_table):
+                if len(pdf_table) <= current_header_line:
+                    return None
+                header_row = pdf_table[current_header_line]
+                column_mapping = {}
+                for idx, cell in enumerate(header_row):
+                    if cell:
+                        cell_str = str(cell).strip()
+                        if cell_str in ['N', 'N°', 'N']:
+                            column_mapping['N'] = idx
+                        elif 'NOM' in cell_str and 'nom' in cell_str and 'usage' in cell_str:
+                            column_mapping["NOMprnom(Nomd'usage)"] = idx
+                        elif cell_str == 'Buts':
+                            column_mapping['Buts'] = idx
+                        elif cell_str == '7m':
+                            column_mapping['7m'] = idx
+                        elif cell_str == 'Tirs':
+                            column_mapping['Tirs'] = idx
+                        elif cell_str == 'Arrets':
+                            column_mapping['Arrets'] = idx
+                        elif cell_str == 'Av.':
+                            column_mapping['Av.'] = idx
+                        elif cell_str == "2'":
+                            column_mapping["2'"] = idx
+                        elif cell_str == 'Dis':
+                            column_mapping['Dis'] = idx
+                if not column_mapping:
+                    print(f"       DEBUG: Aucune colonne trouve dans le header")
+                    return None
+                players_data = []
+                for i in range(12):
+                    line_num = current_start_line + i
+                    if line_num >= len(pdf_table): break
+                    row = pdf_table[line_num]
+                    player = {}
+                    for col_name, col_index in column_mapping.items():
+                        if col_index < len(row):
+                            value = row[col_index]
+                            if value is None or value == '': value = ''
+                            if col_name in ['Av.', 'Dis'] and value == 'D': value = '1'
+                            player[col_name] = value
+                        else:
+                            player[col_name] = ''
+                    nom = player.get("NOMprnom(Nomd'usage)", '').strip()
+                    if nom and nom != '':
+                        players_data.append(player)
+                    else:
+                        break
+                if not players_data:
+                    print(f"       DEBUG: Aucun joueur trouve (players_data vide)")
+                    return pd.DataFrame()
+                df = pd.DataFrame(players_data)
+                column_mapping_output = {
+                    'N': 'N', "NOMprnom(Nomd'usage)": 'Nom_Prenom', 'Buts': 'Buts', '7m': '7m', 'Tirs': 'Tirs',
+                    'Arrets': 'Arrets', 'Av.': 'Avertissements', "2'": 'Exclusions_2min', 'Dis': 'Discipline'
+                }
+                output_columns = []
+                for old_name, new_name in column_mapping_output.items():
+                    if old_name in df.columns:
+                        df = df.rename(columns={old_name: new_name})
+                        output_columns.append(new_name)
+                numeric_cols = ['Buts', '7m', 'Tirs', 'Arrets', 'Avertissements', 'Exclusions_2min', 'Discipline']
+                for col in numeric_cols:
+                    if col in df.columns:
+                        df[col] = df[col].replace('X', '1')
+                        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                final_columns = [col for col in output_columns if col in df.columns]
+                return df[final_columns].fillna('')
+            df_stats = pd.DataFrame()
+            if home_away == 'domicile':
+                start_lines_to_try = [(9, 10)]
+            else:
+                start_lines_to_try = [(28, 29), (29, 30), (30, 31)]
+            for i, (h_line, s_line) in enumerate(start_lines_to_try):
+                print(f"    ->  Essai d'extraction (Header: {h_line}, Stats: {s_line})...")
+                try:
+                    df_stats = _extract_stats(h_line, s_line, table)
+                    if df_stats is not None and not df_stats.empty:
+                        print(f"    -> [OK] Succs de l'extraction  l'essai {i + 1}. Dcalage: +{i}")
+                        break
+                except Exception as e:
+                    print(f"    -> [ERROR] Erreur critique  l'essai {i + 1}: {e}")
+                    continue
+            if not df_stats.empty:
+                match_data['joueurs_recevant'] = df_stats
+                print(f"    -> [OK] {len(df_stats)} joueurs {equipe_cible} extraits")
+            else:
+                print("    -> [ERROR] Aucun joueur trouv aprs tous les essais.")
+        return match_data
+    except Exception as e:
+        print(f"    -> [ERROR] Erreur parsing PDF (async): {e}")
+        return match_data
 # parsing.py
 
 import pandas as pd
@@ -57,9 +201,18 @@ def parse_pdf_data_pdfplumber(pdf_url: str, equipe_cible: str) -> Dict[str, Any]
     }
     print(f"\n--- [HANDBALL] Parsing PDF pour {equipe_cible} ---")
 
+    import httpx
     try:
-        response = requests.get(pdf_url, timeout=30)
-        response.raise_for_status()
+        # Utilisation httpx en mode synchrone pour compatibilité, mais peut être appelé en async
+        response = None
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.get(pdf_url)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"    -> [WARN] Echec httpx, fallback requests: {e}")
+            response = requests.get(pdf_url, timeout=30)
+            response.raise_for_status()
         pdf_stream = io.BytesIO(response.content)
 
         with pdfplumber.open(pdf_stream) as pdf:

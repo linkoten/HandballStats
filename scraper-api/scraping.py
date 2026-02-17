@@ -63,19 +63,31 @@ def init_driver():
     
     if is_docker:
         # Dans Docker, utiliser chromium et chromium-driver
-        options.binary_location = '/usr/bin/chromium'
-        print("Initialisation du navigateur Chromium (Docker)...")
+        chromium_bin = os.environ.get('CHROME_BIN', '/usr/bin/chromium')
+        options.binary_location = chromium_bin
+        print(f"Initialisation du navigateur Chromium (Docker)... (binaire: {chromium_bin})")
+        chromedriver_bin = '/usr/bin/chromedriver'
         try:
-            driver = webdriver.Chrome(service=ChromeService('/usr/bin/chromedriver'), options=options)
+            driver = webdriver.Chrome(service=ChromeService(chromedriver_bin), options=options)
             return driver
         except Exception as e:
             print(f"Erreur d'initialisation de Chromium. Erreur: {e}")
             return None
     else:
-        # En local, utiliser ChromeDriverManager avec gestion d'erreur amliore
+        # En local, essayer d'abord un chromedriver local
         print("Initialisation du navigateur Chrome (Local)...")
+        local_driver_path = os.path.join(os.path.dirname(__file__), "drivers", "chromedriver.exe")
+        if os.path.exists(local_driver_path):
+            print(f"Utilisation du chromedriver local: {local_driver_path}")
+            try:
+                service = ChromeService(local_driver_path)
+                driver = webdriver.Chrome(service=service, options=options)
+                return driver
+            except Exception as e:
+                print(f"Erreur avec le chromedriver local: {e}")
+                print("Tentative avec ChromeDriverManager...")
         try:
-            # Essayer d'abord avec ChromeDriverManager
+            # Essayer avec ChromeDriverManager (fallback)
             service = ChromeService(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=options)
             return driver

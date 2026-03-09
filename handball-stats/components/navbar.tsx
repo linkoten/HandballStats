@@ -30,6 +30,11 @@ type UserData = {
   subscription: string;
   role: string;
   tokensRemaining: number;
+  clubs?: Array<{
+    club: {
+      id: number;
+    };
+  }>;
 };
 
 export function Navbar() {
@@ -50,7 +55,7 @@ export function Navbar() {
     fetchUserData();
   }, [isLoaded, isSignedIn]);
 
-  const clubId = userData?.club?.id;
+  const clubId = userData?.clubs?.[0]?.club?.id;
   const equipesUrl = clubId ? `/dashboard/clubs/${clubId}/equipes` : "/equipes";
   const matchsUrl = clubId ? `/dashboard/clubs/${clubId}/matchs` : "/matchs";
   const navLinks = [
@@ -62,12 +67,12 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="sticky top-0 z-[100] w-full border-b-2 border-primary/10 bg-background/60 backdrop-blur-2xl">
+    <nav className="sticky top-0 z-100 w-full border-b-2 border-primary/10 bg-background/60 backdrop-blur-2xl">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
         {/* Logo Section */}
         <div className="flex items-center gap-10">
           <Link href="/" className="group flex items-center gap-2">
-            <div className="bg-primary p-1.5 rounded-lg rotate-[-6deg] group-hover:rotate-0 transition-transform">
+            <div className="bg-primary p-1.5 rounded-lg -rotate-6 group-hover:rotate-0 transition-transform">
               <Zap className="text-white fill-current" size={20} />
             </div>
             <span className="text-xl font-sport font-black italic uppercase tracking-tighter text-foreground group-hover:text-primary transition-colors">

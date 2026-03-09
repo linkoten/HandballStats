@@ -1,7 +1,7 @@
 // Export centralisé de toutes les Server Actions
 
 // Actions de scraping
-export { triggerScraping, getScrapingStatus } from "./scraping-actions";
+export { getScrapingStatus } from "./scraping-actions";
 
 // Actions des équipes
 export {

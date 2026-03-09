@@ -11,16 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import {
-  Trophy,
-  FileText,
-  Calendar,
-  Shield,
-  ArrowLeft,
-  Activity,
-  Timer,
-  AlertCircle,
-} from "lucide-react";
+import { Trophy, FileText, Calendar, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -190,11 +181,11 @@ export default async function MatchDetailPage({
               <div className="flex items-center justify-center gap-2 bg-muted/80 px-6 py-2.5 rounded-2xl text-foreground font-sport uppercase tracking-wider text-sm md:text-base shadow-sm backdrop-blur-md border border-border">
                 <Calendar size={18} className="text-foreground/80 opacity-70" />
                 {match.date_match
-                  ? new Date(match.date_match).toLocaleDateString('fr-FR', {
-                      weekday: 'long',
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
+                  ? new Date(match.date_match).toLocaleDateString("fr-FR", {
+                      weekday: "long",
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
                     })
                   : "Date à définir"}
               </div>

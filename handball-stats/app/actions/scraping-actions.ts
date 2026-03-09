@@ -206,3 +206,152 @@ export async function consumeTokenOnSuccess(
     };
   }
 }
+
+/**
+ * Rescraprer une ou plusieurs compétitions existantes
+ * Met à jour les données avec les nouveaux matchs et statistiques
+ */
+export async function rescrapeCompetition(
+  competitionIds: number[],
+): Promise<{ success: boolean; error?: string; data?: any }> {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: "Non authentifié" };
+    }
+
+    if (!Array.isArray(competitionIds) || competitionIds.length === 0) {
+      return { success: false, error: "Au moins une compétition requise" };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (!user) {
+      return { success: false, error: "Utilisateur introuvable" };
+    }
+
+    // Récupérer toutes les compétitions à rescraprer
+    const competitions = await prisma.competition.findMany({
+      where: {
+        id: { in: competitionIds },
+        competitionAccess: {
+          some: { userId: user.id },
+        },
+      },
+      include: {
+        equipe: {
+          select: {
+            id: true,
+            nom: true,
+          },
+        },
+      },
+    });
+
+    if (competitions.length === 0) {
+      return {
+        success: false,
+        error: "Aucune compétition trouvée ou accès non autorisé",
+      };
+    }
+
+    // Construire la configuration pour le scraper
+    const config = competitions.map((comp) => ({
+      competitionId: comp.id,
+      equipeId: comp.equipeId,
+      url: comp.baseUrl,
+      equipe: comp.equipeFFHB || comp.equipe?.nom || "Inconnue",
+      equipe_bdd: comp.equipe?.nom || "Inconnue",
+      competition_name: comp.nom,
+      poule: comp.poule || "",
+      max_journees: comp.max_journees || 18,
+      saison: comp.saison,
+      phase: comp.phase || "Poule",
+    }));
+
+    // Mettre à jour le statut des compétitions à IN_PROGRESS
+    await prisma.competition.updateMany({
+      where: { id: { in: competitionIds } },
+      data: {
+        scrapingStatus: "IN_PROGRESS",
+        scrapingProgress: 0,
+        scrapingStep: "Récupération des données...",
+      },
+    });
+
+    // Appel à l'API Render pour rescraprer
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      if (!apiUrl) {
+        throw new Error("NEXT_PUBLIC_API_URL non défini");
+      }
+
+      const response = await fetch(
+        `${apiUrl.replace(/\/$/, "")}/scrape/batch`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            competitions: config,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erreur API scraping:", errorText);
+
+        // Marquer les compétitions comme échouées
+        await prisma.competition.updateMany({
+          where: { id: { in: competitionIds } },
+          data: {
+            scrapingStatus: "FAILED",
+            scrapingStep: `Erreur API: ${errorText}`,
+          },
+        });
+
+        return {
+          success: false,
+          error: `Erreur lors de l'appel au scraper: ${errorText}`,
+        };
+      }
+    } catch (err) {
+      console.error("Erreur lors de l'appel à l'API Render:", err);
+
+      // Marquer les compétitions comme échouées
+      await prisma.competition.updateMany({
+        where: { id: { in: competitionIds } },
+        data: {
+          scrapingStatus: "FAILED",
+          scrapingStep: `Erreur: ${err instanceof Error ? err.message : "Erreur inconnue"}`,
+        },
+      });
+
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Erreur lors du scraping",
+      };
+    }
+
+    revalidatePath("/competitions");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      data: {
+        competitionIds,
+        message: `${competitions.length} compétition(s) en cours de mise à jour`,
+      },
+    };
+  } catch (error) {
+    console.error("Erreur rescrapeCompetition:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}

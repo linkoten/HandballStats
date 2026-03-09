@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { triggerScraping } from "@/app/actions/scraping-actions";
-import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { rescrapeCompetition } from "@/app/actions/scraping-actions";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -17,14 +17,15 @@ export default function RescrapeButton({
   const handleRescrape = async () => {
     setLoading(true);
     try {
-      const result = await triggerScraping([competitionId]);
+      const result = await rescrapeCompetition([competitionId]);
       if (result.success) {
         toast.success("Synchronisation lancée !", {
           description:
+            result.data?.message ||
             "Les données seront mises à jour dans quelques instants.",
         });
       } else {
-        toast.error("Erreur", { description: result.message });
+        toast.error("Erreur", { description: result.error });
       }
     } catch (err) {
       toast.error("Erreur lors de la connexion au serveur");

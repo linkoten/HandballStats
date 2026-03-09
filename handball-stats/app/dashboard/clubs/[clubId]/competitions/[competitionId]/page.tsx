@@ -147,12 +147,15 @@ export default async function CompetitionPage({
                   </span>
                   <span className="font-sport italic">
                     {competition.updatedAt
-                      ? new Date(competition.updatedAt).toLocaleDateString('fr-FR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
+                      ? new Date(competition.updatedAt).toLocaleDateString(
+                          "fr-FR",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )
                       : "N/A"}
                   </span>
                 </div>
@@ -188,17 +191,23 @@ export default async function CompetitionPage({
                       <div className="w-24 flex flex-col items-center border-r pr-4">
                         <span className="text-[10px] font-black uppercase text-muted-foreground">
                           {match.date_match
-                            ? new Date(match.date_match).toLocaleDateString('fr-FR', {
-                                weekday: 'short',
-                              })
+                            ? new Date(match.date_match).toLocaleDateString(
+                                "fr-FR",
+                                {
+                                  weekday: "short",
+                                },
+                              )
                             : "-"}
                         </span>
                         <span className="text-xl font-sport italic font-black text-primary">
                           {match.date_match
-                            ? new Date(match.date_match).toLocaleDateString('fr-FR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                              })
+                            ? new Date(match.date_match).toLocaleDateString(
+                                "fr-FR",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                },
+                              )
                             : "--/--"}
                         </span>
                       </div>

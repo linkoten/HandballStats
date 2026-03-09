@@ -10,6 +10,7 @@ export {
   createEquipe,
   updateEquipe,
   deleteEquipe,
+  getDistinctPlayersCountByClub,
 } from "./equipe-actions";
 
 // Actions des joueurs

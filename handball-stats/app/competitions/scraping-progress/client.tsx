@@ -1,360 +1,538 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
-  Loader2,
   CheckCircle2,
-  AlertCircle,
-  RotateCcw,
-  ArrowLeft,
+  XCircle,
+  Loader2,
   Trophy,
-  Database,
+  Zap,
+  ArrowRight,
+  RotateCcw,
   Clock,
+  Database,
+  AlertTriangle,
 } from "lucide-react";
-import { getScrapingStatus } from "@/app/actions";
+import {
+  getScrapingStatus,
+  consumeTokenOnSuccess,
+} from "@/app/actions/scraping-actions";
+import type { CompetitionStatus } from "@/app/actions/scraping-actions";
 import { toast } from "sonner";
-
-interface Competition {
-  id: number;
-  nom: string;
-  scrapingStatus: string;
-  equipe: string;
-  saison: string;
-  progress?: number;
-}
+import { cn } from "@/lib/utils";
 
 interface ScrapingProgressClientProps {
-  competitionIds: string;
+  competitionIds: number[];
+}
+
+const POLL_INTERVAL = 3000; // 3 secondes
+
+type GlobalStatus = "loading" | "in_progress" | "all_done" | "partial_error";
+
+function getGlobalStatus(competitions: CompetitionStatus[]): GlobalStatus {
+  if (competitions.length === 0) return "loading";
+  const allDone = competitions.every(
+    (c) => c.scrapingStatus === "COMPLETED" || c.scrapingStatus === "FAILED",
+  );
+  if (!allDone) return "in_progress";
+  const hasFailed = competitions.some((c) => c.scrapingStatus === "FAILED");
+  return hasFailed ? "partial_error" : "all_done";
+}
+
+function StatusIcon({
+  status,
+  size = 24,
+}: {
+  status: CompetitionStatus["scrapingStatus"];
+  size?: number;
+}) {
+  if (status === "COMPLETED")
+    return <CheckCircle2 size={size} className="text-emerald-400 shrink-0" />;
+  if (status === "FAILED")
+    return <XCircle size={size} className="text-red-400 shrink-0" />;
+  if (status === "IN_PROGRESS")
+    return (
+      <Loader2 size={size} className="text-secondary animate-spin shrink-0" />
+    );
+  return <Clock size={size} className="text-white/30 shrink-0" />;
+}
+
+function ProgressBar({
+  progress,
+  status,
+}: {
+  progress: number;
+  status: CompetitionStatus["scrapingStatus"];
+}) {
+  const colorClass =
+    status === "COMPLETED"
+      ? "bg-emerald-400"
+      : status === "FAILED"
+        ? "bg-red-400"
+        : status === "IN_PROGRESS"
+          ? "bg-secondary"
+          : "bg-white/20";
+
+  return (
+    <div className="relative h-2 w-full rounded-full bg-white/10 overflow-hidden">
+      <div
+        className={cn(
+          "absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out",
+          colorClass,
+          status === "IN_PROGRESS" && progress < 100 && "animate-pulse",
+        )}
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
 }
 
 export default function ScrapingProgressClient({
   competitionIds,
 }: ScrapingProgressClientProps) {
   const router = useRouter();
-  const [competitions, setCompetitions] = useState<Competition[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshCount, setRefreshCount] = useState(0);
+  const [competitions, setCompetitions] = useState<CompetitionStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const consumedRef = useRef<Set<number>>(new Set());
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const isMounted = useRef(true);
 
-  // États de suivi
-  const [globalProgress, setGlobalProgress] = useState(0);
-  const [completedCount, setCompletedCount] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
+  const fetchStatus = useCallback(async () => {
+    const res = await getScrapingStatus(competitionIds);
+    if (!isMounted.current) return;
 
-  // Fonction pour récupérer le statut
-  const fetchScrapingStatus = async () => {
-    try {
-      setLoading(true);
-      const result = await getScrapingStatus(competitionIds);
+    if (!res.success || !res.data) {
+      toast.error("Erreur lors de la récupération du statut");
+      return;
+    }
 
-      if (result.success && result.data) {
-        const comps = result.data.competitions;
-        setCompetitions(comps);
-        setTotalCount(comps.length);
+    setCompetitions(res.data);
+    setIsLoading(false);
 
-        // Calcul du progress global basé sur la moyenne des progress individuels
-        const completed = comps.filter(
-          (c) => c.scrapingStatus === "COMPLETED",
-        ).length;
-
-        // Moyenne des progress individuels pour un suivi en temps réel
-        const totalProgress = comps.reduce(
-          (sum, comp) => sum + (comp.progress || 0),
-          0,
-        );
-        const globalProg =
-          comps.length > 0 ? Math.round(totalProgress / comps.length) : 0;
-
-        setCompletedCount(completed);
-        setGlobalProgress(Math.round(globalProg));
-
-        setError(null);
-      } else {
-        setError(result.error || "Erreur lors de la récupération du statut");
+    // Consommer les tokens pour les compétitions nouvellement complétées
+    for (const comp of res.data) {
+      if (
+        comp.scrapingStatus === "COMPLETED" &&
+        !comp.tokenConsumed &&
+        !consumedRef.current.has(comp.id)
+      ) {
+        consumedRef.current.add(comp.id); // optimistic pour éviter les appels doubles
+        const tokenRes = await consumeTokenOnSuccess(comp.id);
+        if (tokenRes.success) {
+          toast.success(`Token consommé pour "${comp.nom}"`, {
+            description: "Scraping complété avec succès 🎉",
+            icon: <Zap size={16} className="text-secondary" />,
+          });
+        } else if (tokenRes.error && tokenRes.error !== "Tokens insuffisants") {
+          consumedRef.current.delete(comp.id); // retry possible
+        }
       }
-    } catch (err) {
-      console.error("Erreur fetch status:", err);
-      setError("Erreur de connexion");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [competitionIds]);
 
-  // Fonction pour obtenir l'icône du statut
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      case "IN_PROGRESS":
-        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
-      case "COMPLETED":
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case "ERROR":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  // Fonction pour obtenir le badge du statut
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return <Badge variant="secondary">En attente</Badge>;
-      case "IN_PROGRESS":
-        return <Badge variant="default">En cours</Badge>;
-      case "COMPLETED":
-        return (
-          <Badge variant="outline" className="text-green-600 border-green-600">
-            Terminé
-          </Badge>
-        );
-      case "ERROR":
-        return <Badge variant="destructive">Erreur</Badge>;
-      default:
-        return <Badge variant="secondary">Inconnu</Badge>;
-    }
-  };
-
-  // Rechargement périodique
   useEffect(() => {
-    fetchScrapingStatus();
+    isMounted.current = true;
+    fetchStatus();
 
-    // Recharger toutes les 3 secondes tant que ce n'est pas terminé
-    const interval = setInterval(() => {
-      if (completedCount < totalCount) {
-        fetchScrapingStatus();
-        setRefreshCount((prev) => prev + 1);
+    pollRef.current = setInterval(async () => {
+      const res = await getScrapingStatus(competitionIds);
+      if (!isMounted.current) return;
+      if (!res.success || !res.data) return;
+
+      setCompetitions(res.data);
+
+      // Consommer tokens pour nouvelles complétions
+      for (const comp of res.data) {
+        if (
+          comp.scrapingStatus === "COMPLETED" &&
+          !comp.tokenConsumed &&
+          !consumedRef.current.has(comp.id)
+        ) {
+          consumedRef.current.add(comp.id);
+          const tokenRes = await consumeTokenOnSuccess(comp.id);
+          if (tokenRes.success) {
+            toast.success(`Token consommé pour "${comp.nom}"`, {
+              description: "Scraping complété avec succès 🎉",
+              icon: <Zap size={16} className="text-secondary" />,
+            });
+          } else {
+            consumedRef.current.delete(comp.id);
+          }
+        }
       }
-    }, 3000);
 
-    return () => clearInterval(interval);
-  }, [competitionIds, completedCount, totalCount]);
-
-  // Notification de fin
-  useEffect(() => {
-    if (
-      completedCount > 0 &&
-      completedCount === totalCount &&
-      refreshCount > 0
-    ) {
-      toast.success(
-        `🎉 Scraping terminé ! ${completedCount} compétition(s) récupérée(s)`,
+      // Arrêter le polling si tout est terminé
+      const allDone = res.data.every(
+        (c) =>
+          c.scrapingStatus === "COMPLETED" || c.scrapingStatus === "FAILED",
       );
-    }
-  }, [completedCount, totalCount, refreshCount]);
+      if (allDone && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    }, POLL_INTERVAL);
 
-  const allCompleted = completedCount === totalCount && totalCount > 0;
-  const hasErrors = competitions.some((c) => c.scrapingStatus === "ERROR");
+    return () => {
+      isMounted.current = false;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [fetchStatus, competitionIds]);
+
+  const globalStatus = getGlobalStatus(competitions);
+  const completedCount = competitions.filter(
+    (c) => c.scrapingStatus === "COMPLETED",
+  ).length;
+  const failedCount = competitions.filter(
+    (c) => c.scrapingStatus === "FAILED",
+  ).length;
+  const totalProgress =
+    competitions.length > 0
+      ? Math.round(
+          competitions.reduce((acc, c) => acc + c.scrapingProgress, 0) /
+            competitions.length,
+        )
+      : 0;
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500/90 to-purple-500/90 text-white p-8 rounded-2xl shadow-lg relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-20 text-8xl">
-            🏆
-          </div>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">📊 Suivi du Scraping</h1>
-              <p className="text-white/80 text-lg">
-                Récupération des données de vos compétitions en cours...
-              </p>
-            </div>
-            <Button
-              onClick={() => router.push("/dashboard")}
-              variant="secondary"
-              size="sm"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Dashboard
-            </Button>
-          </div>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="relative overflow-hidden bg-primary rounded-b-[3rem] p-8 md:p-16 shadow-2xl border-b-8 border-secondary/50">
+        <div className="absolute top-0 right-0 p-4 opacity-10 font-sport text-9xl italic uppercase pointer-events-none select-none">
+          Sync
         </div>
 
-        {/* Progress global */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" />
-                  Progression Globale
-                </CardTitle>
-                <CardDescription>
-                  {completedCount} / {totalCount} compétitions terminées
-                </CardDescription>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-primary">
-                  {globalProgress}%
+        {/* Animated grid overlay */}
+        <div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+
+        <div className="max-w-5xl mx-auto relative z-10">
+          <div className="flex items-center gap-3 text-secondary font-sport italic animate-in slide-in-from-left duration-500 mb-4">
+            <Zap size={20} className="fill-current" />
+            <span className="text-sm uppercase tracking-widest">
+              Synchronisation en cours
+            </span>
+          </div>
+
+          <h1 className="text-4xl md:text-6xl font-sport font-black italic uppercase text-white tracking-tighter leading-none mb-6">
+            Récupération des{" "}
+            <span className="text-secondary">Statistiques</span>
+          </h1>
+
+          {/* Global progress */}
+          {!isLoading && (
+            <div className="space-y-3">
+              <div className="flex items-end justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="text-white/60 text-xs font-bold uppercase tracking-widest">
+                    Progression globale
+                  </span>
+                  <Badge
+                    className={cn(
+                      "font-sport italic text-sm",
+                      globalStatus === "all_done"
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                        : globalStatus === "partial_error"
+                          ? "bg-red-500/20 text-red-400 border-red-500/30"
+                          : "bg-secondary/20 text-secondary border-secondary/30",
+                    )}
+                  >
+                    {globalStatus === "all_done" && "✓ Terminé"}
+                    {globalStatus === "partial_error" &&
+                      `${completedCount}/${competitions.length} OK`}
+                    {globalStatus === "in_progress" && "En cours…"}
+                    {globalStatus === "loading" && "Chargement…"}
+                  </Badge>
                 </div>
-                {allCompleted && (
-                  <div className="text-sm text-green-600 font-medium">
-                    ✅ Terminé !
-                  </div>
+                <span className="text-5xl font-sport font-black italic text-white/90">
+                  {totalProgress}%
+                </span>
+              </div>
+
+              {/* Big progress bar */}
+              <div className="relative h-3 w-full rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className={cn(
+                    "absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out",
+                    globalStatus === "all_done"
+                      ? "bg-emerald-400"
+                      : globalStatus === "partial_error"
+                        ? "bg-orange-400"
+                        : "bg-secondary",
+                  )}
+                  style={{ width: `${totalProgress}%` }}
+                />
+                {globalStatus === "in_progress" && (
+                  <div
+                    className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]"
+                    style={{ left: `${Math.max(0, totalProgress - 10)}%` }}
+                  />
                 )}
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Progress value={globalProgress} className="h-3" />
-            {hasErrors && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-2 text-red-700">
-                  <AlertCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    Certaines compétitions ont rencontré des erreurs
+
+              <div className="flex gap-6 text-xs font-bold uppercase tracking-widest text-white/50">
+                <span>
+                  <span className="text-emerald-400">{completedCount}</span>{" "}
+                  complétées
+                </span>
+                {failedCount > 0 && (
+                  <span>
+                    <span className="text-red-400">{failedCount}</span> échouées
                   </span>
-                </div>
+                )}
+                <span>
+                  <span className="text-white/80">{competitions.length}</span>{" "}
+                  total
+                </span>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </div>
+      </header>
 
-        {/* Liste des compétitions */}
-        <div className="grid gap-4">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-primary" />
-            Détails par Compétition
-          </h2>
+      {/* Competition cards */}
+      <div className="max-w-5xl mx-auto px-4 -mt-6 pb-20 space-y-4 relative z-20">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <Loader2 size={48} className="text-primary animate-spin" />
+            <p className="text-muted-foreground font-bold uppercase text-sm tracking-widest">
+              Connexion au serveur…
+            </p>
+          </div>
+        ) : (
+          <>
+            {competitions.map((comp, index) => (
+              <div
+                key={comp.id}
+                className={cn(
+                  "rounded-[2rem] border-2 overflow-hidden transition-all duration-500",
+                  "bg-card shadow-lg",
+                  comp.scrapingStatus === "COMPLETED" &&
+                    "border-emerald-500/30 shadow-emerald-500/5",
+                  comp.scrapingStatus === "FAILED" &&
+                    "border-red-500/30 shadow-red-500/5",
+                  comp.scrapingStatus === "IN_PROGRESS" &&
+                    "border-secondary/30 shadow-secondary/5",
+                  comp.scrapingStatus === "PENDING" && "border-border",
+                )}
+                style={{
+                  animationDelay: `${index * 100}ms`,
+                }}
+              >
+                {/* Top accent line */}
+                <div
+                  className={cn(
+                    "h-1 w-full",
+                    comp.scrapingStatus === "COMPLETED" && "bg-emerald-400",
+                    comp.scrapingStatus === "FAILED" && "bg-red-400",
+                    comp.scrapingStatus === "IN_PROGRESS" && "bg-secondary",
+                    comp.scrapingStatus === "PENDING" && "bg-white/10",
+                  )}
+                />
 
-          {loading && competitions.length === 0 ? (
-            <Card>
-              <CardContent className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin mr-3" />
-                <span>Chargement du statut...</span>
-              </CardContent>
-            </Card>
-          ) : error && competitions.length === 0 ? (
-            <Card>
-              <CardContent className="text-center p-8">
-                <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-red-600 mb-2">
-                  Erreur
-                </h3>
-                <p className="text-muted-foreground mb-4">{error}</p>
-                <Button onClick={fetchScrapingStatus}>
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Réessayer
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            competitions.map((competition) => (
-              <Card key={competition.id} className="overflow-hidden">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-bold text-lg">{competition.nom}</h3>
-                        {getStatusBadge(competition.scrapingStatus)}
+                <div className="p-6 md:p-8 space-y-5">
+                  {/* Header row */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {comp.equipe?.club && (
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            {comp.equipe.club.nom}
+                          </span>
+                        )}
+                        {comp.equipe?.club && comp.equipe && (
+                          <span className="text-muted-foreground/40 text-[10px]">
+                            /
+                          </span>
+                        )}
+                        {comp.equipe && (
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            {comp.equipe.nom}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>🏃‍♂️ {competition.equipe}</span>
-                        <span>📅 {competition.saison}</span>
-                        <span>🆔 ID: {competition.id}</span>
-                      </div>
+                      <h2 className="text-xl md:text-2xl font-sport font-black italic uppercase leading-tight text-foreground truncate">
+                        {comp.nom}
+                      </h2>
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] font-black uppercase"
+                      >
+                        Saison {comp.saison}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(competition.scrapingStatus)}
-                      <span className="text-2xl font-bold text-primary">
-                        {competition.progress || 0}%
-                      </span>
-                    </div>
+
+                    <StatusIcon status={comp.scrapingStatus} size={32} />
                   </div>
 
+                  {/* Progress */}
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progression</span>
-                      <span>{competition.progress || 0}%</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        {comp.scrapingStatus === "PENDING" && "En attente"}
+                        {comp.scrapingStatus === "IN_PROGRESS" &&
+                          (comp.scrapingStep || "Traitement en cours…")}
+                        {comp.scrapingStatus === "COMPLETED" &&
+                          "Synchronisation terminée"}
+                        {comp.scrapingStatus === "FAILED" &&
+                          "Échec du scraping"}
+                      </span>
+                      <span className="text-sm font-sport font-black italic text-foreground">
+                        {comp.scrapingProgress}%
+                      </span>
                     </div>
-                    <Progress
-                      value={competition.progress || 0}
-                      className={`h-2 ${
-                        competition.scrapingStatus === "ERROR"
-                          ? "bg-red-100"
-                          : competition.scrapingStatus === "COMPLETED"
-                            ? "bg-green-100"
-                            : "bg-blue-100"
-                      }`}
+                    <ProgressBar
+                      progress={comp.scrapingProgress}
+                      status={comp.scrapingStatus}
                     />
                   </div>
 
-                  {competition.scrapingStatus === "ERROR" && (
-                    <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                      ❌ Une erreur est survenue lors du téléchargement
+                  {/* Error message */}
+                  {comp.scrapingStatus === "FAILED" && comp.scrapingError && (
+                    <div className="flex items-start gap-3 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">
+                      <AlertTriangle
+                        size={16}
+                        className="text-red-400 mt-0.5 shrink-0"
+                      />
+                      <p className="text-xs text-red-400 font-medium">
+                        {comp.scrapingError}
+                      </p>
                     </div>
                   )}
 
-                  {competition.scrapingStatus === "COMPLETED" && (
-                    <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                      ✅ Données récupérées avec succès !
+                  {/* Success token badge */}
+                  {comp.scrapingStatus === "COMPLETED" && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
+                        <Database size={12} className="text-emerald-400" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                          {comp.tokenConsumed ||
+                          consumedRef.current.has(comp.id)
+                            ? "1 Token consommé"
+                            : "Finalisation…"}
+                        </span>
+                      </div>
+                      {comp.lastScrapedAt && (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          {new Date(comp.lastScrapedAt).toLocaleTimeString(
+                            "fr-FR",
+                            { hour: "2-digit", minute: "2-digit" },
+                          )}
+                        </span>
+                      )}
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
-
-        {/* Actions */}
-        {allCompleted && (
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="text-center p-8">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-green-700 mb-2">
-                🎉 Scraping Terminé !
-              </h3>
-              <p className="text-green-600 mb-6">
-                Toutes vos compétitions ont été configurées avec succès. Vous
-                pouvez maintenant accéder à vos données depuis le tableau de
-                bord.
-              </p>
-              <div className="flex gap-4 justify-center">
-                <Button onClick={() => router.push("/dashboard")} size="lg">
-                  🏠 Aller au Dashboard
-                </Button>
-                <Button
-                  onClick={() => router.push("/competitions")}
-                  variant="outline"
-                  size="lg"
-                >
-                  📊 Voir les Compétitions
-                </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ))}
 
-        {/* Rafraîchissement manuel */}
-        <div className="flex justify-center">
-          <Button
-            onClick={fetchScrapingStatus}
-            variant="outline"
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCcw className="mr-2 h-4 w-4" />
+            {/* CTA finale */}
+            {(globalStatus === "all_done" ||
+              globalStatus === "partial_error") && (
+              <div className="rounded-[2rem] bg-primary border-2 border-secondary/30 p-8 md:p-10 text-white space-y-6 shadow-2xl">
+                <div className="flex items-start gap-4">
+                  {globalStatus === "all_done" ? (
+                    <CheckCircle2
+                      size={40}
+                      className="text-emerald-400 shrink-0 mt-1"
+                    />
+                  ) : (
+                    <AlertTriangle
+                      size={40}
+                      className="text-orange-400 shrink-0 mt-1"
+                    />
+                  )}
+                  <div>
+                    <p className="text-secondary font-sport italic text-xs uppercase tracking-widest mb-1">
+                      {globalStatus === "all_done"
+                        ? "Mission accomplie"
+                        : "Synchronisation partielle"}
+                    </p>
+                    <h3 className="text-3xl md:text-4xl font-sport font-black italic uppercase leading-none">
+                      {globalStatus === "all_done" ? (
+                        <>
+                          Données{" "}
+                          <span className="text-secondary">synchronisées</span>
+                        </>
+                      ) : (
+                        <>
+                          {completedCount} sur{" "}
+                          <span className="text-secondary">
+                            {competitions.length}
+                          </span>{" "}
+                          OK
+                        </>
+                      )}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={() => router.push("/competitions")}
+                    className="flex-1 h-14 bg-secondary text-black hover:bg-white rounded-2xl font-sport italic text-lg uppercase shadow-xl group"
+                  >
+                    Voir mes compétitions{" "}
+                    <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+
+                  {globalStatus === "partial_error" && (
+                    <Button
+                      onClick={() => router.push("/competitions/create")}
+                      variant="ghost"
+                      className="flex-1 h-14 border-2 border-white/20 text-white hover:bg-white/10 rounded-2xl font-sport italic text-lg uppercase"
+                    >
+                      <RotateCcw className="mr-2" size={18} />
+                      Reconfigurer
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={() => router.push("/dashboard")}
+                    variant="ghost"
+                    className="flex-1 h-14 border-2 border-white/20 text-white hover:bg-white/10 rounded-2xl font-sport italic text-lg uppercase"
+                  >
+                    Dashboard
+                  </Button>
+                </div>
+              </div>
             )}
-            Actualiser le statut
-          </Button>
-        </div>
+
+            {/* Avertissement pendant le scraping */}
+            {globalStatus === "in_progress" && (
+              <div className="rounded-2xl bg-secondary/10 border border-secondary/20 px-6 py-4 flex items-center gap-3">
+                <Loader2
+                  size={16}
+                  className="text-secondary animate-spin shrink-0"
+                />
+                <p className="text-sm font-medium text-foreground/70">
+                  Récupération en cours, ne fermez pas cette page. Cette
+                  opération peut prendre quelques minutes.
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </div>
+
+      <style jsx global>{`
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(500%);
+          }
+        }
+      `}</style>
     </div>
   );
 }

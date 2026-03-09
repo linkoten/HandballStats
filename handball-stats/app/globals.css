@@ -42,6 +42,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-glass-border: oklch(1 0 0 / 0.1);
+  --color-court-line: oklch(0.45 0.20 250 / 0.1);
 }
 
 :root {
@@ -148,11 +150,35 @@
 body {
   background-color: var(--background);
   background-image: 
-    radial-gradient(var(--border) 1px, transparent 1px),
-    radial-gradient(var(--border) 1px, transparent 1px);
-  background-size: 20px 20px;
-  background-position: 0 0, 10px 10px;
+ linear-gradient(var(--color-court-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-court-line) 1px, transparent 1px);
+background-size: 40px 40px;
   background-attachment: fixed;
+  position: relative;
+}
+
+/* Ajout d'un effet de "Light Leak" pour donner du relief */
+body::before {
+  content: "";
+  position: fixed;
+  top: -10%;
+  left: -10%;
+  width: 40%;
+  height: 40%;
+  background: radial-gradient(circle, oklch(0.65 0.18 45 / 0.15) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Card Style "Tactique" */
+.card-tactique {
+  @apply backdrop-blur-xl border-glass-border shadow-[0_8px_32px_0_rgba(0,0,0,0.1)];
+  background: linear-gradient(135deg, oklch(1 0 0 / 0.05), oklch(1 0 0 / 0.02));
+  clip-path: polygon(0 0, 97% 0, 100% 15%, 100% 100%, 3% 100%, 0 85%);
+}
+
+.hover-rotate:hover {
+  transform: rotate(3deg) scale(1.1);
 }
 
 @layer base {

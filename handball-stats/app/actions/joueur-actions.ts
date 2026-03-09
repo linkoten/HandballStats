@@ -204,25 +204,27 @@ export async function createJoueur(
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
     });
-
     if (!user) {
       throw new Error("Utilisateur introuvable");
     }
 
-    // Vérifier que l'utilisateur a accès à l'équipe
-    const equipe = await prisma.equipes.findFirst({
-      where: {
-        id: id_equipe,
-        club: {
-          userClubs: {
-            some: { userId: user.id },
-          },
-        },
-      },
+    // Vérifier que l'utilisateur a le bon rôle sur l'équipe
+    const equipe = await prisma.equipes.findUnique({
+      where: { id: id_equipe },
+      include: { club: true },
     });
-
-    if (!equipe) {
-      throw new Error("Vous n'avez pas accès à cette équipe");
+    if (!equipe || !equipe.club) {
+      throw new Error("Équipe ou club introuvable");
+    }
+    const { isAdmin, isCoach, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: equipe.club.id,
+      });
+    if (!hasAccess || (!isAdmin && !isCoach && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul un coach, admin du club ou admin général peut créer un joueur",
+      );
     }
 
     // Créer le joueur
@@ -241,7 +243,6 @@ export async function createJoueur(
       },
     });
 
-    // Revalider les pages qui affichent les joueurs
     revalidatePath("/joueurs");
     revalidatePath(`/equipes/${id_equipe}`);
     revalidatePath("/dashboard");
@@ -273,13 +274,26 @@ export async function updateJoueur(
     }
 
     // Vérifier l'accès avant la mise à jour
-    const accessCheck = await getJoueurById(joueurId);
-    if (!accessCheck.success) {
-      throw new Error(accessCheck.error || "Accès refusé");
+    const joueur = await prisma.joueurs.findUnique({
+      where: { id: joueurId },
+      include: { equipes: { include: { club: true } } },
+    });
+    if (!joueur || !joueur.equipes || !joueur.equipes.club) {
+      throw new Error("Joueur ou club introuvable");
+    }
+    const { isAdmin, isCoach, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: joueur.equipes.club.id,
+      });
+    if (!hasAccess || (!isAdmin && !isCoach && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul un coach, admin du club ou admin général peut modifier un joueur",
+      );
     }
 
     // Mettre à jour le joueur
-    const joueur = await prisma.joueurs.update({
+    const updatedJoueur = await prisma.joueurs.update({
       where: { id: joueurId },
       data: {
         ...(data.nom_prenom && { nom_prenom: data.nom_prenom }),
@@ -301,15 +315,14 @@ export async function updateJoueur(
       },
     });
 
-    // Revalider les pages qui affichent les joueurs
     revalidatePath("/joueurs");
     revalidatePath(`/joueurs/${joueurId}`);
-    revalidatePath(`/equipes/${joueur.id_equipe}`);
+    revalidatePath(`/equipes/${updatedJoueur.id_equipe}`);
     revalidatePath("/dashboard");
 
     return {
       success: true,
-      data: joueur,
+      data: updatedJoueur,
     };
   } catch (error) {
     console.error("Erreur mise à jour joueur:", error);
@@ -331,22 +344,28 @@ export async function deleteJoueur(joueurId: number): Promise<JoueurResponse> {
     }
 
     // Vérifier l'accès avant la suppression
-    const accessCheck = await getJoueurById(joueurId);
-    if (!accessCheck.success) {
-      throw new Error(accessCheck.error || "Accès refusé");
+    const joueur = await prisma.joueurs.findUnique({
+      where: { id: joueurId },
+      include: { equipes: { include: { club: true } } },
+    });
+    if (!joueur || !joueur.equipes || !joueur.equipes.club) {
+      throw new Error("Joueur ou club introuvable");
+    }
+    const { isAdmin, isCoach, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: joueur.equipes.club.id,
+      });
+    if (!hasAccess || (!isAdmin && !isCoach && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul un coach, admin du club ou admin général peut supprimer un joueur",
+      );
     }
 
-    const joueurData = accessCheck.data;
-    const equipeId = joueurData.id_equipe;
+    await prisma.joueurs.delete({ where: { id: joueurId } });
 
-    // Supprimer le joueur
-    await prisma.joueurs.delete({
-      where: { id: joueurId },
-    });
-
-    // Revalider les pages qui affichent les joueurs
     revalidatePath("/joueurs");
-    revalidatePath(`/equipes/${equipeId}`);
+    revalidatePath(`/equipes/${joueur.equipes.id}`);
     revalidatePath("/dashboard");
 
     return {
@@ -426,6 +445,147 @@ export async function updateJoueursPostes(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}
+
+/**
+ * Récupère un joueur avec ses statistiques détaillées et les infos des matchs
+ */
+export async function getJoueurComplet(
+  joueurId: string,
+): Promise<JoueurResponse> {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Non authentifié");
+
+    // 1. Sécurisation de l'ID : conversion en nombre et vérification
+    const idNum = parseInt(joueurId);
+    if (isNaN(idNum)) {
+      throw new Error("ID de joueur invalide");
+    }
+
+    const joueur = await prisma.joueurs.findUnique({
+      where: {
+        id: idNum, // Utilisation de l'ID converti
+      },
+      include: {
+        // Attention : selon ton schema.prisma, la relation vers l'équipe s'appelle 'equipes'
+        equipes: {
+          select: { nom: true, id: true },
+        },
+        statistiques_joueur: {
+          include: {
+            matchs: {
+              include: {
+                // Ces noms proviennent des relations 'idToequipes' de ton schema
+                equipes_matchs_equipe_recevant_idToequipes: {
+                  select: { nom: true },
+                },
+                equipes_matchs_equipe_exterieur_idToequipes: {
+                  select: { nom: true },
+                },
+              },
+            },
+          },
+          orderBy: {
+            id: "desc",
+          },
+        },
+        objectifs: {
+          orderBy: [{ saison: "desc" }, { type_objectif: "asc" }],
+        },
+      },
+    });
+
+    if (!joueur) return { success: false, error: "Joueur non trouvé" };
+
+    return { success: true, data: joueur };
+  } catch (error) {
+    console.error("Erreur Prisma:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}
+
+export async function getJoueursByEquipe(
+  equipeId: string,
+): Promise<JoueurResponse> {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Non authentifié");
+
+    // Sécurité : on vérifie si equipeId existe et est un nombre
+    if (!equipeId || equipeId === "undefined") {
+      throw new Error("L'ID d'équipe est manquant");
+    }
+
+    const id = parseInt(equipeId);
+    if (isNaN(id)) {
+      throw new Error(
+        `L'ID d'équipe fourni ("${equipeId}") n'est pas un nombre valide`,
+      );
+    }
+
+    const joueurs = await prisma.joueurs.findMany({
+      where: {
+        id_equipe: id,
+      },
+      orderBy: {
+        nom_prenom: "asc",
+      },
+    });
+
+    return { success: true, data: joueurs };
+  } catch (error) {
+    console.error("Erreur getJoueursByEquipe:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}
+
+export async function getLicenciesDuClub(
+  clubId: string,
+): Promise<JoueurResponse> {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Non authentifié");
+
+    const idClub = parseInt(clubId);
+
+    // On récupère tous les joueurs qui appartiennent à une équipe de ce club
+    const joueurs = await prisma.joueurs.findMany({
+      where: {
+        equipes: {
+          clubId: idClub,
+        },
+      },
+      include: {
+        equipes: {
+          select: { nom: true },
+        },
+      },
+    });
+
+    // Dédoublonnage par nom_prenom pour n'avoir qu'une liste de "personnes"
+    const uniqueLicencies = Array.from(
+      new Map(
+        joueurs.map((j) => [j.nom_prenom.toLowerCase().trim(), j]),
+      ).values(),
+    );
+
+    return {
+      success: true,
+      data: uniqueLicencies,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: "Erreur lors de la récupération des licenciés",
     };
   }
 }

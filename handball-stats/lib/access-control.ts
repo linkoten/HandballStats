@@ -1,3 +1,95 @@
+/**
+ * Vérifie le rôle et l'accès club/équipe pour un utilisateur
+ * Usage : await checkUserClubRole({ userId, clubId, equipeId })
+ * Retourne : { isAdmin, isCoach, isJoueur, isGeneralAdmin, hasAccess }
+ */
+export async function checkUserClubRole({
+  userId,
+  clubId,
+  equipeId,
+}: {
+  userId?: string;
+  clubId?: number;
+  equipeId?: number;
+}) {
+  // Récupérer l'utilisateur
+  let clerkId: string | undefined = userId ?? undefined;
+  if (!clerkId) {
+    const authData = await auth();
+    clerkId = authData.userId ?? undefined;
+  }
+  if (!clerkId)
+    return {
+      isAdmin: false,
+      isCoach: false,
+      isJoueur: false,
+      isGeneralAdmin: false,
+      hasAccess: false,
+    };
+
+  const user = await prisma.user.findUnique({
+    where: { clerkId },
+    include: {
+      clubs: {
+        include: {
+          club: true,
+        },
+      },
+    },
+  });
+  if (!user)
+    return {
+      isAdmin: false,
+      isCoach: false,
+      isJoueur: false,
+      isGeneralAdmin: false,
+      hasAccess: false,
+    };
+
+  // ADMIN_GENERAL : admin partout
+  if (user.role === "ADMIN_GENERAL") {
+    return {
+      isAdmin: true,
+      isCoach: true,
+      isJoueur: true,
+      isGeneralAdmin: true,
+      hasAccess: true,
+    };
+  }
+
+  // ADMIN_CLUB : admin uniquement sur son club principal
+  let clubAccess = false;
+  let isAdmin = false;
+  let isCoach = false;
+  let isJoueur = false;
+  if (clubId) {
+    const userClub = user.clubs.find((uc) => uc.clubId === clubId);
+    if (userClub) {
+      clubAccess = true;
+      // ADMIN_CLUB = admin uniquement sur son club principal
+      isAdmin = user.role === "ADMIN_CLUB" && userClub.isPrincipal;
+      isCoach = user.role === "ENTRAINEUR";
+      isJoueur = user.role === "JOUEUR";
+    }
+  }
+  // Vérifier équipe
+  let equipeAccess = false;
+  if (equipeId) {
+    const equipe = await prisma.equipes.findUnique({
+      where: { id: equipeId },
+      include: { club: true },
+    });
+    if (
+      equipe &&
+      equipe.club &&
+      user.clubs.some((uc) => uc.clubId === equipe.club!.id)
+    ) {
+      equipeAccess = true;
+    }
+  }
+  const hasAccess = clubAccess || equipeAccess;
+  return { isAdmin, isCoach, isJoueur, isGeneralAdmin: false, hasAccess };
+}
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 
@@ -38,7 +130,7 @@ export async function getUserAccessibleEquipeIds(): Promise<{
   // Récupérer les IDs uniques des équipes via les compétitions accessibles
   const equipeIds = [
     ...new Set(
-      user.competitionAccess.map((access) => access.competition.equipeId)
+      user.competitionAccess.map((access) => access.competition.equipeId),
     ),
   ];
 

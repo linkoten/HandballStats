@@ -47,7 +47,7 @@ export async function getMatchs(params?: {
     let whereClause: any = {};
     let accessibleEquipeIds: number[] = [];
 
-    // Récupérer les équipes accessibles via les clubs de l'utilisateur
+    // 1. Récupérer les équipes accessibles via les clubs de l'utilisateur
     const userClubs = await prisma.userClub.findMany({
       where: { userId: user.id },
       include: {
@@ -61,7 +61,7 @@ export async function getMatchs(params?: {
       uc.club.equipes.map((eq) => eq.id),
     );
 
-    // Récupérer aussi les équipes accessibles via les compétitions
+    // 2. Récupérer aussi les équipes accessibles via les compétitions (accès direct)
     const userCompetitions = await prisma.competitionAccess.findMany({
       where: { userId: user.id },
       include: {
@@ -75,52 +75,50 @@ export async function getMatchs(params?: {
       .map((uc) => uc.competition.equipeId)
       .filter(Boolean) as number[];
 
+    // Fusionner et dédoublonner les IDs d'équipes accessibles
     accessibleEquipeIds = [
       ...new Set([...accessibleEquipeIds, ...competitionEquipeIds]),
     ];
 
     if (accessibleEquipeIds.length === 0) {
-      return {
-        success: true,
-        data: [],
-      };
+      return { success: true, data: [] };
     }
 
-    // Filtrer les matchs où l'utilisateur a accès à au moins une des équipes
-    whereClause.OR = [
-      { equipe_recevant_id: { in: accessibleEquipeIds } },
-      { equipe_exterieur_id: { in: accessibleEquipeIds } },
-    ];
-
-    // Appliquer les filtres supplémentaires
+    // 3. Construction de la clause WHERE
     if (params?.equipeId) {
       const equipeId = parseInt(params.equipeId);
       if (!accessibleEquipeIds.includes(equipeId)) {
-        throw new Error("Équipe non autorisée");
+        throw new Error("Accès refusé pour cette équipe");
       }
       whereClause.OR = [
         { equipe_recevant_id: equipeId },
         { equipe_exterieur_id: equipeId },
       ];
+    } else {
+      // Par défaut, tous les matchs des équipes auxquelles j'ai accès
+      whereClause.OR = [
+        { equipe_recevant_id: { in: accessibleEquipeIds } },
+        { equipe_exterieur_id: { in: accessibleEquipeIds } },
+      ];
     }
 
     if (params?.competitionId) {
-      // Vérifier l'accès à la compétition
-      const competitionAccess = await prisma.competitionAccess.findFirst({
-        where: {
-          competitionId: parseInt(params.competitionId),
-          userId: user.id,
-        },
+      const competitionId = parseInt(params.competitionId);
+      // Vérification stricte d'accès à la compétition
+      const access = await prisma.competitionAccess.findFirst({
+        where: { userId: user.id, competitionId },
       });
-
-      if (!competitionAccess) {
-        throw new Error("Compétition non autorisée");
+      if (!access) {
+        return { success: false, error: "Accès refusé à la compétition" };
       }
-
-      whereClause.competition_id = parseInt(params.competitionId);
+      whereClause.competitionId = competitionId;
     }
 
-    // Récupérer les matchs
+    if (params?.saison) {
+      whereClause.competition = { saison: params.saison };
+    }
+
+    // 4. Requête Prisma avec toutes les relations nécessaires pour l'UI
     const matchs = await prisma.matchs.findMany({
       where: whereClause,
       include: {
@@ -131,59 +129,80 @@ export async function getMatchs(params?: {
           include: { club: true },
         },
         competition: true,
+        // CRUCIAL : On récupère les stats pour le top buteur
+        statistiques_joueur: {
+          include: {
+            joueurs: true,
+          },
+        },
       },
       orderBy: [{ date_match: "desc" }],
       take: params?.limit || undefined,
     });
 
-    // Formater pour correspondre à l'ancienne API
-    const formattedMatchs = matchs.map((match) => ({
-      id: match.id,
-      date_match: match.date_match,
-      equipe_recevant_id: match.equipe_recevant_id,
-      equipe_exterieur_id: match.equipe_exterieur_id,
-      competitionId: match.competitionId,
-      competition_name: match.competition_name,
-      recevant_nom_display: match.recevant_nom_display,
-      exterieur_nom_display: match.exterieur_nom_display,
-      score_final: match.score_final,
-      equipe_recevant: match.equipes_matchs_equipe_recevant_idToequipes
-        ? {
-            id: match.equipes_matchs_equipe_recevant_idToequipes.id,
-            nom: match.equipes_matchs_equipe_recevant_idToequipes.nom,
-            ville: match.equipes_matchs_equipe_recevant_idToequipes.ville,
-            club:
-              match.equipes_matchs_equipe_recevant_idToequipes.club?.nom || "",
-          }
-        : null,
-      equipe_exterieur: match.equipes_matchs_equipe_exterieur_idToequipes
-        ? {
-            id: match.equipes_matchs_equipe_exterieur_idToequipes.id,
-            nom: match.equipes_matchs_equipe_exterieur_idToequipes.nom,
-            ville: match.equipes_matchs_equipe_exterieur_idToequipes.ville,
-            club:
-              match.equipes_matchs_equipe_exterieur_idToequipes.club?.nom || "",
-          }
-        : null,
-      competition: match.competition
-        ? {
-            id: match.competition.id,
-            nom: match.competition.nom,
-            niveau: match.competition.niveau,
-            saison: match.competition.saison,
-          }
-        : null,
-    }));
+    // 5. Formatage des données pour le composant React
+    const formattedMatchs = matchs.map((match) => {
+      // Déterminer si l'équipe à domicile est celle de l'utilisateur
+      const isHomeOwner = accessibleEquipeIds.includes(
+        match.equipe_recevant_id || 0,
+      );
+
+      return {
+        id: match.id,
+        date_match: match.date_match,
+        competition_name: match.competition_name || match.competition?.nom,
+        score_final: match.score_final,
+        recevant_nom_display: match.recevant_nom_display,
+        exterieur_nom_display: match.exterieur_nom_display,
+        isHomeOwner, // Flag pour les couleurs Victoire/Défaite
+
+        // On passe les stats nettoyées
+        stats_joueurs: match.statistiques_joueur.map((s) => ({
+          buts: s.buts,
+          joueur: { nom: s.joueurs?.nom_prenom },
+        })),
+
+        equipe_recevant: match.equipes_matchs_equipe_recevant_idToequipes
+          ? {
+              id: match.equipes_matchs_equipe_recevant_idToequipes.id,
+              nom: match.equipes_matchs_equipe_recevant_idToequipes.nom,
+              clubId: match.equipes_matchs_equipe_recevant_idToequipes.clubId,
+              club: match.equipes_matchs_equipe_recevant_idToequipes.club?.nom,
+            }
+          : null,
+
+        equipe_exterieur: match.equipes_matchs_equipe_exterieur_idToequipes
+          ? {
+              id: match.equipes_matchs_equipe_exterieur_idToequipes.id,
+              nom: match.equipes_matchs_equipe_exterieur_idToequipes.nom,
+              clubId: match.equipes_matchs_equipe_exterieur_idToequipes.clubId,
+              club: match.equipes_matchs_equipe_exterieur_idToequipes.club?.nom,
+            }
+          : null,
+
+        competition: match.competition
+          ? {
+              id: match.competition.id,
+              nom: match.competition.nom,
+              saison: match.competition.saison,
+              niveau: match.competition.niveau,
+            }
+          : null,
+      };
+    });
 
     return {
       success: true,
       data: formattedMatchs,
     };
   } catch (error) {
-    console.error("Erreur récupération matchs:", error);
+    console.error("Erreur getMatchs:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Erreur serveur",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de la récupération des matchs",
     };
   }
 }
@@ -260,7 +279,10 @@ export async function getMatchById(matchId: number): Promise<MatchResponse> {
 
     return {
       success: true,
-      data: match,
+      data: {
+        ...match,
+        date_match: match.date_match?.toISOString() ?? null,
+      },
     };
   } catch (error) {
     console.error("Erreur récupération match:", error);

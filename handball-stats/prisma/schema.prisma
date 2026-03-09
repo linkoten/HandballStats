@@ -314,6 +314,7 @@ model joueurs {
   postes_secondaires  String[]              @db.VarChar(50)
   equipes             equipes?              @relation(fields: [id_equipe], references: [id], onUpdate: NoAction)
   statistiques_joueur statistiques_joueur[]
+  objectifs           joueur_objectifs[]
 
   @@unique([nom_prenom, id_equipe])
   @@index([poste_principal], map: "idx_joueurs_poste_principal")
@@ -378,4 +379,25 @@ model statistiques_joueur {
 
   @@unique([id_match, id_joueur])
   @@index([id_equipe_adverse], map: "idx_stats_equipe_adverse")
+}
+
+// ============================================
+// OBJECTIFS JOUEURS (fixés par joueur ou coach)
+// ============================================
+model joueur_objectifs {
+  id            Int      @id @default(autoincrement())
+  id_joueur     Int
+  saison        String   @db.VarChar(10) // ex: "2025-2026"
+  type_objectif String   @db.VarChar(50) // "buts", "arrets", "pct_tir", "exclusions_max", "sept_metres"
+  valeur_cible  Float
+  fixe_par      String   @default("joueur") @db.VarChar(20) // "joueur" | "entraineur"
+  note          String?  @db.Text
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  joueurs joueurs @relation(fields: [id_joueur], references: [id], onDelete: Cascade)
+
+  @@unique([id_joueur, saison, type_objectif])
+  @@index([id_joueur])
+  @@index([saison])
 }

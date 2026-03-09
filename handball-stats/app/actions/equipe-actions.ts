@@ -7,9 +7,6 @@ import { revalidatePath } from "next/cache";
 
 export type EquipeFormData = {
   nom: string;
-  ville: string;
-  region?: string;
-  departement?: string;
   clubId: number;
 };
 
@@ -153,10 +150,10 @@ export async function createEquipe(
       throw new Error("Non authentifié");
     }
 
-    const { nom, ville, region, departement, clubId } = data;
+    const { nom, clubId } = data;
 
-    if (!nom || !ville || !clubId) {
-      throw new Error("Nom, ville et club requis");
+    if (!nom || !clubId) {
+      throw new Error("Nom et club requis");
     }
 
     // Récupérer l'utilisateur
@@ -169,27 +166,36 @@ export async function createEquipe(
       throw new Error("Utilisateur introuvable");
     }
 
-    // Vérifier que l'utilisateur a accès au club
-    const userClubAccess = await prisma.userClub.findFirst({
-      where: {
-        userId: user.id,
-        clubId: clubId,
-      },
-    });
-
-    if (!userClubAccess) {
-      throw new Error("Vous n'avez pas accès à ce club");
+    // Guard d'accès : seul admin du club ou ADMIN_GENERAL peut créer une équipe
+    const { isAdmin, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId,
+      });
+    if (!hasAccess || (!isAdmin && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul l'admin du club ou l'admin général peut créer une équipe",
+      );
     }
 
-    // Créer l'équipe avec protection contre la désynchronisation
+    // Récupérer les infos du club pour pré-remplir région/département/ville
+    const club = await prisma.club.findUnique({
+      where: { id: clubId },
+      select: { region: true, departement: true, ville: true },
+    });
+    if (!club) {
+      throw new Error("Club introuvable");
+    }
+
+    // Créer l'équipe avec les infos du club
     const equipe = await safeCreate(
       () =>
         prisma.equipes.create({
           data: {
             nom,
-            ville,
-            region: region || null,
-            departement: departement || null,
+            ville: club.ville || null,
+            region: club.region || null,
+            departement: club.departement || null,
             clubId: clubId,
           },
         }),
@@ -227,21 +233,26 @@ export async function updateEquipe(
     }
 
     // Vérifier l'accès avant la mise à jour
-    const accessCheck = await getEquipeById(equipeId);
-    if (!accessCheck.success) {
-      throw new Error(accessCheck.error || "Accès refusé");
+    const equipe = await prisma.equipes.findUnique({ where: { id: equipeId } });
+    if (!equipe) {
+      throw new Error("Équipe introuvable");
+    }
+    const { isAdmin, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: equipe.clubId!,
+      });
+    if (!hasAccess || (!isAdmin && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul l'admin du club ou l'admin général peut modifier une équipe",
+      );
     }
 
-    // Mettre à jour l'équipe
-    const equipe = await prisma.equipes.update({
+    // Mettre à jour l'équipe (seul le nom et clubId peuvent être modifiés via ce formulaire)
+    const updatedEquipe = await prisma.equipes.update({
       where: { id: equipeId },
       data: {
         ...(data.nom && { nom: data.nom }),
-        ...(data.ville && { ville: data.ville }),
-        ...(data.region !== undefined && { region: data.region || null }),
-        ...(data.departement !== undefined && {
-          departement: data.departement || null,
-        }),
         ...(data.clubId && { clubId: data.clubId }),
       },
     });
@@ -253,7 +264,7 @@ export async function updateEquipe(
 
     return {
       success: true,
-      data: equipe,
+      data: updatedEquipe,
     };
   } catch (error) {
     console.error("Erreur mise à jour équipe:", error);
@@ -275,15 +286,22 @@ export async function deleteEquipe(equipeId: number): Promise<EquipeResponse> {
     }
 
     // Vérifier l'accès avant la suppression
-    const accessCheck = await getEquipeById(equipeId);
-    if (!accessCheck.success) {
-      throw new Error(accessCheck.error || "Accès refusé");
+    const equipe = await prisma.equipes.findUnique({ where: { id: equipeId } });
+    if (!equipe) {
+      throw new Error("Équipe introuvable");
+    }
+    const { isAdmin, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: equipe.clubId!,
+      });
+    if (!hasAccess || (!isAdmin && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul l'admin du club ou l'admin général peut supprimer une équipe",
+      );
     }
 
-    // Supprimer l'équipe (avec cascade automatique selon le schéma Prisma)
-    await prisma.equipes.delete({
-      where: { id: equipeId },
-    });
+    await prisma.equipes.delete({ where: { id: equipeId } });
 
     // Revalider les pages qui affichent les équipes
     revalidatePath("/equipes");
@@ -295,6 +313,130 @@ export async function deleteEquipe(equipeId: number): Promise<EquipeResponse> {
     };
   } catch (error) {
     console.error("Erreur suppression équipe:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}
+
+export async function getEquipesWithStatsByClub(
+  clubId: string,
+  saison?: string,
+): Promise<EquipeResponse> {
+  try {
+    if (!clubId) throw new Error("club_id requis");
+
+    const equipes = await prisma.equipes.findMany({
+      where: {
+        clubId: parseInt(clubId),
+      },
+      include: {
+        club: true,
+        _count: {
+          select: {
+            joueurs: true,
+            competitions: true, // Vérifie bien le nom dans ton schéma
+          },
+        },
+      },
+      orderBy: {
+        nom: "asc",
+      },
+    });
+
+    const formattedEquipes = equipes.map((equipe) => ({
+      id: equipe.id,
+      nom: equipe.nom,
+      nom_competition: equipe.nom,
+      ville: equipe.ville,
+      club: equipe.club?.nom || "",
+      region: equipe.region,
+      departement: equipe.departement,
+      _count: equipe._count, // On transmet les stats à l'UI
+    }));
+
+    return {
+      success: true,
+      data: formattedEquipes,
+    };
+  } catch (error) {
+    console.error("Erreur récupération équipes avec stats:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}
+
+export async function getEquipeDetails(equipeId: string) {
+  try {
+    const id = parseInt(equipeId);
+    if (isNaN(id)) throw new Error("ID d'équipe invalide");
+
+    const equipe = await prisma.equipes.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            joueurs: true,
+            competitions: true,
+          },
+        },
+        // On récupère les compétitions liées pour avoir les derniers matchs
+        competitions: {
+          include: {
+            matchs: {
+              orderBy: { date_match: "desc" },
+              include: {
+                equipes_matchs_equipe_recevant_idToequipes: true,
+                equipes_matchs_equipe_exterieur_idToequipes: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return { success: true, data: equipe };
+  } catch (error) {
+    return {
+      success: false,
+      error: "Erreur lors de la récupération des détails",
+    };
+  }
+}
+
+/**
+ * Compte les joueurs distincts d'un club (ne compte qu'une fois chaque joueur par nom_prenom)
+ */
+export async function getDistinctPlayersCountByClub(
+  clubId: string,
+): Promise<{ success: boolean; count?: number; error?: string }> {
+  try {
+    if (!clubId) {
+      throw new Error("club_id requis");
+    }
+
+    // Récupérer le nombre de noms distincts de joueurs dans ce club
+    const distinctNamesCount = await prisma.joueurs.groupBy({
+      by: ["nom_prenom"],
+      where: {
+        equipes: {
+          clubId: parseInt(clubId),
+        },
+      },
+      _count: {
+        nom_prenom: true,
+      },
+    });
+
+    return {
+      success: true,
+      count: distinctNamesCount.length,
+    };
+  } catch (error) {
+    console.error("Erreur comptage joueurs distincts:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur serveur",

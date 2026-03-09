@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { checkUserClubRole } from "@/lib/access-control";
 
 export type ClubFormData = {
   nom: string;
@@ -118,6 +119,12 @@ export async function validateClubCode(code: string): Promise<ClubResponse> {
       throw new Error("Code invalide ou club introuvable");
     }
 
+    // Garde d'accès : empêcher l'admin ou admin général de rejoindre via code
+    const access = await checkUserClubRole({ userId, clubId: club.id });
+    if (access.isAdmin || access.isGeneralAdmin) {
+      throw new Error("Vous êtes déjà admin de ce club ou admin général");
+    }
+
     // Vérifier si l'utilisateur n'est pas déjà membre du club
     const existingMembership = await prisma.userClub.findFirst({
       where: {
@@ -227,8 +234,8 @@ export async function getUserClubs(): Promise<ClubResponse> {
       throw new Error("Utilisateur introuvable");
     }
 
-    // Récupérer tous les clubs de l'utilisateur avec détails
-    const userClubs = await prisma.userClub.findMany({
+    // Récupérer le club principal de l'utilisateur (ou le premier club trouvé)
+    const userClub = await prisma.userClub.findFirst({
       where: {
         userId: user.id,
       },
@@ -245,16 +252,23 @@ export async function getUserClubs(): Promise<ClubResponse> {
         },
       },
       orderBy: {
-        assignedAt: "desc",
+        isPrincipal: "desc",
       },
     });
 
+    if (!userClub) {
+      return {
+        success: true,
+        data: null,
+      };
+    }
+
     return {
       success: true,
-      data: userClubs,
+      data: userClub,
     };
   } catch (error) {
-    console.error("Erreur récupération clubs utilisateur:", error);
+    console.error("Erreur récupération club utilisateur:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur serveur",
@@ -271,6 +285,8 @@ export async function createClub(data: ClubFormData): Promise<ClubResponse> {
     if (!userId) {
       throw new Error("Non authentifié");
     }
+
+    // Pour la création de club, il ne faut pas vérifier l'accès admin sur un club existant
 
     const { nom, ville, region, departement } = data;
 

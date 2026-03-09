@@ -11,540 +11,511 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Loader2,
   Trophy,
   Users,
   Calendar,
-  Plus,
   Tally5,
   Activity,
-  BarChart3,
   Settings,
+  Zap,
+  ChevronRight,
+  Plus,
+  UserPlus,
+  Share2,
+  Copy,
+  Crown,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import {
   getClubCodes,
   validateClubCode,
-  addTokensToUser,
   getUserTokens,
   getUserProfile,
 } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-
-type UserData = {
-  subscription: string;
-  role: string;
-  tokensRemaining: number;
-  tokensUsed: number;
-  stripeCurrentPeriodEnd?: string | null;
-};
-
-type CompetitionAccess = {
-  id: string;
-  competitionId: number;
-  tokenUsed: boolean;
-  createdAt: string;
-  competition: {
-    id: number;
-    nom: string;
-    saison: string;
-    equipe: {
-      id: number;
-      nom: string;
-      club?: {
-        nom: string;
-      };
-    };
-  };
-};
-
-type ClubCode = {
-  id: string;
-  code: string;
-  role: string;
-  utilisations: number;
-  maxUtilisations: number;
-  club: {
-    nom: string;
-  };
-};
-
-interface DashboardClientProps {
-  initialUserData: UserData | null;
-  initialTokensData: { competitions: CompetitionAccess[] } | null;
-  error?: string;
-}
+import { AddEquipeModalButton } from "@/components/AddEquipeModalButton";
 
 export default function DashboardClient({
   initialUserData,
   initialTokensData,
+  equipesData,
   error,
-}: DashboardClientProps) {
+}: any) {
   const { user } = useUser();
-  const [userData, setUserData] = useState<UserData | null>(initialUserData);
-  const [competitions, setCompetitions] = useState<CompetitionAccess[]>(
+  const [userData, setUserData] = useState(initialUserData);
+  const [competitions, setCompetitions] = useState(
     initialTokensData?.competitions || [],
   );
-  const [clubCodes, setClubCodes] = useState<ClubCode[]>([]);
+  const [clubCodes, setClubCodes] = useState<any>(null);
   const [joinCode, setJoinCode] = useState("");
-  const [joinError, setJoinError] = useState<string | null>(null);
-  const [joinSuccess, setJoinSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  // Charger les codes club si admin
+  const clubId = userData?.club?.id;
+  const userRole = userData?.role;
+
+  // Récupérer les codes du club si l'utilisateur est admin_club
   useEffect(() => {
-    if (userData && ["ADMIN_CLUB", "ADMIN_GENERAL"].includes(userData.role)) {
-      handleFetchClubCodes();
+    if (userRole === "ADMIN_CLUB" && clubId) {
+      loadClubCodes();
     }
-  }, [userData?.role]);
+  }, [userRole, clubId]);
 
-  async function handleRefreshData() {
-    startTransition(async () => {
-      try {
-        const [userResult, tokensResult] = await Promise.allSettled([
-          getUserProfile(),
-          getUserTokens(),
-        ]);
+  const loadClubCodes = async () => {
+    const result = await getClubCodes();
+    if (result.success && result.data?.clubs?.length > 0) {
+      setClubCodes(result.data.clubs[0]); // Premier club de l'admin
+    }
+  };
 
-        if (userResult.status === "fulfilled" && userResult.value.success) {
-          setUserData(userResult.value.data);
-        }
-
-        if (tokensResult.status === "fulfilled" && tokensResult.value.success) {
-          setCompetitions(tokensResult.value.data.competitions || []);
-        }
-
-        toast.success("Données actualisées");
-      } catch (error) {
-        console.error("Erreur refresh:", error);
-        toast.error("Erreur lors de l'actualisation");
-      }
-    });
-  }
-
-  async function handleFetchClubCodes() {
-    startTransition(async () => {
-      try {
-        const result = await getClubCodes();
-        if (result.success) {
-          setClubCodes(result.data || []);
-        }
-      } catch (error) {
-        console.error("Erreur codes club:", error);
-      }
-    });
-  }
-
-  async function handleJoinClub() {
-    if (!joinCode.trim() || !user?.id) return;
+  const handleJoinClub = async () => {
+    if (!joinCode.trim()) {
+      toast.error("Veuillez saisir un code");
+      return;
+    }
 
     startTransition(async () => {
-      setJoinError(null);
-      setJoinSuccess(null);
-
-      try {
-        const result = await validateClubCode(joinCode.trim());
-
-        if (result.success) {
-          setJoinSuccess(
-            `Vous avez rejoint le club avec le rôle ${result.data?.newRole}. Actualisation en cours...`,
-          );
-          setJoinCode("");
-
-          // Rafraîchir les données
-          setTimeout(() => {
-            router.refresh();
-          }, 1500);
-        } else {
-          setJoinError(result.error || "Erreur lors de l'adhésion au club");
-        }
-      } catch (error) {
-        console.error("Erreur rejoindre club:", error);
-        setJoinError("Erreur réseau lors de l'adhésion");
+      const result = await validateClubCode(joinCode);
+      if (result.success) {
+        toast.success("Club rejoint avec succès !");
+        router.refresh();
+      } else {
+        toast.error(result.error || "Erreur lors de la validation du code");
       }
     });
-  }
+  };
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle className="text-red-600">Erreur</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={handleRefreshData} disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Réessayer
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const copyToClipboard = async (text: string, label: string) => {
+    await navigator.clipboard.writeText(text);
+    toast.success(`Code ${label} copié !`);
+  };
 
-  if (!userData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
+  // Liens personnalisés selon le rôle
+  const getDashboardLinks = () => {
+    const baseLinks = [
+      {
+        href: clubId
+          ? `/dashboard/clubs/${clubId}/equipes`
+          : "/dashboard/equipes",
+        icon: Users,
+        color: "primary",
+        label: "Équipes",
+        desc: "Gérer l'effectif",
+        roles: ["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR", "JOUEUR"],
+      },
+      {
+        href: clubId
+          ? `/dashboard/clubs/${clubId}/joueurs`
+          : "/dashboard/joueurs",
+        icon: Activity,
+        color: "secondary",
+        label: "Joueurs",
+        desc: "Stats individuelles",
+        roles: ["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR", "JOUEUR"],
+      },
+      {
+        href: clubId
+          ? `/dashboard/clubs/${clubId}/matchs`
+          : "/dashboard/matchs",
+        icon: Calendar,
+        color: "accent",
+        label: "Matchs",
+        desc: "Calendrier & Scores",
+        roles: ["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR", "JOUEUR"],
+      },
+      {
+        href: clubId
+          ? `/dashboard/clubs/${clubId}/competitions`
+          : "/dashboard/competitions",
+        icon: Trophy,
+        color: "primary",
+        label: "Compétitions",
+        desc: "Classements officiels",
+        roles: ["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR", "JOUEUR"],
+      },
+    ];
 
-  const isPremium = userData.subscription === "PREMIUM";
-  const tokensRemaining = userData.tokensRemaining || 0;
+    // Lien spécifique pour les entraîneurs - gestion des joueurs
+    if (userRole === "ENTRAINEUR") {
+      baseLinks.splice(1, 0, {
+        href: "/joueurs/gestion",
+        icon: Settings,
+        color: "secondary",
+        label: "Gestion Joueurs",
+        desc: "Gérer vos joueurs",
+        roles: ["ENTRAINEUR"],
+      });
+    }
+
+    // Filtrer selon le rôle
+    return baseLinks.filter((link) => link.roles.includes(userRole as string));
+  };
+
+  const DASHBOARD_LINKS = getDashboardLinks();
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="bg-linear-to-r from-primary/90 to-secondary/90 text-primary-foreground p-8 rounded-2xl shadow-lg relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10 font-sport text-9xl">
-            🏆
-          </div>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <h1 className="text-4xl font-sport font-extrabold uppercase tracking-tight">
-                Bonjour, {user?.firstName || "Utilisateur"} 👋
-              </h1>
-              <p className="text-primary-foreground/80 mt-2 text-lg font-medium">
-                Bienvenue sur votre tableau de bord
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {userData.role && (
-                <Badge className="bg-background/20 text-primary-foreground border-background/30 text-lg px-4 py-2 font-sport uppercase tracking-wide">
-                  {userData.role === "UTILISATEUR" && "👤 Utilisateur"}
-                  {userData.role === "ENTRAINEUR" && "🏆 Entraîneur"}
-                  {userData.role === "ADMIN_CLUB" && "👑 Admin Club"}
-                  {userData.role === "ADMIN_GENERAL" && "🔱 Admin Général"}
+    <div className="min-h-screen p-4 md:p-8 space-y-10 max-w-7xl mx-auto">
+      {/* --- HERO SECTION TACTIQUE --- */}
+      <section className="relative group overflow-hidden bg-primary rounded-[2rem] p-8 md:p-12 shadow-2xl border-b-8 border-secondary/50 transition-all">
+        {/* Texte décoratif en arrière-plan */}
+        <div className="absolute -bottom-6 -right-6 font-sport text-[10rem] md:text-[14rem] leading-none text-white/5 select-none uppercase italic font-black group-hover:text-secondary/10 transition-colors duration-700">
+          Hand
+        </div>
+
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              {userRole === "ADMIN_CLUB" && (
+                <Badge className="bg-purple-600 text-white font-sport animate-pulse flex items-center gap-2">
+                  <Crown className="w-3 h-3" /> ADMIN CLUB
                 </Badge>
               )}
-              <Button
-                onClick={handleRefreshData}
-                disabled={isPending}
-                variant="secondary"
-                size="sm"
-              >
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Actualiser
-              </Button>
+              {userRole === "ADMIN_GENERAL" && (
+                <Badge className="bg-red-600 text-white font-sport animate-pulse flex items-center gap-2">
+                  <Shield className="w-3 h-3" /> ADMIN GÉNÉRAL
+                </Badge>
+              )}
+              {userRole === "ENTRAINEUR" && (
+                <Badge className="bg-blue-600 text-white font-sport animate-pulse">
+                  <Activity className="w-3 h-3 mr-1" /> ENTRAÎNEUR
+                </Badge>
+              )}
+              {userRole === "JOUEUR" && (
+                <Badge className="bg-green-600 text-white font-sport">
+                  <Users className="w-3 h-3 mr-1" /> JOUEUR
+                </Badge>
+              )}
+              {userRole === "UTILISATEUR" && (
+                <Badge className="bg-gray-500 text-white font-sport">
+                  <UserPlus className="w-3 h-3 mr-1" /> EN ATTENTE
+                </Badge>
+              )}
+              <Badge className="bg-secondary text-secondary-foreground font-sport animate-bounce">
+                <Zap className="w-3 h-3 mr-1 fill-current" /> ANALYSE EN DIRECT
+              </Badge>
+            </div>
+            <h1 className="text-5xl md:text-7xl font-sport font-black uppercase italic tracking-tighter text-white leading-none">
+              Hello,{" "}
+              <span className="text-secondary drop-shadow-sm">
+                {user?.firstName || "Coach"}
+              </span>
+            </h1>
+            <p className="text-primary-foreground/80 font-medium text-lg max-w-xl border-l-2 border-secondary pl-4">
+              {userData?.club?.nom || "Indépendant"} •{" "}
+              {userData?.role?.replace("_", " ")}
+            </p>
+          </div>
+
+          <Button
+            onClick={() => router.refresh()}
+            className="bg-white text-primary hover:bg-secondary hover:text-white font-sport italic px-8 py-6 text-lg transition-transform hover:scale-105 shadow-xl"
+          >
+            {isPending ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              "SYNCHRONISER DATA"
+            )}
+          </Button>
+        </div>
+      </section>
+
+      {/* --- STATS GRID (Seulement pour ADMIN_CLUB et ADMIN_GENERAL) --- */}
+      {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") && (
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card Abonnement */}
+          <div className="relative overflow-hidden bg-card border-2 border-border rounded-2xl p-6 shadow-sm hover:border-secondary transition-colors group">
+            <div className="flex justify-between items-start">
+              <p className="font-sport italic text-muted-foreground uppercase text-sm">
+                Status
+              </p>
+              <Trophy className="text-secondary group-hover:rotate-12 transition-transform" />
+            </div>
+            <div className="mt-4 text-4xl font-sport font-black uppercase italic">
+              {userData?.subscription || "FREE"}
+            </div>
+            <div className="mt-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              Membre Pro-Elite
             </div>
           </div>
-        </div>
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-card/40 backdrop-blur-md border-l-4 border-l-secondary shadow-md hover:shadow-xl transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                Abonnement
-              </CardTitle>
-              <Trophy className="h-5 w-5 text-secondary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-sport font-black uppercase tracking-tighter text-secondary">
-                {userData.subscription || "GRATUIT"}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">
-                {userData.stripeCurrentPeriodEnd && (
-                  <>
-                    Expire le{" "}
-                    {new Date(
-                      userData.stripeCurrentPeriodEnd,
-                    ).toLocaleDateString()}
-                  </>
-                )}
+          {/* Card Tokens avec Jauge de progression stylisée */}
+          <div className="relative overflow-hidden bg-black text-white rounded-2xl p-6 shadow-xl group">
+            <div className="flex justify-between items-start">
+              <p className="font-sport italic text-primary uppercase text-sm">
+                Crédits Analyse
               </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card/40 backdrop-blur-md border-l-4 border-l-primary shadow-md hover:shadow-xl transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                Tokens
-              </CardTitle>
-              <Tally5 className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-sport font-black tracking-tighter text-primary">
-                {tokensRemaining}
-              </div>
-              <div className="w-full bg-secondary/20 rounded-full h-2.5 mt-3">
+              <Tally5 className="text-primary" />
+            </div>
+            <div className="mt-4 text-5xl font-sport font-black italic text-primary">
+              {userData?.tokensRemaining}
+            </div>
+            <div className="mt-4 h-2 w-full bg-white/10 rounded-full flex gap-1 overflow-hidden">
+              {[...Array(5)].map((_, i) => (
                 <div
-                  className="bg-primary h-2.5 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min((tokensRemaining / 10) * 100, 100)}%`,
-                  }}
-                ></div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2 font-medium">
-                Utilisés: {userData.tokensUsed || 0}
+                  key={i}
+                  className={`h-full flex-1 ${i < 3 ? "bg-primary" : "bg-white/5"}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Card Compétitions */}
+          <div className="relative overflow-hidden bg-secondary rounded-2xl p-6 shadow-xl text-secondary-foreground group">
+            <div className="flex justify-between items-start">
+              <p className="font-sport italic uppercase text-sm">Actives</p>
+              <Activity className="text-black/50" />
+            </div>
+            <div className="mt-4 text-5xl font-sport font-black italic">
+              {competitions.length}
+            </div>
+            <p className="text-xs font-bold uppercase mt-2">
+              Ligues sous surveillance
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* --- QUICK ACTIONS (Dossiers Tactiques) --- */}
+      {DASHBOARD_LINKS.length > 0 && (
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {DASHBOARD_LINKS.map((link) => (
+            <Link href={link.href} key={link.label} className="group">
+              <Card className="h-full border-2 border-transparent group-hover:border-primary group-hover:bg-primary/5 transition-all duration-300 overflow-hidden relative">
+                <div className="absolute -right-4 -bottom-4 text-primary/5 group-hover:text-primary/10 transition-colors">
+                  <link.icon size={100} />
+                </div>
+                <CardHeader className="p-6">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                    <link.icon size={24} />
+                  </div>
+                  <CardTitle className="font-sport italic uppercase text-xl group-hover:translate-x-1 transition-transform">
+                    {link.label}
+                  </CardTitle>
+                  <CardDescription className="font-medium">
+                    {link.desc}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          ))}
+        </section>
+      )}
+
+      {/* Section pour utilisateur sans club */}
+      {userRole === "UTILISATEUR" && !clubId && (
+        <section className="text-center py-12">
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <UserPlus size={48} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-sport italic uppercase tracking-tighter mb-2">
+                Rejoindre un Club
+              </h2>
+              <p className="text-muted-foreground">
+                Saisissez le code d'invitation de votre club pour commencer !
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        </section>
+      )}
 
-          <Card className="bg-card/40 backdrop-blur-md border-l-4 border-l-accent shadow-md hover:shadow-xl transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                Compétitions
-              </CardTitle>
-              <Trophy className="h-5 w-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-sport font-black tracking-tighter text-accent">
-                {competitions.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">
-                Accès actifs
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      {/* --- MAIN CONTENT --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Colonne Equipes */}
+        {clubId && DASHBOARD_LINKS.length > 0 && (
+          <div
+            className={`space-y-6 ${userRole === "ENTRAINEUR" || userRole === "JOUEUR" ? "lg:col-span-3" : "lg:col-span-2"}`}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-sport italic uppercase tracking-tighter flex items-center gap-3">
+                <div className="w-2 h-8 bg-secondary" /> Mes Équipes
+              </h2>
 
-        {/* Actions rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link href="/competitions">
-            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:border-primary/40">
-              <CardHeader className="text-center">
-                <Trophy className="h-8 w-8 mx-auto text-primary mb-2" />
-                <CardTitle className="text-primary font-sport uppercase">
-                  Compétitions
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </Link>
-
-          <Link href="/equipes">
-            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20 hover:border-secondary/40">
-              <CardHeader className="text-center">
-                <Users className="h-8 w-8 mx-auto text-secondary mb-2" />
-                <CardTitle className="text-secondary font-sport uppercase">
-                  Équipes
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </Link>
-
-          <Link href="/joueurs">
-            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20 hover:border-accent/40">
-              <CardHeader className="text-center">
-                <Activity className="h-8 w-8 mx-auto text-accent mb-2" />
-                <CardTitle className="text-accent font-sport uppercase">
-                  Joueurs
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </Link>
-
-          <Link href="/matchs">
-            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-muted-foreground/10 to-muted-foreground/5 border-muted-foreground/20 hover:border-muted-foreground/40">
-              <CardHeader className="text-center">
-                <Calendar className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <CardTitle className="text-muted-foreground font-sport uppercase">
-                  Matchs
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </Link>
-        </div>
-
-        {/* Compétitions accessibles */}
-        {competitions.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-sport uppercase tracking-wide">
-                <Trophy className="h-5 w-5 text-primary" />
-                Mes Compétitions
-              </CardTitle>
-              <CardDescription>
-                Compétitions auxquelles vous avez accès
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                {competitions.map((access) => (
-                  <div
-                    key={access.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+              {/* Boutons d'action pour admin_club seulement */}
+              {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") && (
+                <div className="flex gap-3">
+                  <Link
+                    href={`/dashboard/clubs/${clubId}/competitions/create-competition`}
                   >
-                    <div className="flex-1">
-                      <h3 className="font-semibold font-sport uppercase text-sm">
-                        {access.competition.nom}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {access.competition.equipe.nom}
-                        {access.competition.equipe.club?.nom && (
-                          <span className="ml-2 text-xs bg-muted px-2 py-1 rounded">
-                            {access.competition.equipe.club.nom}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Saison {access.competition.saison}
-                      </p>
+                    <Button
+                      variant="outline"
+                      className="font-sport italic flex items-center gap-2 hover:bg-primary hover:text-white transition-colors shadow-sm border-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Créer Compétition
+                    </Button>
+                  </Link>
+
+                  <div className="relative group">
+                    <AddEquipeModalButton clubId={clubId} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-4">
+              {equipesData?.map((equipe: any) => (
+                <div
+                  key={equipe.id}
+                  className="group flex items-center justify-between p-6 bg-card border-2 border-border rounded-2xl hover:border-primary/50 hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-muted rounded-xl flex items-center justify-center font-sport text-2xl text-muted-foreground group-hover:bg-primary group-hover:text-white transition-colors">
+                      {equipe.nom.substring(0, 2).toUpperCase()}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={access.tokenUsed ? "default" : "outline"}>
-                        {access.tokenUsed ? "Token utilisé" : "Gratuit"}
-                      </Badge>
-                      <Link href={`/competitions/${access.competition.id}`}>
-                        <Button size="sm" variant="outline">
-                          Voir
-                        </Button>
-                      </Link>
+                    <div>
+                      <h3 className="text-xl font-bold uppercase tracking-tight">
+                        {equipe.nom}
+                      </h3>
+                      <p className="text-muted-foreground text-sm font-medium">
+                        {equipe.ville} • {equipe.departement}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <Link href={`/dashboard/equipes/${equipe.id}`}>
+                    <Button
+                      variant="ghost"
+                      className="group-hover:text-primary"
+                    >
+                      Stats <ChevronRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* Code d'adhésion club (toujours visible) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-sport uppercase tracking-wide">
-              <Users className="h-5 w-5 text-secondary" />
-              Rejoindre un Club
-            </CardTitle>
-            <CardDescription>
-              Entrez le code fourni par votre club pour le rejoindre
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Code du club"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                className="flex-1 px-3 py-2 border border-input bg-background rounded-md text-sm"
-                disabled={isPending}
-              />
-              <Button
-                onClick={handleJoinClub}
-                disabled={!joinCode.trim() || isPending}
-              >
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Rejoindre
-              </Button>
-            </div>
-            {joinError && (
-              <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                {joinError}
-              </p>
-            )}
-            {joinSuccess && (
-              <p className="text-sm text-green-600 bg-green-50 p-2 rounded">
-                {joinSuccess}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Codes club (pour admins) */}
-        {userData.role &&
-          ["ADMIN_CLUB", "ADMIN_GENERAL"].includes(userData.role) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-sport uppercase tracking-wide">
-                  <Settings className="h-5 w-5 text-primary" />
-                  Gestion des Codes Club
-                </CardTitle>
-                <CardDescription>
-                  Codes d'accès générés pour vos clubs
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Button
-                    onClick={handleFetchClubCodes}
-                    disabled={isPending}
-                    variant="outline"
-                  >
-                    {isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Actualiser les codes
-                  </Button>
-
-                  {clubCodes.length > 0 && (
-                    <div className="grid gap-4">
-                      {clubCodes.map((clubCode) => (
-                        <div
-                          key={clubCode.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div>
-                            <h3 className="font-semibold font-sport uppercase text-sm">
-                              {clubCode.club.nom}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Rôle accordé: {clubCode.role}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Utilisations: {clubCode.utilisations}/
-                              {clubCode.maxUtilisations}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-mono text-lg font-bold bg-muted px-3 py-1 rounded">
-                              {clubCode.code}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+        {/* Colonne Latérale (1/3) - Seulement pour ADMIN_CLUB et UTILISATEUR */}
+        {(userRole === "ADMIN_CLUB" || userRole === "UTILISATEUR") && (
+          <div className="space-y-6">
+            {/* Codes d'invitation pour admin_club */}
+            {userRole === "ADMIN_CLUB" && clubCodes && (
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200">
+                <CardHeader>
+                  <CardTitle className="font-sport italic text-lg uppercase flex items-center gap-2 text-purple-700">
+                    <Share2 className="w-5 h-5" />
+                    Codes d'Invitation
+                  </CardTitle>
+                  <CardDescription>
+                    Partagez ces codes pour inviter des membres à votre club
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Code Entraîneur */}
+                  <div className="p-4 bg-white rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-purple-600 uppercase">
+                        Code Entraîneur
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          copyToClipboard(clubCodes.coachCode, "entraîneur")
+                        }
+                        className="text-purple-600 hover:bg-purple-100"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="font-mono text-lg font-bold bg-purple-50 p-3 rounded border-2 border-dashed border-purple-300 text-center">
+                      {clubCodes.coachCode}
+                    </div>
+                  </div>
 
-        {/* Actions premium */}
-        {!isPremium && (
-          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-800 font-sport uppercase tracking-wide">
-                <Trophy className="h-5 w-5" />
-                Passer à Premium
-              </CardTitle>
-              <CardDescription className="text-amber-700">
-                Débloquez toutes les fonctionnalités avancées
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2 text-amber-800">
-                  <BarChart3 className="h-4 w-4" />
-                  Statistiques avancées
+                  {/* Code Joueur */}
+                  <div className="p-4 bg-white rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-purple-600 uppercase">
+                        Code Joueur
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          copyToClipboard(clubCodes.playerCode, "joueur")
+                        }
+                        className="text-purple-600 hover:bg-purple-100"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="font-mono text-lg font-bold bg-purple-50 p-3 rounded border-2 border-dashed border-purple-300 text-center">
+                      {clubCodes.playerCode}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Interface de rejoindre un club pour utilisateurs sans club */}
+            {userRole === "UTILISATEUR" && (
+              <Card className="bg-muted/50 border-dashed border-2">
+                <CardHeader>
+                  <CardTitle className="font-sport italic text-lg uppercase">
+                    Rejoindre un club
+                  </CardTitle>
+                  <CardDescription>
+                    Saisissez le code d'invitation que vous a donné votre club
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <input
+                      value={joinCode}
+                      onChange={(e) =>
+                        setJoinCode(e.target.value.toUpperCase())
+                      }
+                      className="bg-background border-2 border-border rounded-lg px-4 py-2 flex-1 font-mono text-center uppercase tracking-wider focus:border-primary outline-none transition-colors"
+                      placeholder="CODE-XXXX"
+                      maxLength={12}
+                    />
+                    <Button
+                      className="font-sport italic min-w-[80px]"
+                      onClick={handleJoinClub}
+                      disabled={isPending || !joinCode.trim()}
+                    >
+                      {isPending ? (
+                        <Loader2 className="animate-spin w-4 h-4" />
+                      ) : (
+                        "VALIDER"
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    💡 Demandez le code d'accès à votre président ou entraîneur
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Accès Premium Banner - seulement pour ADMIN_CLUB */}
+            {userRole === "ADMIN_CLUB" &&
+              userData?.subscription !== "PREMIUM" && (
+                <div className="bg-gradient-to-br from-secondary to-orange-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+                  <Zap className="absolute -right-2 -top-2 w-24 h-24 text-white/20 rotate-12" />
+                  <h3 className="font-sport italic text-2xl uppercase leading-none">
+                    Passez en
+                    <br />
+                    mode Pro
+                  </h3>
+                  <p className="mt-4 text-sm font-medium text-white/90 mb-6">
+                    Analyses illimitées, export PDF et comparaisons de joueurs.
+                  </p>
+                  <Link href="/pricing" className="block w-full">
+                    <Button className="w-full bg-white text-secondary hover:bg-black hover:text-white font-sport uppercase italic">
+                      Découvrir l'offre
+                    </Button>
+                  </Link>
                 </div>
-                <div className="flex items-center gap-2 text-amber-800">
-                  <Users className="h-4 w-4" />
-                  Gestion multi-équipes
-                </div>
-                <div className="flex items-center gap-2 text-amber-800">
-                  <Trophy className="h-4 w-4" />
-                  Analyses de performance
-                </div>
-                <div className="flex items-center gap-2 text-amber-800">
-                  <Calendar className="h-4 w-4" />
-                  Planification avancée
-                </div>
-              </div>
-              <Link href="/pricing">
-                <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white font-sport uppercase tracking-wide">
-                  Découvrir Premium →
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+              )}
+          </div>
         )}
       </div>
     </div>

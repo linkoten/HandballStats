@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json(
         { error: "Utilisateur introuvable" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const successUrl = `${baseUrl}/onboarding/club?checkout=success`;
+    const successUrl = `${baseUrl}/dashboard?checkout=success`;
     const cancelUrl = `${baseUrl}/pricing?checkout=canceled`;
 
     // Abonnement ou jetons ?
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { error: "Paramètres invalides" },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error) {
     console.error("Erreur création session Stripe:", error);

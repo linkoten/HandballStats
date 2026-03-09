@@ -1,26 +1,29 @@
+import { redirect } from "next/navigation";
 import ScrapingProgressClient from "./client";
 
 interface PageProps {
-  searchParams: Promise<{ ids?: string }>;
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default async function ScrapingProgressPage({
   searchParams,
 }: PageProps) {
-  const params = await searchParams;
-  const competitionIds = params.ids || "";
+  const resolvedSearchParams =
+    searchParams instanceof Promise ? await searchParams : searchParams;
 
-  if (!competitionIds) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">❌ Erreur</h1>
-          <p className="text-muted-foreground">
-            Aucune compétition spécifiée pour le suivi.
-          </p>
-        </div>
-      </div>
-    );
+  const idsParam = resolvedSearchParams?.ids;
+
+  if (!idsParam || typeof idsParam !== "string") {
+    redirect("/competitions");
+  }
+
+  const competitionIds = idsParam
+    .split(",")
+    .map((id) => parseInt(id.trim(), 10))
+    .filter((id) => !isNaN(id) && id > 0);
+
+  if (competitionIds.length === 0) {
+    redirect("/competitions");
   }
 
   return <ScrapingProgressClient competitionIds={competitionIds} />;

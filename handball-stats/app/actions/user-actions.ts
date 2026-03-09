@@ -2,7 +2,14 @@
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
+import { getUserClubs } from "./club-actions";
 import { SubscriptionType, UserRole } from "@prisma/client";
+
+export type UserProfileResponse = {
+  success: boolean;
+  data?: any;
+  error?: string;
+};
 
 export async function syncUser() {
   const { userId } = await auth();
@@ -80,12 +87,6 @@ export async function getCurrentUser() {
 
   return user;
 }
-
-export type UserProfileResponse = {
-  success: boolean;
-  data?: any;
-  error?: string;
-};
 
 /**
  * Récupère le profil complet de l'utilisateur connecté
@@ -170,13 +171,13 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
     }
 
     // Formater les données pour correspondre au format attendu
+    const clubs = user.clubs.map((uc) => ({ ...uc.club }));
     const formattedUser = {
       ...user,
       stripeCurrentPeriodEnd:
         user.stripeCurrentPeriodEnd?.toISOString() || null,
-      clubs: user.clubs.map((uc) => ({
-        ...uc.club,
-      })),
+      clubs,
+      club: clubs[0] || null,
       recentCompetitions: user.competitionAccess.map((ca) => ca.competition),
     };
 

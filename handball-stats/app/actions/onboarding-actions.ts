@@ -8,10 +8,28 @@ import { safeCreate } from "@/lib/sequence-safety";
 import { spawn } from "child_process";
 import path from "path";
 
+export type OnboardingResponse = {
+  success: boolean;
+  data?: any;
+  error?: string;
+};
+
+export type CompetitionConfig = {
+  url: string;
+  equipe: string;
+  equipe_bdd: string;
+  competition_name: string;
+  poule: string;
+  max_journees: string;
+  saison: string;
+  phase?: string;
+  equipeId: number | null;
+};
+
 /**
  * Lance le processus de scraping pour les compétitions
  */
-async function startScrapingProcess(competitionIds: number[]) {
+export async function startScrapingProcess(competitionIds: number[]) {
   try {
     console.log(
       "🔄 Démarrage du scraping pour les compétitions:",
@@ -158,24 +176,6 @@ async function startScrapingProcess(competitionIds: number[]) {
     console.error("❌ Erreur startScrapingProcess:", error);
   }
 }
-
-export type OnboardingResponse = {
-  success: boolean;
-  data?: any;
-  error?: string;
-};
-
-export type CompetitionConfig = {
-  url: string;
-  equipe: string;
-  equipe_bdd: string;
-  competition_name: string;
-  poule: string;
-  max_journees: string;
-  saison: string;
-  phase?: string;
-  equipeId: number | null;
-};
 
 /**
  * Sélectionner un club pendant l'onboarding

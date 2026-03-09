@@ -11,7 +11,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { nom, ville, region, departement, clubId } = body;
     if (!nom || !clubId) {
-      return NextResponse.json({ error: "Nom et clubId requis" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Nom et clubId requis" },
+        { status: 400 },
+      );
     }
     // Vérifier que l'utilisateur a accès au club
     const user = await prisma.user.findUnique({
@@ -21,7 +24,10 @@ export async function POST(req: Request) {
       },
     });
     if (!user || user.clubs.length === 0) {
-      return NextResponse.json({ error: "Accès au club non autorisé" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Accès au club non autorisé" },
+        { status: 403 },
+      );
     }
     // Créer l'équipe
     const equipe = await prisma.equipes.create({
@@ -36,6 +42,9 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(equipe, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Erreur serveur" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Erreur serveur" },
+      { status: 500 },
+    );
   }
 }

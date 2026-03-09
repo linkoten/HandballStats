@@ -294,20 +294,23 @@ export async function createCompetition(
       throw new Error("Utilisateur introuvable");
     }
 
-    // Vérifier l'accès à l'équipe
-    const equipe = await prisma.equipes.findFirst({
-      where: {
-        id: equipeId,
-        club: {
-          userClubs: {
-            some: { userId: user.id },
-          },
-        },
-      },
+    // Guard d'accès : seul admin du club ou ADMIN_GENERAL peut créer une compétition
+    const equipe = await prisma.equipes.findUnique({
+      where: { id: equipeId },
+      include: { club: true },
     });
-
-    if (!equipe) {
-      throw new Error("Vous n'avez pas accès à cette équipe");
+    if (!equipe || !equipe.club) {
+      throw new Error("Équipe ou club introuvable");
+    }
+    const { isAdmin, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: equipe.club.id,
+      });
+    if (!hasAccess || (!isAdmin && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul l'admin du club ou l'admin général peut créer une compétition",
+      );
     }
 
     // Créer la compétition et l'accès en transaction
@@ -375,9 +378,22 @@ export async function updateCompetition(
     }
 
     // Vérifier l'accès avant la mise à jour
-    const accessCheck = await getCompetitionById(competitionId);
-    if (!accessCheck.success) {
-      throw new Error(accessCheck.error || "Accès refusé");
+    const competition = await prisma.competition.findUnique({
+      where: { id: competitionId },
+      include: { equipe: { include: { club: true } } },
+    });
+    if (!competition || !competition.equipe || !competition.equipe.club) {
+      throw new Error("Compétition ou club introuvable");
+    }
+    const { isAdmin, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: competition.equipe.club.id,
+      });
+    if (!hasAccess || (!isAdmin && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul l'admin du club ou l'admin général peut modifier une compétition",
+      );
     }
 
     // Vérifier l'accès à la nouvelle équipe si elle change
@@ -385,11 +401,9 @@ export async function updateCompetition(
       const user = await prisma.user.findUnique({
         where: { clerkId: userId },
       });
-
       if (!user) {
         throw new Error("Utilisateur introuvable");
       }
-
       const equipe = await prisma.equipes.findFirst({
         where: {
           id: data.equipeId,
@@ -400,14 +414,13 @@ export async function updateCompetition(
           },
         },
       });
-
       if (!equipe) {
         throw new Error("Vous n'avez pas accès à cette équipe");
       }
     }
 
     // Mettre à jour la compétition
-    const competition = await prisma.competition.update({
+    const updatedCompetition = await prisma.competition.update({
       where: { id: competitionId },
       data: {
         ...(data.nom && { nom: data.nom }),
@@ -421,7 +434,7 @@ export async function updateCompetition(
         }),
         ...(data.journeeFin !== undefined && { journeeFin: data.journeeFin }),
         ...(data.urlBase !== undefined && { urlBase: data.urlBase }),
-        lastScrapedAt: new Date(), // Mettre à jour le timestamp de modification
+        lastScrapedAt: new Date(),
       },
       include: {
         equipe: {
@@ -430,17 +443,16 @@ export async function updateCompetition(
       },
     });
 
-    // Revalider les pages qui affichent les compétitions
     revalidatePath("/competitions");
     revalidatePath(`/competitions/${competitionId}`);
     revalidatePath("/dashboard");
-    if (competition.equipeId) {
-      revalidatePath(`/equipes/${competition.equipeId}`);
+    if (updatedCompetition.equipeId) {
+      revalidatePath(`/equipes/${updatedCompetition.equipeId}`);
     }
 
     return {
       success: true,
-      data: competition,
+      data: updatedCompetition,
     };
   } catch (error) {
     console.error("Erreur mise à jour compétition:", error);
@@ -464,24 +476,30 @@ export async function deleteCompetition(
     }
 
     // Vérifier l'accès avant la suppression
-    const accessCheck = await getCompetitionById(competitionId);
-    if (!accessCheck.success) {
-      throw new Error(accessCheck.error || "Accès refusé");
+    const competition = await prisma.competition.findUnique({
+      where: { id: competitionId },
+      include: { equipe: { include: { club: true } } },
+    });
+    if (!competition || !competition.equipe || !competition.equipe.club) {
+      throw new Error("Compétition ou club introuvable");
+    }
+    const { isAdmin, isGeneralAdmin, hasAccess } =
+      await require("@/lib/access-control").checkUserClubRole({
+        userId,
+        clubId: competition.equipe.club.id,
+      });
+    if (!hasAccess || (!isAdmin && !isGeneralAdmin)) {
+      throw new Error(
+        "Seul l'admin du club ou l'admin général peut supprimer une compétition",
+      );
     }
 
-    const competitionData = accessCheck.data;
-    const equipeId = competitionData.equipeId;
+    await prisma.competition.delete({ where: { id: competitionId } });
 
-    // Supprimer la compétition (avec cascade automatique selon le schéma Prisma)
-    await prisma.competition.delete({
-      where: { id: competitionId },
-    });
-
-    // Revalider les pages qui affichent les compétitions
     revalidatePath("/competitions");
     revalidatePath("/dashboard");
-    if (equipeId) {
-      revalidatePath(`/equipes/${equipeId}`);
+    if (competition.equipeId) {
+      revalidatePath(`/equipes/${competition.equipeId}`);
     }
 
     return {

@@ -34,6 +34,7 @@ export async function getUserTokens(): Promise<TokenResponse> {
                   include: {
                     club: {
                       select: {
+                        id: true,
                         nom: true,
                       },
                     },
@@ -76,6 +77,7 @@ export async function getUserTokens(): Promise<TokenResponse> {
           equipe: {
             id: access.competition.equipe?.id || 0,
             nom: access.competition.equipe?.nom || "Inconnue",
+            clubId: access.competition.equipe?.club?.id || 0,
             club: {
               nom: access.competition.equipe?.club?.nom || "Club inconnu",
             },

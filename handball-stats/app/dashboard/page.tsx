@@ -1,4 +1,5 @@
 import { getUserProfile, getUserTokens } from "@/app/actions";
+import { getEquipesByClub } from "@/app/actions/equipe-actions";
 import DashboardClient from "./client";
 
 export default async function DashboardPage() {
@@ -25,10 +26,18 @@ export default async function DashboardPage() {
         ? "Erreur de chargement des tokens"
         : undefined;
 
+  // Récupérer les équipes du club si club présent
+  let equipesData = null;
+  if (userData?.club?.id) {
+    const equipesResult = await getEquipesByClub(userData.club.id.toString());
+    equipesData = equipesResult.success ? equipesResult.data : null;
+  }
+
   return (
     <DashboardClient
       initialUserData={userData}
       initialTokensData={tokensData}
+      equipesData={equipesData}
       error={error}
     />
   );

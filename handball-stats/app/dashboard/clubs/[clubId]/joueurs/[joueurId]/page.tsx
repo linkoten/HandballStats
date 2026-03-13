@@ -22,8 +22,10 @@ import {
 } from "@/components/ui/select";
 import {
   ResponsiveContainer,
+  ComposedChart,
   BarChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -255,10 +257,59 @@ export default function ProfilJoueurPage() {
     [joueur],
   );
 
+  const hasGardienPoste = useMemo(
+    () =>
+      isGardien ||
+      joueur?.postes_secondaires?.some(
+        (p: string) =>
+          p.toLowerCase().includes("gardien") ||
+          p.toLowerCase().includes("goal"),
+      ),
+    [isGardien, joueur],
+  );
+
+  const isGardienPur = useMemo(
+    () =>
+      isGardien &&
+      (!joueur?.postes_secondaires || joueur.postes_secondaires.length === 0),
+    [isGardien, joueur],
+  );
+
   // ── Chart data ──────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
     if (!joueur?.statistiques_joueur?.length) return [];
+    const slice = [...joueur.statistiques_joueur].slice(0, 15).reverse();
+    let cumButs = 0;
+    return slice.map((s: any, i: number) => {
+      const m = s.matchs;
+      const isHome = m?.equipe_recevant_id === joueur.id_equipe;
+      const oppFull = isHome
+        ? m?.equipes_matchs_equipe_exterieur_idToequipes?.nom
+        : m?.equipes_matchs_equipe_recevant_idToequipes?.nom;
+      const opp = oppFull
+        ? oppFull.split(" ").slice(-2).join(" ")
+        : `J${i + 1}`;
+      const buts = s.buts || 0;
+      const tirs = s.tirs || 0;
+      cumButs += buts;
+      const moyButs = parseFloat((cumButs / (i + 1)).toFixed(2));
+      const pctTir = tirs > 0 ? Math.round((buts / tirs) * 100) : null;
+      return {
+        name: opp,
+        Buts: buts,
+        Tirs: tirs,
+        Arrêts: s.arrets || 0,
+        "Moy. Buts": moyButs,
+        "% Tir": pctTir,
+      };
+    });
+  }, [joueur]);
+
+  // ── Goalkeeper-specific chart data (only matches with ≥1 arrêt) ──────────
+  const chartDataGardien = useMemo(() => {
+    if (!hasGardienPoste || !joueur?.statistiques_joueur?.length) return [];
     return [...joueur.statistiques_joueur]
+      .filter((s: any) => (s.arrets || 0) > 0)
       .slice(0, 15)
       .reverse()
       .map((s: any, i: number) => {
@@ -269,15 +320,64 @@ export default function ProfilJoueurPage() {
           : m?.equipes_matchs_equipe_recevant_idToequipes?.nom;
         const opp = oppFull
           ? oppFull.split(" ").slice(-2).join(" ")
-          : `J${i + 1}`;
+          : `M${i + 1}`;
+        const myArrets = s.arrets || 0;
+
+        // Parse goals conceded from score_final
+        let goalsConceded = 0;
+        if (m?.score_final) {
+          const parts = m.score_final.replace(/\s/g, "").split("-");
+          if (parts.length === 2) {
+            const n1 = parseInt(parts[0]);
+            const n2 = parseInt(parts[1]);
+            if (!isNaN(n1) && !isNaN(n2)) {
+              goalsConceded = isHome ? n2 : n1;
+            }
+          }
+        }
+
+        // Team total arrets for this match from the precomputed map
+        const matchId: number | undefined = m?.id;
+        const teamArrets: number =
+          matchId !== undefined ? (joueur.arretsParMatch?.[matchId] ?? 0) : 0;
+
+        // Save % = arrêts / (arrêts + buts encaissés) × 100
+        const denomPerso = myArrets + goalsConceded;
+        const pctPerso =
+          denomPerso > 0 ? Math.round((myArrets / denomPerso) * 100) : null;
+
+        const denomEquipe = teamArrets + goalsConceded;
+        const pctEquipe =
+          denomEquipe > 0 ? Math.round((teamArrets / denomEquipe) * 100) : null;
+
         return {
           name: opp,
-          Buts: s.buts || 0,
-          Tirs: s.tirs || 0,
-          Arrêts: s.arrets || 0,
+          Arrêts: myArrets,
+          "% Perso": pctPerso,
+          "% Équipe": pctEquipe,
         };
       });
-  }, [joueur]);
+  }, [hasGardienPoste, joueur]);
+
+  const gardienKPIs = useMemo(() => {
+    if (!hasGardienPoste || !joueur?.statistiques_joueur?.length) return null;
+    const stats = joueur.statistiques_joueur;
+    const totalArrets = stats.reduce(
+      (a: number, s: any) => a + (s.arrets || 0),
+      0,
+    );
+    const bestMatch = Math.max(...stats.map((s: any) => s.arrets || 0));
+    const avgArrets =
+      stats.length > 0 ? (totalArrets / stats.length).toFixed(1) : "0.0";
+    const pctValues = chartDataGardien
+      .map((d) => d["% Perso"])
+      .filter((v): v is number => v !== null);
+    const avgPctPerso =
+      pctValues.length > 0
+        ? Math.round(pctValues.reduce((a, b) => a + b, 0) / pctValues.length)
+        : null;
+    return { totalArrets, bestMatch, avgArrets, avgPctPerso };
+  }, [hasGardienPoste, joueur, chartDataGardien]);
 
   const isEntraineur = ["ENTRAINEUR", "ADMIN_CLUB", "ADMIN_GENERAL"].includes(
     userRole ?? "",
@@ -563,29 +663,226 @@ export default function ProfilJoueurPage() {
 
           {/* ── TAB: ANALYSE ────────────────────────────────────────────────────── */}
           <TabsContent value="analyse" className="space-y-8">
-            {/* Recharts BarChart — full width */}
-            <Card className="rounded-[3rem] border-2 shadow-xl bg-[#0F172A] text-white p-8">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h3 className="font-sport italic text-3xl uppercase">
-                    {isGardien ? "Arrêts par match" : "Buts & Tirs par match"}
-                  </h3>
-                  <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">
-                    {Math.min(15, joueur.statistiques_joueur?.length ?? 0)}{" "}
-                    dernières rencontres
-                  </p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ background: isGardien ? "#34d399" : "#818cf8" }}
-                    />
-                    <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
-                      {isGardien ? "Arrêts" : "Buts"}
-                    </span>
+            {/* ── Goalkeeper chart — visible when player has any GK role ──────── */}
+            {hasGardienPoste && (
+              <Card className="rounded-[3rem] border-2 shadow-xl bg-[#0F172A] text-white p-8">
+                {/* Mini KPIs strip */}
+                {gardienKPIs && (
+                  <div className="grid grid-cols-3 gap-3 mb-8">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
+                      <p className="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1">
+                        Meilleur match
+                      </p>
+                      <p className="font-sport italic font-black text-4xl text-emerald-400">
+                        {gardienKPIs.bestMatch}
+                      </p>
+                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-1">
+                        arrêts
+                      </p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                      <p className="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1">
+                        Moy. / match
+                      </p>
+                      <p className="font-sport italic font-black text-4xl text-white">
+                        {gardienKPIs.avgArrets}
+                      </p>
+                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-1">
+                        arrêts
+                      </p>
+                    </div>
+                    <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 text-center">
+                      <p className="text-[9px] font-black uppercase text-white/40 tracking-widest mb-1">
+                        % arrêt moy.
+                      </p>
+                      <p className="font-sport italic font-black text-4xl text-violet-400">
+                        {gardienKPIs.avgPctPerso !== null
+                          ? `${gardienKPIs.avgPctPerso}%`
+                          : "—"}
+                      </p>
+                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-1">
+                        perso / match
+                      </p>
+                    </div>
                   </div>
-                  {!isGardien && (
+                )}
+
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3 className="font-sport italic text-3xl uppercase">
+                      Arrêts &amp; % d'arrêt par rencontre
+                    </h3>
+                    <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">
+                      {chartDataGardien.length} rencontres avec au moins 1 arrêt
+                    </p>
+                  </div>
+                  <div className="flex gap-4 flex-wrap justify-end">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                      <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
+                        Arrêts
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-violet-400" />
+                      <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
+                        % Perso
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-sky-400" />
+                      <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
+                        % Équipe
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {chartDataGardien.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <ComposedChart
+                      data={chartDataGardien}
+                      margin={{ top: 24, right: 40, left: -10, bottom: 48 }}
+                      barGap={4}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="4 4"
+                        stroke="rgba(255,255,255,0.07)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        tick={{
+                          fill: "rgba(255,255,255,0.55)",
+                          fontSize: 10,
+                          fontWeight: 700,
+                        }}
+                        angle={-40}
+                        textAnchor="end"
+                        interval={0}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
+                      />
+                      {/* Left axis — Arrêts count */}
+                      <YAxis
+                        yAxisId="left"
+                        tick={{
+                          fill: "rgba(255,255,255,0.45)",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        allowDecimals={false}
+                        width={28}
+                      />
+                      {/* Right axis — percentages 0-100 */}
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        domain={[0, 100]}
+                        tickFormatter={(v) => `${v}%`}
+                        tick={{
+                          fill: "rgba(255,255,255,0.30)",
+                          fontSize: 10,
+                          fontWeight: 700,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={40}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#1E293B",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          borderRadius: "0.75rem",
+                          color: "#fff",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          padding: "10px 16px",
+                        }}
+                        labelStyle={{
+                          color: "rgba(255,255,255,0.5)",
+                          fontSize: "10px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                          marginBottom: 4,
+                        }}
+                        cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                        formatter={
+                          ((value: any, name: any) =>
+                            String(name).startsWith("%")
+                              ? [`${value ?? "—"}%`, name]
+                              : [value, name]) as any
+                        }
+                      />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="Arrêts"
+                        fill="#34d399"
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={44}
+                        label={{
+                          position: "top",
+                          fill: "rgba(255,255,255,0.45)",
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="% Perso"
+                        stroke="#a78bfa"
+                        strokeWidth={2.5}
+                        dot={{ fill: "#a78bfa", r: 4, strokeWidth: 0 }}
+                        activeDot={{ r: 6 }}
+                        connectNulls={false}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="% Équipe"
+                        stroke="#38bdf8"
+                        strokeWidth={2}
+                        strokeDasharray="5 3"
+                        dot={{ fill: "#38bdf8", r: 3, strokeWidth: 0 }}
+                        activeDot={{ r: 5 }}
+                        connectNulls={false}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-white/20 font-sport italic text-xl uppercase tracking-widest">
+                    Aucune donnée disponible
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* ── Field player chart — hidden only for pure goalkeepers ────────── */}
+            {!isGardienPur && (
+              <Card className="rounded-[3rem] border-2 shadow-xl bg-[#0F172A] text-white p-8">
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3 className="font-sport italic text-3xl uppercase">
+                      Buts &amp; Tirs par match
+                    </h3>
+                    <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">
+                      {Math.min(15, joueur.statistiques_joueur?.length ?? 0)}{" "}
+                      dernières rencontres
+                    </p>
+                  </div>
+                  <div className="flex gap-3 flex-wrap justify-end">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ background: "#818cf8" }}
+                      />
+                      <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
+                        Buts
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <div
                         className="w-3 h-3 rounded-full"
@@ -595,108 +892,157 @@ export default function ProfilJoueurPage() {
                         Tirs
                       </span>
                     </div>
-                  )}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-5 border-t-2 rounded-full"
+                        style={{ borderColor: "#f472b6" }}
+                      />
+                      <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
+                        Moy. Buts
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-5 border-t-2 border-dashed rounded-full"
+                        style={{ borderColor: "#fbbf24" }}
+                      />
+                      <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">
+                        % Tir
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 24, right: 8, left: -10, bottom: 48 }}
-                    barGap={4}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="4 4"
-                      stroke="rgba(255,255,255,0.07)"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="name"
-                      tick={{
-                        fill: "rgba(255,255,255,0.55)",
-                        fontSize: 10,
-                        fontWeight: 700,
-                      }}
-                      angle={-40}
-                      textAnchor="end"
-                      interval={0}
-                      tickLine={false}
-                      axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                    />
-                    <YAxis
-                      tick={{
-                        fill: "rgba(255,255,255,0.45)",
-                        fontSize: 12,
-                        fontWeight: 700,
-                      }}
-                      tickLine={false}
-                      axisLine={false}
-                      allowDecimals={false}
-                      width={28}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "#1E293B",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        borderRadius: "0.75rem",
-                        color: "#fff",
-                        fontSize: "13px",
-                        fontWeight: 700,
-                        padding: "10px 16px",
-                      }}
-                      labelStyle={{
-                        color: "rgba(255,255,255,0.5)",
-                        fontSize: "10px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.1em",
-                        marginBottom: 4,
-                      }}
-                      cursor={{ fill: "rgba(255,255,255,0.05)" }}
-                    />
-                    {isGardien ? (
-                      <Bar
-                        dataKey="Arrêts"
-                        fill="#34d399"
-                        radius={[6, 6, 0, 0]}
-                        maxBarSize={48}
-                        label={{
-                          position: "top",
-                          fill: "rgba(255,255,255,0.5)",
-                          fontSize: 11,
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={320}>
+                    <ComposedChart
+                      data={chartData}
+                      margin={{ top: 24, right: 44, left: -10, bottom: 48 }}
+                      barGap={4}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="4 4"
+                        stroke="rgba(255,255,255,0.07)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="name"
+                        tick={{
+                          fill: "rgba(255,255,255,0.55)",
+                          fontSize: 10,
                           fontWeight: 700,
                         }}
+                        angle={-40}
+                        textAnchor="end"
+                        interval={0}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
                       />
-                    ) : (
-                      <>
-                        <Bar
-                          dataKey="Tirs"
-                          fill="#334155"
-                          radius={[4, 4, 0, 0]}
-                          maxBarSize={36}
-                        />
-                        <Bar
-                          dataKey="Buts"
-                          fill="#818cf8"
-                          radius={[6, 6, 0, 0]}
-                          maxBarSize={36}
-                          label={{
-                            position: "top",
-                            fill: "rgba(255,255,255,0.6)",
-                            fontSize: 11,
-                            fontWeight: 800,
-                          }}
-                        />
-                      </>
-                    )}
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-72 flex items-center justify-center text-white/20 font-sport italic text-xl uppercase tracking-widest">
-                  Aucune donnée disponible
-                </div>
-              )}
-            </Card>
+                      {/* Left axis — counts */}
+                      <YAxis
+                        yAxisId="left"
+                        tick={{
+                          fill: "rgba(255,255,255,0.45)",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        allowDecimals={false}
+                        width={28}
+                      />
+                      {/* Right axis — percentage 0–100 */}
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        domain={[0, 100]}
+                        tickFormatter={(v) => `${v}%`}
+                        tick={{
+                          fill: "rgba(255,255,255,0.30)",
+                          fontSize: 10,
+                          fontWeight: 700,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={40}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#1E293B",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          borderRadius: "0.75rem",
+                          color: "#fff",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          padding: "10px 16px",
+                        }}
+                        labelStyle={{
+                          color: "rgba(255,255,255,0.5)",
+                          fontSize: "10px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                          marginBottom: 4,
+                        }}
+                        cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                        formatter={
+                          ((value: any, name: any) =>
+                            name === "% Tir"
+                              ? [`${value ?? "—"}%`, name]
+                              : name === "Moy. Buts"
+                                ? [Number(value).toFixed(2), name]
+                                : [value, name]) as any
+                        }
+                      />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="Tirs"
+                        fill="#334155"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={36}
+                      />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="Buts"
+                        fill="#818cf8"
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={36}
+                        label={{
+                          position: "top",
+                          fill: "rgba(255,255,255,0.6)",
+                          fontSize: 11,
+                          fontWeight: 800,
+                        }}
+                      />
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="Moy. Buts"
+                        stroke="#f472b6"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 5, fill: "#f472b6" }}
+                        connectNulls
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="% Tir"
+                        stroke="#fbbf24"
+                        strokeWidth={2}
+                        strokeDasharray="5 3"
+                        dot={{ fill: "#fbbf24", r: 3, strokeWidth: 0 }}
+                        activeDot={{ r: 5 }}
+                        connectNulls={false}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-72 flex items-center justify-center text-white/20 font-sport italic text-xl uppercase tracking-widest">
+                    Aucune donnée disponible
+                  </div>
+                )}
+              </Card>
+            )}
           </TabsContent>
 
           {/* ── TAB: OBJECTIFS ──────────────────────────────────────────────────── */}

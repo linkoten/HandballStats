@@ -1,20 +1,26 @@
-import MetabaseDashboard from "@/components/MetabaseDashboard";
-import { getUserAccessibleEquipeIds } from "@/lib/access-control";
+﻿import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import prisma from "@/lib/prisma";
 
-export default async function StatistiquesPage() {
-  // Récupère les équipes accessibles à l'utilisateur
-  const { equipeIds } = await getUserAccessibleEquipeIds();
-  // Prends le premier club/équipe accessible (ou adapte selon ton besoin)
-  const clubId = equipeIds[0];
+// Redirige vers la page statistiques du club principal de l'utilisateur
+export default async function StatistiquesRootPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
 
-  // Lien statique fourni par Metabase
-  const dashboardId = "92df2fcb-90dd-43f2-95a7-1cb82fcd7922";
-  const filters = { club_id: clubId };
+  const user = await prisma.user.findUnique({
+    where: { clerkId: userId },
+    include: {
+      clubs: {
+        where: { isPrincipal: true },
+        take: 1,
+      },
+    },
+  });
 
-  return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Statistiques interactives</h1>
-      <MetabaseDashboard dashboardId={dashboardId} filters={filters} />
-    </div>
-  );
+  const principalClub = user?.clubs[0];
+  if (principalClub) {
+    redirect(`/dashboard/clubs/${principalClub.clubId}/statistiques`);
+  }
+
+  redirect("/dashboard");
 }

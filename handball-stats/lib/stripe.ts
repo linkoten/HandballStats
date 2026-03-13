@@ -9,7 +9,20 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   typescript: true,
 });
 
-// Configuration des plans d'abonnement
+// Limites par plan (source de vérité côté code)
+// Pas de limite sur le nombre de compétitions total :
+// les tokens sont dépensés pour scraper, accumulés via la réallocation d'août.
+// L'unique limite matérielle est donc le nombre de tokens disponibles.
+export const PLAN_LIMITS = {
+  GRATUIT: { maxTokens: 0, maxEntraineurs: 0, trialDays: 0 },
+  STARTER: { maxTokens: 3, maxEntraineurs: 1, trialDays: 14 },
+  PRO: { maxTokens: 10, maxEntraineurs: 3, trialDays: 0 },
+  CLUB: { maxTokens: 25, maxEntraineurs: 10, trialDays: 0 },
+  PREMIUM: { maxTokens: -1, maxEntraineurs: -1, trialDays: 0 },
+} as const;
+
+export type PlanType = keyof typeof PLAN_LIMITS;
+
 // Configuration des plans d'abonnement
 export const SUBSCRIPTION_PLANS = {
   STARTER: {
@@ -21,11 +34,10 @@ export const SUBSCRIPTION_PLANS = {
     tokens: 3,
     trialDays: 14,
     features: [
-      "3 compétitions actives",
-      "Entraîneurs illimités",
-      "Accès Power BI",
-      "Export Excel",
+      "3 jetons (= 3 compétitions scrapées)",
+      "1 entraîneur dans le club",
       "Essai gratuit 14 jours",
+      "Réallocation de jetons en août",
     ],
   },
   PRO: {
@@ -36,11 +48,9 @@ export const SUBSCRIPTION_PLANS = {
     priceIdYearly: process.env.STRIPE_PRO_YEARLY_PRICE_ID!,
     tokens: 10,
     features: [
-      "10 compétitions actives",
-      "Entraîneurs illimités",
-      "Historique 3 ans",
-      "Accès Power BI",
-      "Export Excel",
+      "10 jetons (= 10 compétitions scrapées)",
+      "3 entraîneurs dans le club",
+      "Réallocation de jetons en août",
       "Support prioritaire",
     ],
   },
@@ -52,13 +62,10 @@ export const SUBSCRIPTION_PLANS = {
     priceIdYearly: process.env.STRIPE_CLUB_YEARLY_PRICE_ID!,
     tokens: 25,
     features: [
-      "25 compétitions actives",
-      "Entraîneurs illimités",
-      "Historique 5 ans",
-      "Accès Power BI",
-      "Export Excel & PDF",
+      "25 jetons (= 25 compétitions scrapées)",
+      "10 entraîneurs dans le club",
+      "Réallocation de jetons en août",
       "Support prioritaire",
-      "API Access",
     ],
   },
   PREMIUM: {
@@ -69,14 +76,10 @@ export const SUBSCRIPTION_PLANS = {
     priceIdYearly: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID!,
     tokens: -1, // Illimité
     features: [
-      "Compétitions illimitées",
+      "Jetons illimités",
       "Entraîneurs illimités",
-      "Historique complet",
-      "Accès Power BI personnalisé",
-      "Export tous formats",
+      "Réallocation de jetons en août",
       "Support dédié",
-      "API Access illimité",
-      "Formations exclusives",
     ],
   },
 } as const;
@@ -203,7 +206,7 @@ export async function getSubscription(subscriptionId: string) {
 // Helper pour créer un portal client (gestion abonnement)
 export async function createCustomerPortalSession(
   customerId: string,
-  returnUrl: string
+  returnUrl: string,
 ) {
   return await stripe.billingPortal.sessions.create({
     customer: customerId,

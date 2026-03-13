@@ -536,3 +536,89 @@ export async function getMatchsByUser(): Promise<MatchResponse> {
     };
   }
 }
+
+/**
+ * Met à jour les statistiques individuelles d'un joueur pour un match.
+ * Réservé aux rôles : ENTRAINEUR, ADMIN_CLUB, ADMIN_GENERAL.
+ */
+export async function updateStatistiquesJoueur(
+  statId: number,
+  data: {
+    buts?: number;
+    tirs?: number;
+    arrets?: number;
+    exclusions_2min?: number;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Non authentifié");
+
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    if (!user) throw new Error("Utilisateur introuvable");
+
+    const allowedRoles = ["ENTRAINEUR", "ADMIN_CLUB", "ADMIN_GENERAL"];
+    if (!allowedRoles.includes(user.role)) {
+      throw new Error("Accès non autorisé — rôle insuffisant");
+    }
+
+    // Vérifier que la stat existe et que l'utilisateur a accès via son club
+    const stat = await prisma.statistiques_joueur.findUnique({
+      where: { id: statId },
+      include: {
+        matchs: {
+          include: {
+            equipes_matchs_equipe_recevant_idToequipes: {
+              select: { clubId: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!stat) throw new Error("Statistique introuvable");
+
+    if (user.role !== "ADMIN_GENERAL") {
+      const clubId =
+        stat.matchs?.equipes_matchs_equipe_recevant_idToequipes?.clubId;
+      if (clubId) {
+        const membership = await prisma.userClub.findFirst({
+          where: { userId: user.id, clubId },
+        });
+        if (!membership) throw new Error("Accès refusé à ce match");
+      }
+    }
+
+    // Valider que les valeurs sont positives ou nulles
+    const clean: {
+      buts?: number;
+      tirs?: number;
+      arrets?: number;
+      exclusions_2min?: number;
+    } = {};
+    if (data.buts !== undefined) clean.buts = Math.max(0, data.buts);
+    if (data.tirs !== undefined) clean.tirs = Math.max(0, data.tirs);
+    if (data.arrets !== undefined) clean.arrets = Math.max(0, data.arrets);
+    if (data.exclusions_2min !== undefined)
+      clean.exclusions_2min = Math.max(0, data.exclusions_2min);
+
+    await prisma.statistiques_joueur.update({
+      where: { id: statId },
+      data: clean,
+    });
+
+    const matchId = stat.id_match;
+    if (matchId) {
+      revalidatePath(`/dashboard/clubs`);
+      revalidatePath(`/dashboard/matchs/${matchId}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur mise à jour statistiques joueur:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}

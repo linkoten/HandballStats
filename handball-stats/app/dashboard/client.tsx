@@ -27,23 +27,55 @@ import {
   Copy,
   Crown,
   Shield,
+  CreditCard,
+  ArrowUpRight,
+  Sparkles,
+  PersonStanding,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  getClubCodes,
-  validateClubCode,
-  getUserTokens,
-  getUserProfile,
-} from "@/app/actions";
+import { getClubCodes, validateClubCode } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AddEquipeModalButton } from "@/components/AddEquipeModalButton";
+import RescrapeAllButton from "@/app/dashboard/clubs/[clubId]/competitions/RescrapeAllButton";
+
+const PLAN_LABELS = {
+  GRATUIT: "Gratuit",
+  STARTER: "Starter",
+  PRO: "Pro",
+  CLUB: "Club",
+  PREMIUM: "Premium",
+} as const;
+
+const PLAN_PRICES = {
+  GRATUIT: "Gratuit",
+  STARTER: "9 €/mois",
+  PRO: "29 €/mois",
+  CLUB: "59 €/mois",
+  PREMIUM: "99 €/mois",
+} as const;
+
+const PLAN_MAX_TOKENS = {
+  GRATUIT: 0,
+  STARTER: 3,
+  PRO: 10,
+  CLUB: 25,
+  PREMIUM: 999,
+} as const;
+
+const PLAN_MAX_ENTRAINEURS = {
+  GRATUIT: 0,
+  STARTER: 1,
+  PRO: 3,
+  CLUB: 10,
+  PREMIUM: -1, // illimité
+} as const;
 
 export default function DashboardClient({
   initialUserData,
   initialTokensData,
   equipesData,
-  error,
+  coachCount,
 }: any) {
   const { user } = useUser();
   const [userData, setUserData] = useState(initialUserData);
@@ -53,10 +85,28 @@ export default function DashboardClient({
   const [clubCodes, setClubCodes] = useState<any>(null);
   const [joinCode, setJoinCode] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [portalLoading, setPortalLoading] = useState(false);
   const router = useRouter();
 
   const clubId = userData?.club?.id;
   const userRole = userData?.role;
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const response = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.error || "Erreur portail de facturation");
+      }
+    } catch {
+      toast.error("Erreur lors de l'ouverture du portail");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   // Récupérer les codes du club si l'utilisateur est admin_club
   useEffect(() => {
@@ -137,12 +187,20 @@ export default function DashboardClient({
         desc: "Classements officiels",
         roles: ["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR", "JOUEUR"],
       },
+      {
+        href: clubId ? `/dashboard/clubs/${clubId}/entraineurs` : "/dashboard",
+        icon: PersonStanding,
+        color: "primary",
+        label: "Entraîneurs",
+        desc: "Gérer les entraîneurs",
+        roles: ["ADMIN_CLUB", "ADMIN_GENERAL"],
+      },
     ];
 
     // Lien spécifique pour les entraîneurs - gestion des joueurs
     if (userRole === "ENTRAINEUR") {
       baseLinks.splice(1, 0, {
-        href: "/joueurs/gestion",
+        href: `/dashboard/clubs/${clubId}/joueurs/gestion`,
         icon: Settings,
         color: "secondary",
         label: "Gestion Joueurs",
@@ -220,46 +278,103 @@ export default function DashboardClient({
               "SYNCHRONISER DATA"
             )}
           </Button>
+          {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") &&
+            clubId && (
+              <RescrapeAllButton
+                clubId={Number(clubId)}
+                saison="2025-2026"
+                variant="outline"
+              />
+            )}
         </div>
       </section>
 
       {/* --- STATS GRID (Seulement pour ADMIN_CLUB et ADMIN_GENERAL) --- */}
       {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") && (
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card Abonnement */}
-          <div className="relative overflow-hidden bg-card border-2 border-border rounded-2xl p-6 shadow-sm hover:border-secondary transition-colors group">
+          <div className="relative overflow-hidden bg-card border-2 border-border rounded-2xl p-6 shadow-sm hover:border-secondary transition-colors group flex flex-col gap-4">
             <div className="flex justify-between items-start">
               <p className="font-sport italic text-muted-foreground uppercase text-sm">
-                Status
+                Abonnement
               </p>
-              <Trophy className="text-secondary group-hover:rotate-12 transition-transform" />
+              <CreditCard className="text-secondary group-hover:rotate-6 transition-transform" />
             </div>
-            <div className="mt-4 text-4xl font-sport font-black uppercase italic">
-              {userData?.subscription || "FREE"}
+            <div>
+              <div className="text-3xl font-sport font-black uppercase italic">
+                {PLAN_LABELS[
+                  userData?.subscription as keyof typeof PLAN_LABELS
+                ] ??
+                  userData?.subscription ??
+                  "GRATUIT"}
+              </div>
+              <div className="mt-1 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                {PLAN_PRICES[
+                  userData?.subscription as keyof typeof PLAN_PRICES
+                ] ?? "Gratuit"}
+              </div>
             </div>
-            <div className="mt-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-              Membre Pro-Elite
-            </div>
+            {userData?.stripeSubscriptionId ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl font-sport italic uppercase text-xs w-full"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+              >
+                {portalLoading ? (
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                ) : (
+                  <CreditCard className="mr-2 h-3 w-3" />
+                )}
+                Gérer l'abonnement
+              </Button>
+            ) : (
+              <Link href="/pricing">
+                <Button
+                  size="sm"
+                  className="rounded-xl font-sport italic uppercase text-xs w-full"
+                >
+                  <ArrowUpRight className="mr-2 h-3 w-3" />
+                  Choisir un plan
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Card Tokens avec Jauge de progression stylisée */}
-          <div className="relative overflow-hidden bg-black text-white rounded-2xl p-6 shadow-xl group">
+          <div className="relative overflow-hidden bg-black text-white rounded-2xl p-6 shadow-xl group flex flex-col gap-2">
             <div className="flex justify-between items-start">
               <p className="font-sport italic text-primary uppercase text-sm">
                 Crédits Analyse
               </p>
               <Tally5 className="text-primary" />
             </div>
-            <div className="mt-4 text-5xl font-sport font-black italic text-primary">
-              {userData?.tokensRemaining}
+            <div className="text-5xl font-sport font-black italic text-primary">
+              {userData?.subscription === "PREMIUM"
+                ? "∞"
+                : (userData?.tokensRemaining ?? 0)}
             </div>
-            <div className="mt-4 h-2 w-full bg-white/10 rounded-full flex gap-1 overflow-hidden">
-              {[...Array(5)].map((_, i) => (
+            {userData?.subscription !== "PREMIUM" && (
+              <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
                 <div
-                  key={i}
-                  className={`h-full flex-1 ${i < 3 ? "bg-primary" : "bg-white/5"}`}
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, ((userData?.tokensRemaining ?? 0) / Math.max(1, PLAN_MAX_TOKENS[userData?.subscription as keyof typeof PLAN_MAX_TOKENS] ?? 1)) * 100)}%`,
+                  }}
                 />
-              ))}
+              </div>
+            )}
+            <div className="flex justify-between text-[10px] font-bold text-white/40 uppercase">
+              <span>{userData?.tokensUsed ?? 0} utilisés</span>
+              {userData?.subscription !== "PREMIUM" && (
+                <Link
+                  href="/pricing"
+                  className="hover:text-primary transition-colors"
+                >
+                  + Acheter des jetons
+                </Link>
+              )}
             </div>
           </div>
 
@@ -275,6 +390,42 @@ export default function DashboardClient({
             <p className="text-xs font-bold uppercase mt-2">
               Ligues sous surveillance
             </p>
+          </div>
+
+          {/* Card Entraîneurs */}
+          <div className="relative overflow-hidden bg-card border-2 border-border rounded-2xl p-6 shadow-sm hover:border-primary transition-colors group flex flex-col gap-4">
+            <div className="flex justify-between items-start">
+              <p className="font-sport italic text-muted-foreground uppercase text-sm">
+                Entraîneurs
+              </p>
+              <PersonStanding className="text-primary group-hover:scale-110 transition-transform" />
+            </div>
+            <div>
+              <div className="text-3xl font-sport font-black uppercase italic">
+                {coachCount ?? 0}
+                <span className="text-base text-muted-foreground font-normal ml-1">
+                  /
+                  {PLAN_MAX_ENTRAINEURS[
+                    userData?.subscription as keyof typeof PLAN_MAX_ENTRAINEURS
+                  ] === -1
+                    ? "∞"
+                    : (PLAN_MAX_ENTRAINEURS[
+                        userData?.subscription as keyof typeof PLAN_MAX_ENTRAINEURS
+                      ] ?? 0)}
+                </span>
+              </div>
+            </div>
+            {clubId && (
+              <Link href={`/dashboard/clubs/${clubId}/entraineurs`}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl font-sport italic uppercase text-xs w-full"
+                >
+                  Gérer les entraîneurs
+                </Button>
+              </Link>
+            )}
           </div>
         </section>
       )}
@@ -377,7 +528,9 @@ export default function DashboardClient({
                       </p>
                     </div>
                   </div>
-                  <Link href={`/dashboard/equipes/${equipe.id}`}>
+                  <Link
+                    href={`/dashboard/clubs/${clubId}/equipes/${equipe.id}`}
+                  >
                     <Button
                       variant="ghost"
                       className="group-hover:text-primary"
@@ -495,24 +648,50 @@ export default function DashboardClient({
               </Card>
             )}
 
-            {/* Accès Premium Banner - seulement pour ADMIN_CLUB */}
+            {/* Upgrade Banner - seulement pour ADMIN_CLUB sans PREMIUM */}
             {userRole === "ADMIN_CLUB" &&
               userData?.subscription !== "PREMIUM" && (
-                <div className="bg-gradient-to-br from-secondary to-orange-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-                  <Zap className="absolute -right-2 -top-2 w-24 h-24 text-white/20 rotate-12" />
+                <div className="bg-linear-to-br from-secondary to-orange-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+                  <Sparkles className="absolute -right-2 -top-2 w-24 h-24 text-white/20 rotate-12" />
                   <h3 className="font-sport italic text-2xl uppercase leading-none">
-                    Passez en
-                    <br />
-                    mode Pro
+                    {userData?.subscription === "GRATUIT" ? (
+                      <>
+                        Commencez
+                        <br />
+                        l'analyse
+                      </>
+                    ) : (
+                      <>
+                        Passez en
+                        <br />
+                        mode Pro
+                      </>
+                    )}
                   </h3>
                   <p className="mt-4 text-sm font-medium text-white/90 mb-6">
-                    Analyses illimitées, export PDF et comparaisons de joueurs.
+                    {userData?.subscription === "GRATUIT"
+                      ? "Souscrivez à un plan pour débloquer le scraping et les statistiques avancées."
+                      : "Analyses illimitées, export PDF et comparaisons de joueurs."}
                   </p>
-                  <Link href="/pricing" className="block w-full">
-                    <Button className="w-full bg-white text-secondary hover:bg-black hover:text-white font-sport uppercase italic">
-                      Découvrir l'offre
+                  {userData?.stripeSubscriptionId ? (
+                    <Button
+                      onClick={handleManageSubscription}
+                      disabled={portalLoading}
+                      className="w-full bg-white text-secondary hover:bg-black hover:text-white font-sport uppercase italic"
+                    >
+                      {portalLoading ? (
+                        <Loader2 className="animate-spin w-4 h-4" />
+                      ) : (
+                        "Gérer / Changer de plan"
+                      )}
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link href="/pricing" className="block w-full">
+                      <Button className="w-full bg-white text-secondary hover:bg-black hover:text-white font-sport uppercase italic">
+                        Découvrir l'offre
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               )}
           </div>

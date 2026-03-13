@@ -684,3 +684,71 @@ export async function getCompetitionsStatus(
     };
   }
 }
+
+/**
+ * Met à jour la sélection manuelle des compétitions épinglées pour un club.
+ * Seul l'ADMIN_CLUB peut appeler cette action.
+ * Le nombre de compétitions épinglées est limité au quota (tokensRemaining).
+ */
+export async function updatePinnedCompetitions(
+  clubId: number,
+  pinnedIds: number[],
+): Promise<CompetitionResponse> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { success: false, error: "Non authentifié" };
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      include: { clubs: { where: { clubId } } },
+    });
+
+    if (!user || user.role !== "ADMIN_CLUB" || user.clubs.length === 0) {
+      return { success: false, error: "Accès refusé" };
+    }
+
+    // Vérification du quota
+    const quota =
+      user.subscription === "PREMIUM" ? Infinity : user.tokensRemaining;
+    if (pinnedIds.length > quota) {
+      return {
+        success: false,
+        error: `Quota dépassé : vous pouvez épingler au maximum ${quota} compétition${
+          quota > 1 ? "s" : ""
+        }`,
+      };
+    }
+
+    // Récupérer tous les IDs valides pour ce club
+    const allClubCompetitions = await prisma.competition.findMany({
+      where: { equipe: { clubId } },
+      select: { id: true },
+    });
+    const allIds = allClubCompetitions.map((c) => c.id);
+    const validPinnedIds = pinnedIds.filter((id) => allIds.includes(id));
+
+    // Mise à jour atomique
+    await prisma.$transaction([
+      prisma.competition.updateMany({
+        where: { id: { in: validPinnedIds } },
+        data: { isPinned: true },
+      }),
+      prisma.competition.updateMany({
+        where: {
+          id: { in: allIds.filter((id) => !validPinnedIds.includes(id)) },
+        },
+        data: { isPinned: false },
+      }),
+    ]);
+
+    revalidatePath(`/dashboard/clubs/${clubId}`);
+    revalidatePath(`/dashboard/clubs/${clubId}/competitions`);
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur updatePinnedCompetitions:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}

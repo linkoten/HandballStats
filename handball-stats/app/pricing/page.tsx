@@ -25,11 +25,10 @@ const PLANS = [
     tokens: 3,
     trial: true,
     features: [
-      "3 compétitions actives",
-      "Entraîneurs illimités",
-      "Accès Power BI",
-      "Export Excel",
+      "3 jetons (= 3 compétitions scrapées)",
+      "1 entraîneur dans le club",
       "Essai gratuit 14 jours",
+      "Réallocation de jetons en août",
     ],
     popular: false,
   },
@@ -40,11 +39,9 @@ const PLANS = [
     priceAnnual: 290,
     tokens: 10,
     features: [
-      "10 compétitions actives",
-      "Entraîneurs illimités",
-      "Historique 3 ans",
-      "Accès Power BI",
-      "Export Excel",
+      "10 jetons (= 10 compétitions scrapées)",
+      "3 entraîneurs dans le club",
+      "Réallocation de jetons en août",
       "Support prioritaire",
     ],
     popular: true,
@@ -56,13 +53,10 @@ const PLANS = [
     priceAnnual: 590,
     tokens: 25,
     features: [
-      "25 compétitions actives",
-      "Entraîneurs illimités",
-      "Historique 5 ans",
-      "Accès Power BI",
-      "Export Excel & PDF",
+      "25 jetons (= 25 compétitions scrapées)",
+      "10 entraîneurs dans le club",
+      "Réallocation de jetons en août",
       "Support prioritaire",
-      "API Access",
     ],
     popular: false,
   },
@@ -73,14 +67,10 @@ const PLANS = [
     priceAnnual: 990,
     tokens: null,
     features: [
-      "Compétitions illimitées",
+      "Jetons illimités",
       "Entraîneurs illimités",
-      "Historique complet",
-      "Accès Power BI personnalisé",
-      "Export tous formats",
+      "Réallocation de jetons en août",
       "Support dédié",
-      "API Access illimité",
-      "Formations exclusives",
     ],
     popular: false,
   },
@@ -116,7 +106,7 @@ export default function PricingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
-    "monthly"
+    "monthly",
   );
 
   const handleSubscribe = async (planId: string) => {

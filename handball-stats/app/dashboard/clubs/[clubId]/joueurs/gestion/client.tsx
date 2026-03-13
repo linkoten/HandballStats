@@ -31,27 +31,47 @@ import { toast } from "sonner";
 // POSTE CONFIG
 // ─────────────────────────────────────────────────────────────────────────────
 const COURT_POSITIONS = [
+  // Gardien : au fond, devant les buts
   {
     id: "Gardien",
     short: "GB",
     x: 50,
-    y: 12,
+    y: 8,
     principal: "Gardien",
     secondaire: "Gardien",
   },
+  // Ailiers : sur les côtés à hauteur de la zone de 6m
   {
     id: "AilierG",
     short: "ALG",
-    x: 10,
-    y: 32,
+    x: 8,
+    y: 28,
     principal: "Ailier",
     secondaire: "Ailier G",
   },
   {
+    id: "AilierD",
+    short: "ALD",
+    x: 92,
+    y: 28,
+    principal: "Ailier",
+    secondaire: "Ailier D",
+  },
+  // Pivot : juste devant la zone de 6m, au centre
+  {
+    id: "Pivot",
+    short: "PIV",
+    x: 50,
+    y: 40,
+    principal: "Pivot",
+    secondaire: "Pivot",
+  },
+  // Arrières : sur la ligne de 9m
+  {
     id: "ArriereG",
     short: "ARG",
-    x: 28,
-    y: 66,
+    x: 22,
+    y: 62,
     principal: "Arrière",
     secondaire: "Arrière G",
   },
@@ -59,33 +79,17 @@ const COURT_POSITIONS = [
     id: "DemiCentre",
     short: "DC",
     x: 50,
-    y: 76,
+    y: 68,
     principal: "Demi-Centre",
     secondaire: "Demi-Centre",
   },
   {
     id: "ArriereD",
     short: "ARD",
-    x: 72,
-    y: 66,
+    x: 78,
+    y: 62,
     principal: "Arrière",
     secondaire: "Arrière D",
-  },
-  {
-    id: "AilierD",
-    short: "ALD",
-    x: 90,
-    y: 32,
-    principal: "Ailier",
-    secondaire: "Ailier D",
-  },
-  {
-    id: "Pivot",
-    short: "PIV",
-    x: 50,
-    y: 38,
-    principal: "Pivot",
-    secondaire: "Pivot",
   },
 ];
 
@@ -122,66 +126,138 @@ function HandballCourt({
   };
 
   return (
-    <div className="relative w-full aspect-4/5 bg-linear-to-b from-[#0f4c2a] via-[#0d5c32] to-[#0f4c2a] rounded-3xl border-4 border-[#1a3a25]/80 shadow-[0_0_60px_rgba(0,0,0,0.8)] overflow-hidden select-none">
+    <div className="relative w-full aspect-3/4 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.7)] border-4 border-amber-900/60 select-none">
+      {/* ── Parquet SVG background ─────────────────────────────────────── */}
       <svg
-        className="absolute inset-0 w-full h-full opacity-30"
-        viewBox="0 0 100 120"
+        className="absolute inset-0 w-full h-full"
+        viewBox="0 0 120 160"
         preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
       >
+        <defs>
+          {/* Base parquet orange-brun */}
+          <linearGradient id="parquet" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#b5651d" />
+            <stop offset="50%" stopColor="#c87941" />
+            <stop offset="100%" stopColor="#a0522d" />
+          </linearGradient>
+          {/* Latte de parquet horizontale alternée */}
+          <pattern
+            id="lattes"
+            x="0"
+            y="0"
+            width="16"
+            height="8"
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width="16" height="4" fill="#c07a3a" />
+            <rect y="4" width="16" height="4" fill="#b86e30" />
+            <line
+              x1="0"
+              y1="4"
+              x2="16"
+              y2="4"
+              stroke="#9a5520"
+              strokeWidth="0.3"
+            />
+            <line
+              x1="8"
+              y1="0"
+              x2="8"
+              y2="4"
+              stroke="#9a5520"
+              strokeWidth="0.2"
+            />
+            <line
+              x1="0"
+              y1="8"
+              x2="16"
+              y2="8"
+              stroke="#9a5520"
+              strokeWidth="0.3"
+            />
+          </pattern>
+          <filter id="courtShadow">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3" />
+          </filter>
+        </defs>
+
+        {/* Fond parquet */}
+        <rect width="120" height="160" fill="url(#lattes)" />
+        {/* Légère teinte vernis brillant */}
+        <rect width="120" height="160" fill="rgba(255,220,150,0.08)" />
+
+        {/* ── Lignes de terrain (blanches) ─────────────────────────────── */}
+
+        {/* Ligne de fond */}
+        <line x1="0" y1="2" x2="120" y2="2" stroke="white" strokeWidth="1.2" />
+
+        {/* Buts : 3m de large, centrés (40% → 60% de 120 = x 48→72), hauteur 2m sur 160 = ~2/160*160 = 0→2 */}
         <rect
-          x="3"
-          y="2"
-          width="94"
-          height="116"
+          x="45"
+          y="0"
+          width="30"
+          height="2.5"
           fill="none"
           stroke="white"
-          strokeWidth="0.8"
-          rx="1"
+          strokeWidth="1.5"
         />
+        {/* Poteaux de but */}
+        <line x1="45" y1="0" x2="45" y2="4" stroke="white" strokeWidth="1.8" />
+        <line x1="75" y1="0" x2="75" y2="4" stroke="white" strokeWidth="1.8" />
+
+        {/* Zone gardien (6m) — arc depuis fond jusqu'à ~34% de 160 = y≈55 */}
+        {/* Le demi-cercle de 6m : rayon réel ~38% de largeur = 46 sur viewBox 120 */}
         <path
-          d="M 22 2 Q 22 42 50 42 Q 78 42 78 2"
-          fill="none"
+          d="M 15 2 Q 15 58 60 58 Q 105 58 105 2"
+          fill="rgba(255,255,255,0.06)"
           stroke="white"
           strokeWidth="1"
         />
+
+        {/* Ligne de 9m (tirets) */}
         <path
-          d="M 10 2 Q 10 58 50 58 Q 90 58 90 2"
+          d="M 3 2 Q 3 88 60 88 Q 117 88 117 2"
           fill="none"
-          stroke="white"
-          strokeWidth="0.7"
-          strokeDasharray="2.5,2"
-        />
-        <line
-          x1="44"
-          y1="28"
-          x2="56"
-          y2="28"
-          stroke="white"
-          strokeWidth="1.2"
-        />
-        <line
-          x1="3"
-          y1="102"
-          x2="97"
-          y2="102"
           stroke="white"
           strokeWidth="0.8"
+          strokeDasharray="4,3"
         />
-        <ellipse
-          cx="50"
-          cy="108"
-          rx="12"
-          ry="6"
-          fill="none"
+
+        {/* Ligne des 7m - pointillé */}
+        <line x1="52" y1="38" x2="68" y2="38" stroke="white" strokeWidth="1" />
+
+        {/* Ligne milieu (bas du demi-terrain) */}
+        <line
+          x1="0"
+          y1="158"
+          x2="120"
+          y2="158"
           stroke="white"
-          strokeWidth="0.6"
+          strokeWidth="1.2"
+          strokeDasharray="3,2"
+        />
+
+        {/* Lignes latérales */}
+        <line x1="0" y1="2" x2="0" y2="158" stroke="white" strokeWidth="1" />
+        <line
+          x1="120"
+          y1="2"
+          x2="120"
+          y2="158"
+          stroke="white"
+          strokeWidth="1"
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="font-sport text-[clamp(3rem,14vw,8rem)] font-black italic text-white/3 uppercase tracking-widest select-none">
-          TERRAIN
+
+      {/* ── Label postes ────────────────────────────────────────────────── */}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+        <span className="font-sport text-[clamp(2rem,10vw,6rem)] font-black italic text-white/3 uppercase tracking-widest">
+          HANDBALL
         </span>
       </div>
+
+      {/* ── Spots de postes ─────────────────────────────────────────────── */}
       {COURT_POSITIONS.map((pos) => {
         const current = isPostePrincipal ? pos.principal : pos.secondaire;
         const active = selectedPoste === current;
@@ -200,7 +276,7 @@ function HandballCourt({
                   "w-12 h-12 rounded-full border-2 flex items-center justify-center font-sport italic text-[11px] font-black transition-all duration-200 shadow-lg",
                   active
                     ? "scale-125 shadow-[0_0_24px_rgba(255,255,255,0.35)] border-white text-black"
-                    : "bg-black/40 border-white/20 text-white hover:scale-110 hover:border-white/60 backdrop-blur-sm",
+                    : "bg-black/50 border-white/25 text-white hover:scale-110 hover:border-white/70 backdrop-blur-sm",
                 )}
                 style={
                   active ? { backgroundColor: color, borderColor: "white" } : {}
@@ -355,8 +431,9 @@ export default function JoueursClient({ initialEquipes }: any) {
     startTransition(async () => {
       const updates = selectedJoueurs.map((id) => ({
         joueurId: id,
-        [isPostePrincipal ? "postePrincipal" : "posteSecondaire"]:
-          selectedPoste,
+        ...(isPostePrincipal
+          ? { poste_principal: selectedPoste }
+          : { postes_secondaires: [selectedPoste] }),
       }));
       const res = await updateJoueursPostes(updates);
       if (res.success) {

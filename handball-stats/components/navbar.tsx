@@ -9,6 +9,7 @@ import {
 } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
+import { Logo } from "@/components/logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getUserProfile } from "@/app/actions";
@@ -30,11 +31,7 @@ type UserData = {
   subscription: string;
   role: string;
   tokensRemaining: number;
-  clubs?: Array<{
-    club: {
-      id: number;
-    };
-  }>;
+  clubs?: Array<{ id: number }>;
 };
 
 export function Navbar() {
@@ -55,14 +52,17 @@ export function Navbar() {
     fetchUserData();
   }, [isLoaded, isSignedIn]);
 
-  const clubId = userData?.clubs?.[0]?.club?.id;
+  const clubId = userData?.clubs?.[0]?.id;
   const equipesUrl = clubId ? `/dashboard/clubs/${clubId}/equipes` : "/equipes";
   const matchsUrl = clubId ? `/dashboard/clubs/${clubId}/matchs` : "/matchs";
+  const statsUrl = clubId
+    ? `/dashboard/clubs/${clubId}/statistiques`
+    : "/statistiques";
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: equipesUrl, label: "Équipes", icon: Users },
     { href: matchsUrl, label: "Matchs", icon: Calendar },
-    { href: "/statistiques", label: "Stats", icon: BarChart3 },
+    { href: statsUrl, label: "Stats", icon: BarChart3 },
     { href: "/pricing", label: "Premium", icon: Gem, highlight: true },
   ];
 
@@ -72,14 +72,9 @@ export function Navbar() {
         {/* Logo Section */}
         <div className="flex items-center gap-10">
           <Link href="/" className="group flex items-center gap-2">
-            <div className="bg-primary p-1.5 rounded-lg -rotate-6 group-hover:rotate-0 transition-transform">
-              <Zap className="text-white fill-current" size={20} />
-            </div>
+            <Logo size={40} className="transition-transform group-hover:scale-105" />
             <span className="text-xl font-sport font-black italic uppercase tracking-tighter text-foreground group-hover:text-primary transition-colors">
-              Handball
-              <span className="text-primary group-hover:text-foreground">
-                Stats
-              </span>
+              Hand<span className="text-primary group-hover:text-foreground">Stats</span>
             </span>
           </Link>
 

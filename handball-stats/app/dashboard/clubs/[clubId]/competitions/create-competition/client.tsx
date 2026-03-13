@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { configureCompetitionsBatch, createEquipe } from "@/app/actions";
 import { toast } from "sonner";
+import { z } from "zod";
 import { cn } from "@/lib/utils";
 
 interface CreateCompetitionClientProps {
@@ -41,6 +42,86 @@ interface CreateCompetitionClientProps {
   selectedTeams: any[];
   selectedClub: any;
   error?: string;
+}
+
+// ─── Validation ──────────────────────────────────────────────────────────────
+const FFHB_URL_RE =
+  /^https:\/\/www\.ffhandball\.fr\/competitions\/saison-(\d{4})-(\d{4})-\d+\/.+/;
+const POULE_RE = /^poule-\d+$/;
+const SAISON_RE = /^(\d{4})-(\d{4})$/;
+
+const competitionSchema = z
+  .object({
+    competition_name: z.string().min(1, "Nom de la compétition requis"),
+    url: z
+      .string()
+      .regex(
+        FFHB_URL_RE,
+        "URL invalide — ex: https://www.ffhandball.fr/competitions/saison-2025-2026-21/...",
+      ),
+    poule: z.string().regex(POULE_RE, "Format requis : poule-XXXXXX"),
+    saison: z
+      .string()
+      .regex(SAISON_RE, "Format requis : AAAA-AAAA (ex: 2025-2026)"),
+    max_journees: z.coerce
+      .number()
+      .int("Entier requis")
+      .min(1, "Minimum 1 journée")
+      .max(99, "Maximum 99 journées"),
+    equipeId: z
+      .number()
+      .nullable()
+      .refine((v) => v !== null && v > 0, { message: "Équipe requise" }),
+    equipe_bdd: z.string().min(1, "Équipe BDD requise"),
+    equipe: z.string().min(1, "Nom sur FFHandball requis"),
+    phase: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const urlMatch = data.url.match(FFHB_URL_RE);
+    const saisonMatch = data.saison.match(SAISON_RE);
+    if (saisonMatch) {
+      const y1 = parseInt(saisonMatch[1]);
+      const y2 = parseInt(saisonMatch[2]);
+      if (y2 !== y1 + 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "La saison doit couvrir 2 années consécutives (ex: 2025-2026)",
+          path: ["saison"],
+        });
+      }
+    }
+    if (urlMatch && saisonMatch) {
+      if (urlMatch[1] !== saisonMatch[1] || urlMatch[2] !== saisonMatch[2]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `La saison (${data.saison}) ne correspond pas à l'URL (${urlMatch[1]}-${urlMatch[2]})`,
+          path: ["saison"],
+        });
+      }
+    }
+  });
+
+type CompetitionErrors = Partial<Record<string, string>>;
+
+/** Groups by (equipeId, saison) when phase is filled — counts as 1 token. */
+function computeEffectiveTokenCost(
+  comps: { equipeId: number | null; saison: string; phase: string }[],
+): number {
+  let cost = 0;
+  const seen = new Set<string>();
+  for (const c of comps) {
+    if (c.phase.trim() && c.equipeId) {
+      const key = `${c.equipeId}::${c.saison}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        cost++;
+      }
+    } else {
+      cost++;
+    }
+  }
+  return cost;
 }
 
 export default function CreateCompetitionClient({
@@ -73,8 +154,13 @@ export default function CreateCompetitionClient({
     },
   ]);
 
+  const [fieldErrors, setFieldErrors] = useState<
+    Record<number, CompetitionErrors>
+  >({});
+
+  const effectiveCost = computeEffectiveTokenCost(competitions);
   const canContinue = userData
-    ? userData.tokensRemaining >= competitions.length
+    ? userData.tokensRemaining >= effectiveCost
     : false;
 
   const addCompetition = () => {
@@ -99,16 +185,31 @@ export default function CreateCompetitionClient({
     const newCompetitions = [...competitions];
     newCompetitions.splice(index, 1);
     setCompetitions(newCompetitions);
+    // Re-index errors so they stay aligned after removal
+    setFieldErrors((prev) => {
+      const next: Record<number, CompetitionErrors> = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const k = Number(key);
+        if (k < index) next[k] = value;
+        else if (k > index) next[k - 1] = value;
+      });
+      return next;
+    });
   };
 
   const handleChange = (index: number, field: string, value: any) => {
+    // Clear the error for this field immediately on change
+    setFieldErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: undefined },
+    }));
     setCompetitions((prev) => {
       const newCompetitions = prev.map((comp, i) => {
         if (i !== index) return comp;
         if (field === "max_journees") {
           return { ...comp, [field]: String(value) };
         } else if (field === "equipeId") {
-          return { ...comp, [field]: Number(value) };
+          return { ...comp, [field]: value !== null ? Number(value) : null };
         } else {
           return { ...comp, [field]: value };
         }
@@ -142,6 +243,30 @@ export default function CreateCompetitionClient({
   };
 
   const handleSubmit = async () => {
+    // Validate every competition slot with Zod
+    const newErrors: Record<number, CompetitionErrors> = {};
+    let hasErrors = false;
+
+    competitions.forEach((comp, index) => {
+      const result = competitionSchema.safeParse(comp);
+      if (!result.success) {
+        hasErrors = true;
+        const errs: CompetitionErrors = {};
+        for (const issue of result.error.issues) {
+          const field = String(issue.path[0] ?? "root");
+          if (!errs[field]) errs[field] = issue.message;
+        }
+        newErrors[index] = errs;
+      }
+    });
+
+    if (hasErrors) {
+      setFieldErrors(newErrors);
+      toast.error("Veuillez corriger les erreurs avant de continuer");
+      return;
+    }
+
+    setFieldErrors({});
     startTransition(async () => {
       try {
         const res = await configureCompetitionsBatch(competitions);
@@ -221,6 +346,11 @@ export default function CreateCompetitionClient({
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
                   Compétitions à Sync
                 </p>
+                {effectiveCost < competitions.length && (
+                  <p className="text-[10px] text-secondary font-bold mt-0.5">
+                    → {effectiveCost} token{effectiveCost > 1 ? "s" : ""}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -295,6 +425,12 @@ export default function CreateCompetitionClient({
                       <span className="font-sport italic uppercase text-sm tracking-widest">
                         Configuration Slot
                       </span>
+                      {fieldErrors[index] &&
+                        Object.values(fieldErrors[index]).some(Boolean) && (
+                          <span className="flex items-center gap-1 text-destructive text-[10px] font-black uppercase">
+                            <AlertCircle size={11} /> Erreurs
+                          </span>
+                        )}
                     </div>
                     {competitions.length > 1 && (
                       <Button
@@ -324,8 +460,17 @@ export default function CreateCompetitionClient({
                             e.target.value,
                           )
                         }
-                        className="h-14 rounded-2xl border-2 font-bold uppercase"
+                        className={cn(
+                          "h-14 rounded-2xl border-2 font-bold uppercase",
+                          fieldErrors[index]?.competition_name &&
+                            "border-destructive",
+                        )}
                       />
+                      {fieldErrors[index]?.competition_name && (
+                        <p className="text-xs text-destructive font-bold ml-1">
+                          {fieldErrors[index].competition_name}
+                        </p>
+                      )}
                     </div>
 
                     <div className="md:col-span-2 space-y-2">
@@ -343,9 +488,17 @@ export default function CreateCompetitionClient({
                           onChange={(e) =>
                             handleChange(index, "url", e.target.value)
                           }
-                          className="h-14 pl-12 rounded-2xl border-2 bg-background font-medium"
+                          className={cn(
+                            "h-14 pl-12 rounded-2xl border-2 bg-background font-medium",
+                            fieldErrors[index]?.url && "border-destructive",
+                          )}
                         />
                       </div>
+                      {fieldErrors[index]?.url && (
+                        <p className="text-xs text-destructive font-bold ml-1">
+                          {fieldErrors[index].url}
+                        </p>
+                      )}
                     </div>
 
                     {/* Mapping Équipe */}
@@ -416,13 +569,17 @@ export default function CreateCompetitionClient({
                         value={competition.equipeId || ""}
                         onChange={(e) => {
                           const value = e.target.value;
-                          const eq = equipes.find(
-                            (e) => e.id === Number(value),
-                          );
-                          handleChange(index, "equipeId", Number(value));
+                          const numVal = value ? Number(value) : null;
+                          const eq = numVal
+                            ? equipes.find((e) => e.id === numVal)
+                            : undefined;
+                          handleChange(index, "equipeId", numVal);
                           handleChange(index, "equipe_bdd", eq ? eq.nom : "");
                         }}
-                        className="w-full h-14 rounded-2xl border-2 font-bold uppercase italic text-xs px-4 bg-background"
+                        className={cn(
+                          "w-full h-14 rounded-2xl border-2 font-bold uppercase italic text-xs px-4 bg-background",
+                          fieldErrors[index]?.equipeId && "border-destructive",
+                        )}
                       >
                         <option value="">Choisir équipe</option>
                         {equipes.map((eq) => (
@@ -431,6 +588,11 @@ export default function CreateCompetitionClient({
                           </option>
                         ))}
                       </select>
+                      {fieldErrors[index]?.equipeId && (
+                        <p className="text-xs text-destructive font-bold ml-1">
+                          {fieldErrors[index].equipeId}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -443,8 +605,16 @@ export default function CreateCompetitionClient({
                         onChange={(e) =>
                           handleChange(index, "equipe", e.target.value)
                         }
-                        className="h-14 rounded-2xl border-2 font-bold uppercase"
+                        className={cn(
+                          "h-14 rounded-2xl border-2 font-bold uppercase",
+                          fieldErrors[index]?.equipe && "border-destructive",
+                        )}
                       />
+                      {fieldErrors[index]?.equipe && (
+                        <p className="text-xs text-destructive font-bold ml-1">
+                          {fieldErrors[index].equipe}
+                        </p>
+                      )}
                     </div>
 
                     {/* Champs techniques */}
@@ -459,12 +629,23 @@ export default function CreateCompetitionClient({
                           onChange={(e) =>
                             handleChange(index, "poule", e.target.value)
                           }
-                          className="h-12 rounded-xl border-2 text-xs font-bold"
+                          className={cn(
+                            "h-12 rounded-xl border-2 text-xs font-bold",
+                            fieldErrors[index]?.poule && "border-destructive",
+                          )}
                         />
+                        {fieldErrors[index]?.poule && (
+                          <p className="text-[10px] text-destructive font-bold">
+                            {fieldErrors[index].poule}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-secondary">
-                          Phase
+                          Phase{" "}
+                          <span className="text-muted-foreground font-normal text-[9px] normal-case">
+                            (optionnel)
+                          </span>
                         </Label>
                         <Input
                           placeholder="Phase 1"
@@ -484,8 +665,16 @@ export default function CreateCompetitionClient({
                           onChange={(e) =>
                             handleChange(index, "saison", e.target.value)
                           }
-                          className="h-12 rounded-xl border-2 text-xs font-bold"
+                          className={cn(
+                            "h-12 rounded-xl border-2 text-xs font-bold",
+                            fieldErrors[index]?.saison && "border-destructive",
+                          )}
                         />
+                        {fieldErrors[index]?.saison && (
+                          <p className="text-[10px] text-destructive font-bold">
+                            {fieldErrors[index].saison}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -493,12 +682,23 @@ export default function CreateCompetitionClient({
                         </Label>
                         <Input
                           type="number"
+                          min={1}
+                          max={99}
                           value={competition.max_journees}
                           onChange={(e) =>
                             handleChange(index, "max_journees", e.target.value)
                           }
-                          className="h-12 rounded-xl border-2 text-xs font-bold"
+                          className={cn(
+                            "h-12 rounded-xl border-2 text-xs font-bold",
+                            fieldErrors[index]?.max_journees &&
+                              "border-destructive",
+                          )}
                         />
+                        {fieldErrors[index]?.max_journees && (
+                          <p className="text-[10px] text-destructive font-bold">
+                            {fieldErrors[index].max_journees}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -528,9 +728,20 @@ export default function CreateCompetitionClient({
                   <div className="flex justify-between border-b border-white/10 pb-2">
                     <span className="opacity-70">Coût Estimé</span>
                     <span className="text-secondary">
-                      {competitions.length} Tokens
+                      {effectiveCost} Token{effectiveCost > 1 ? "s" : ""}
                     </span>
                   </div>
+                  {effectiveCost < competitions.length && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-secondary/90 normal-case font-bold">
+                      <Info size={11} />
+                      Phases mutualisées — {competitions.length -
+                        effectiveCost}{" "}
+                      token
+                      {competitions.length - effectiveCost > 1 ? "s" : ""}{" "}
+                      économisé
+                      {competitions.length - effectiveCost > 1 ? "s" : ""}
+                    </div>
+                  )}
                 </div>
                 <Button
                   onClick={handleSubmit}

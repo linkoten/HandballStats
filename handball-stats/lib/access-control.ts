@@ -179,3 +179,97 @@ export async function getEquipeAccessFilter() {
     ],
   };
 }
+
+/**
+ * Retourne le statut d'abonnement d'un club (basé sur son ADMIN_CLUB).
+ *
+ * - isActive          : true si la période payée est encore valide
+ * - quota             : tokensRemaining de l'admin (-1 = illimité PREMIUM)
+ * - selectionPending  : true si l'admin doit choisir manuellement ses compétitions
+ * - lockedCompetitionIds : IDs des compétitions non-épinglées (une fois la sélection faite)
+ */
+export async function getClubSubscriptionStatus(clubId: number): Promise<{
+  isActive: boolean;
+  subscription: string;
+  periodEnd: Date | null;
+  quota: number;
+  selectionPending: boolean;
+  lockedCompetitionIds: number[];
+}> {
+  const adminMembership = await prisma.userClub.findFirst({
+    where: { clubId, user: { role: "ADMIN_CLUB" } },
+    include: {
+      user: {
+        select: {
+          subscription: true,
+          stripeCurrentPeriodEnd: true,
+          tokensRemaining: true,
+        },
+      },
+    },
+  });
+
+  const empty = {
+    isActive: false,
+    subscription: "GRATUIT",
+    periodEnd: null,
+    quota: 0,
+    selectionPending: false,
+    lockedCompetitionIds: [] as number[],
+  };
+
+  if (!adminMembership) return empty;
+
+  const { subscription, stripeCurrentPeriodEnd, tokensRemaining } =
+    adminMembership.user;
+  const now = new Date();
+
+  const isActive =
+    subscription !== "GRATUIT" ||
+    (stripeCurrentPeriodEnd !== null && stripeCurrentPeriodEnd > now);
+
+  // Plan PREMIUM = illimité
+  const quota = subscription === "PREMIUM" ? -1 : tokensRemaining;
+
+  const base = {
+    isActive,
+    subscription,
+    periodEnd: stripeCurrentPeriodEnd,
+    quota,
+  };
+
+  // Abonnement expiré → le mur du layout gère tout
+  if (!isActive) {
+    return { ...base, selectionPending: false, lockedCompetitionIds: [] };
+  }
+
+  // Quota illimité → aucune restriction
+  if (quota === -1) {
+    return { ...base, selectionPending: false, lockedCompetitionIds: [] };
+  }
+
+  const allCompetitions = await prisma.competition.findMany({
+    where: { equipe: { clubId } },
+    select: { id: true, isPinned: true },
+  });
+
+  // Quota couvre tout → aucune restriction
+  if (quota >= allCompetitions.length) {
+    return { ...base, selectionPending: false, lockedCompetitionIds: [] };
+  }
+
+  // quota < total → sélection manuelle requise
+  const pinned = allCompetitions.filter((c) => c.isPinned);
+
+  if (pinned.length === 0) {
+    // L'admin n'a pas encore configuré sa sélection
+    return { ...base, selectionPending: true, lockedCompetitionIds: [] };
+  }
+
+  // Sélection effectuée → les non-épinglées sont verrouillées
+  const lockedCompetitionIds = allCompetitions
+    .filter((c) => !c.isPinned)
+    .map((c) => c.id);
+
+  return { ...base, selectionPending: false, lockedCompetitionIds };
+}

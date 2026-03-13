@@ -144,32 +144,37 @@ async function handleSubscriptionCancellation(
     return;
   }
 
-  // Remettre en GRATUIT
+  // Passer en GRATUIT mais :
+  // - Conserver le rôle ADMIN_CLUB (l'utilisateur garde accès admin tant que la période est valide)
+  // - Conserver stripeCurrentPeriodEnd (permet de savoir jusqu'à quand l'accès est payé)
+  // - Mettre tokensRemaining à 0 (plus de scraping possible)
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: userId },
       data: {
         subscription: "GRATUIT",
-        role: "UTILISATEUR",
+        // role conservé intentionnellement (ADMIN_CLUB)
         tokensRemaining: 0,
         stripeSubscriptionId: null,
         stripePriceId: null,
-        stripeCurrentPeriodEnd: null,
+        // stripeCurrentPeriodEnd conservé pour savoir quand l'accès expire réellement
       },
     });
 
-    // Logger l'annulation
     await tx.tokenUsageHistory.create({
       data: {
         userId,
         action: "ADMIN",
         amount: 0,
-        reason: "Abonnement annulé - Retour au plan GRATUIT",
+        reason:
+          "Abonnement annulé - tokens mis à zéro, accès jusqu'à fin de période",
       },
     });
   });
 
-  console.log(`❌ Abonnement annulé pour user ${userId}`);
+  console.log(
+    `❌ Abonnement annulé pour user ${userId} (accès jusqu'au ${new Date(0).toISOString()})`,
+  );
 }
 
 async function handleTokenPurchase(session: Stripe.Checkout.Session) {

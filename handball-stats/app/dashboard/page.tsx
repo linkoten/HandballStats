@@ -1,5 +1,6 @@
 import { getUserProfile, getUserTokens } from "@/app/actions";
 import { getEquipesByClub } from "@/app/actions/equipe-actions";
+import { getClubEntraineurs } from "@/app/actions/entraineur-actions";
 import DashboardClient from "./client";
 
 export default async function DashboardPage() {
@@ -28,9 +29,20 @@ export default async function DashboardPage() {
 
   // Récupérer les équipes du club si club présent
   let equipesData = null;
+  let coachCount = 0;
   if (userData?.club?.id) {
-    const equipesResult = await getEquipesByClub(userData.club.id.toString());
-    equipesData = equipesResult.success ? equipesResult.data : null;
+    const [equipesResult, coachResult] = await Promise.allSettled([
+      getEquipesByClub(userData.club.id.toString()),
+      getClubEntraineurs(userData.club.id),
+    ]);
+    equipesData =
+      equipesResult.status === "fulfilled" && equipesResult.value.success
+        ? equipesResult.value.data
+        : null;
+    coachCount =
+      coachResult.status === "fulfilled" && coachResult.value.success
+        ? (coachResult.value.data?.total ?? 0)
+        : 0;
   }
 
   return (
@@ -38,6 +50,7 @@ export default async function DashboardPage() {
       initialUserData={userData}
       initialTokensData={tokensData}
       equipesData={equipesData}
+      coachCount={coachCount}
       error={error}
     />
   );

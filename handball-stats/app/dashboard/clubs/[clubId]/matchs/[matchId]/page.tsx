@@ -1,19 +1,12 @@
 import { getMatchById } from "@/app/actions/match-actions";
+import { getCurrentUser } from "@/app/actions/user-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
 import { Trophy, FileText, Calendar, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { MatchStatsTable } from "./MatchStatsTable";
 
 // Fonction utilitaire pour le calcul de pourcentage
 const calculateEff = (val: number, total: number) => {
@@ -35,7 +28,11 @@ export default async function MatchDetailPage({
     );
   }
 
-  const res = await getMatchById(matchId);
+  const [res, currentUser] = await Promise.all([
+    getMatchById(matchId),
+    getCurrentUser(),
+  ]);
+
   if (!res.success) {
     return (
       <div className="p-8 text-destructive font-sport uppercase">
@@ -46,6 +43,11 @@ export default async function MatchDetailPage({
 
   const match = res.data;
   const stats = match.statistiques_joueur || [];
+
+  const canEdit =
+    currentUser?.role === "ENTRAINEUR" ||
+    currentUser?.role === "ADMIN_CLUB" ||
+    currentUser?.role === "ADMIN_GENERAL";
 
   const isHomeOwner =
     match.equipes_matchs_equipe_recevant_idToequipes?.clubId?.toString() ===
@@ -100,10 +102,8 @@ export default async function MatchDetailPage({
 
   const topScorer =
     stats.length > 0
-      ? [...stats].sort((a, b) => (b.buts || 0) - (a.buts || 0))[0]
+      ? [...stats].sort((a: any, b: any) => (b.buts || 0) - (a.buts || 0))[0]
       : null;
-
-  console.log(match);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -135,7 +135,7 @@ export default async function MatchDetailPage({
         {/* 2. Scoreboard "TV Style" */}
         <div
           className={cn(
-            "relative overflow-hidden rounded-[3rem] p-8 md:p-12 shadow-2xl text-foreground border-b-[12px] bg-card transition-colors duration-500",
+            "relative overflow-hidden rounded-5xl p-8 md:p-12 shadow-2xl text-foreground border-b-12 bg-card transition-colors duration-500",
             currentHeaderColor.split(" ")[0],
           )}
         >
@@ -215,7 +215,7 @@ export default async function MatchDetailPage({
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           {/* Sidebar : Résumé de performance globale */}
           <div className="xl:col-span-1 space-y-6">
-            <Card className="rounded-[2rem] border-2 bg-card overflow-hidden">
+            <Card className="rounded-4xl border-2 bg-card overflow-hidden">
               <CardHeader className="bg-muted/50 border-b text-center">
                 <CardTitle className="font-sport italic uppercase text-sm">
                   Efficacité Équipe
@@ -287,7 +287,7 @@ export default async function MatchDetailPage({
 
             {/* Top Scorer Card */}
             {topScorer && (
-              <Card className="rounded-[2rem] border-2 bg-secondary/10 border-secondary/30 relative overflow-hidden">
+              <Card className="rounded-4xl border-2 bg-secondary/10 border-secondary/30 relative overflow-hidden">
                 <Trophy className="absolute -right-4 -bottom-4 text-secondary/20 w-32 h-32 rotate-12" />
                 <CardContent className="p-6 relative z-10">
                   <p className="font-sport italic text-secondary-foreground text-[10px] uppercase mb-1 tracking-widest font-black">
@@ -317,153 +317,13 @@ export default async function MatchDetailPage({
 
           {/* Tableau des Statistiques Détaillées */}
           <div className="xl:col-span-3">
-            <Card className="rounded-[2rem] border-2 shadow-xl overflow-hidden">
+            <Card className="rounded-4xl border-2 shadow-xl overflow-hidden">
               <div className="bg-primary text-white px-8 py-6">
                 <h3 className="font-sport italic uppercase text-xl font-black tracking-tight">
                   Feuille de stats individuelle
                 </h3>
               </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/50 border-b-2">
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="w-[60px] text-center font-sport italic text-[10px] uppercase">
-                        N°
-                      </TableHead>
-                      <TableHead className="min-w-[180px] font-sport italic text-[10px] uppercase">
-                        Joueur
-                      </TableHead>
-                      <TableHead className="text-center font-sport italic text-[10px] uppercase bg-primary/5">
-                        Buts / Tirs
-                      </TableHead>
-                      <TableHead className="text-center font-sport italic text-[10px] uppercase bg-primary/5">
-                        % Eff.
-                      </TableHead>
-                      <TableHead className="text-center font-sport italic text-[10px] uppercase bg-secondary/5">
-                        Arrêts
-                      </TableHead>
-                      <TableHead className="text-center font-sport italic text-[10px] uppercase bg-destructive/5 text-destructive">
-                        Excl. 2'
-                      </TableHead>
-                      <TableHead className="text-center font-sport italic text-[10px] uppercase">
-                        Discipline
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stats.map((stat: any, idx: number) => {
-                      const effTir = calculateEff(stat.buts, stat.tirs);
-                      const isGK =
-                        stat.arrets > 0 ||
-                        stat.joueurs?.poste_principal
-                          ?.toLowerCase()
-                          .includes("gardien");
-
-                      return (
-                        <TableRow
-                          key={idx}
-                          className="group hover:bg-muted/40 transition-colors border-b"
-                        >
-                          <TableCell className="text-center font-sport font-black italic text-lg text-muted-foreground/40 group-hover:text-primary transition-colors">
-                            {stat.joueurs?.num_maillot || "--"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-black uppercase text-sm italic group-hover:text-primary transition-colors">
-                                {stat.joueurs?.nom_prenom}
-                              </span>
-                              <span className="text-[9px] text-muted-foreground font-bold uppercase">
-                                {stat.joueurs?.poste_principal || "Joueur"}
-                              </span>
-                            </div>
-                          </TableCell>
-
-                          {/* Section Attaque */}
-                          <TableCell className="text-center bg-primary/5">
-                            <div className="flex flex-col items-center">
-                              <span className="text-lg font-black font-sport italic text-primary leading-none">
-                                {stat.buts ?? 0}
-                              </span>
-                              <span className="text-[9px] font-bold text-muted-foreground mt-0.5">
-                                sur {stat.tirs ?? 0}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center bg-primary/5">
-                            <span
-                              className={cn(
-                                "text-xs font-sport italic font-black",
-                                effTir >= 70
-                                  ? "text-green-500"
-                                  : effTir >= 40
-                                    ? "text-amber-500"
-                                    : "text-muted-foreground",
-                              )}
-                            >
-                              {effTir}%
-                            </span>
-                          </TableCell>
-
-                          {/* Section Gardien (Arrêts bruts) */}
-                          <TableCell className="text-center bg-secondary/5">
-                            {isGK ? (
-                              <span className="text-lg font-black font-sport italic text-secondary leading-none">
-                                {stat.arrets ?? 0}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/20 text-xs">
-                                -
-                              </span>
-                            )}
-                          </TableCell>
-
-                          {/* Section 2 Minutes */}
-                          <TableCell className="text-center bg-destructive/5">
-                            {stat.exclusions_2min > 0 ? (
-                              <div className="flex flex-col items-center justify-center gap-0.5">
-                                <span className="text-lg font-black font-sport italic text-destructive leading-none">
-                                  {stat.exclusions_2min}
-                                </span>
-                                <span className="text-[8px] font-black text-destructive/60 uppercase">
-                                  Sanction
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground/20">
-                                -
-                              </span>
-                            )}
-                          </TableCell>
-
-                          {/* Section Cartons */}
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {stat.avertissements > 0 && (
-                                <div
-                                  className="w-3 h-4 bg-yellow-400 rounded-sm shadow-sm border border-yellow-500"
-                                  title="Avertissement"
-                                />
-                              )}
-                              {stat.disqualifications > 0 && (
-                                <div
-                                  className="w-3 h-4 bg-red-600 rounded-sm shadow-sm border border-red-700"
-                                  title="Disqualification"
-                                />
-                              )}
-                              {!stat.avertissements &&
-                                !stat.disqualifications && (
-                                  <span className="text-muted-foreground/20 text-xs">
-                                    -
-                                  </span>
-                                )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <MatchStatsTable stats={stats} canEdit={canEdit} />
             </Card>
           </div>
         </div>

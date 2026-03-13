@@ -152,7 +152,13 @@ export async function consumeTokenOnSuccess(
     // Vérifier que la compétition est bien COMPLETED
     const competition = await prisma.competition.findUnique({
       where: { id: competitionId },
-      select: { scrapingStatus: true, nom: true },
+      select: {
+        scrapingStatus: true,
+        nom: true,
+        phase: true,
+        equipeId: true,
+        saison: true,
+      },
     });
 
     if (!competition || competition.scrapingStatus !== "COMPLETED") {
@@ -160,6 +166,47 @@ export async function consumeTokenOnSuccess(
         success: false,
         error: "La compétition n'est pas encore complétée",
       };
+    }
+
+    // Phase-group deduplication: if this competition has a non-empty phase and
+    // another competition in the same (equipe, saison) group already consumed a
+    // token for this user, mark this one as used without deducting a new token.
+    if (competition.phase && competition.phase.trim() !== "") {
+      const siblingWithToken = await prisma.competitionAccess.findFirst({
+        where: {
+          userId: user.id,
+          tokenUsed: true,
+          competitionId: { not: competitionId },
+          competition: {
+            equipeId: competition.equipeId,
+            saison: competition.saison,
+            AND: [{ phase: { not: null } }, { phase: { not: "" } }],
+          },
+        },
+      });
+
+      if (siblingWithToken) {
+        await prisma.$transaction(async (tx) => {
+          await tx.competitionAccess.update({
+            where: {
+              userId_competitionId: { userId: user.id, competitionId },
+            },
+            data: { tokenUsed: true },
+          });
+          await tx.tokenUsageHistory.create({
+            data: {
+              userId: user.id,
+              competitionId,
+              action: "SCRAPE",
+              amount: 0,
+              reason: `Scraping complété (phase mutualisée) : ${competition.nom}`,
+            },
+          });
+        });
+        revalidatePath("/competitions");
+        revalidatePath("/dashboard");
+        return { success: true };
+      }
     }
 
     if (user.tokensRemaining <= 0) {
@@ -349,6 +396,104 @@ export async function rescrapeCompetition(
     };
   } catch (error) {
     console.error("Erreur rescrapeCompetition:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}
+
+/**
+ * Rescrapre toutes les compétitions d'un club pour une saison donnée.
+ * Réservé aux admins (ADMIN_CLUB / ADMIN_GENERAL).
+ */
+export async function rescrapeClubCurrentSaison(
+  clubId: number,
+  saison: string = "2025-2026",
+): Promise<{ success: boolean; error?: string; data?: any }> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { success: false, error: "Non authentifié" };
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true, role: true },
+    });
+
+    if (
+      !user ||
+      (user.role !== "ADMIN_CLUB" && user.role !== "ADMIN_GENERAL")
+    ) {
+      return { success: false, error: "Accès refusé : rôle admin requis" };
+    }
+
+    const competitions = await prisma.competition.findMany({
+      where: { saison, equipe: { clubId } },
+      include: { equipe: { select: { id: true, nom: true } } },
+    });
+
+    if (competitions.length === 0) {
+      return {
+        success: false,
+        error: `Aucune compétition ${saison} trouvée pour ce club`,
+      };
+    }
+
+    const config = competitions.map((comp) => ({
+      competitionId: comp.id,
+      equipeId: comp.equipeId,
+      url: comp.baseUrl,
+      equipe: comp.equipeFFHB || comp.equipe?.nom || "Inconnue",
+      equipe_bdd: comp.equipe?.nom || "Inconnue",
+      competition_name: comp.nom,
+      poule: comp.poule || "",
+      max_journees: comp.max_journees || 18,
+      saison: comp.saison,
+      phase: comp.phase || "Poule",
+    }));
+
+    await prisma.competition.updateMany({
+      where: { id: { in: competitions.map((c) => c.id) } },
+      data: {
+        scrapingStatus: "IN_PROGRESS",
+        scrapingProgress: 0,
+        scrapingStep: "Récupération des données...",
+      },
+    });
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+    if (!apiUrl) throw new Error("NEXT_PUBLIC_API_URL non défini");
+
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/scrape/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ competitions: config }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      await prisma.competition.updateMany({
+        where: { id: { in: competitions.map((c) => c.id) } },
+        data: {
+          scrapingStatus: "FAILED",
+          scrapingStep: `Erreur API: ${errorText}`,
+        },
+      });
+      return { success: false, error: `Erreur scraper: ${errorText}` };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/clubs/${clubId}/competitions`);
+
+    return {
+      success: true,
+      data: {
+        count: competitions.length,
+        message: `${competitions.length} compétition(s) ${saison} en cours de mise à jour`,
+      },
+    };
+  } catch (error) {
+    console.error("Erreur rescrapeClubCurrentSaison:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur serveur",

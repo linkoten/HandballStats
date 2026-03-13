@@ -1,27 +1,22 @@
-type MetabaseDashboardProps = {
-  dashboardId: string;
-  filters: Record<string, string | number | undefined>;
+﻿type MetabaseDashboardProps = {
+  /** URL complete et signee generee cote serveur */
+  src: string;
+  height?: number;
 };
 
+/**
+ * Composant purement presentationnel.
+ * L URL est generee et signee cote serveur (page.tsx) via JWT.
+ * Ce composant ne connait jamais le secret.
+ */
 export default function MetabaseDashboard({
-  dashboardId,
-  filters,
+  src,
+  height = 900,
 }: MetabaseDashboardProps) {
-  // Construit l’URL d’embed statique avec les paramètres
-  const params = new URLSearchParams(
-    Object.entries(filters)
-      .filter(([_, v]) => v !== undefined)
-      .map(([k, v]) => [k, String(v)]),
-  ).toString();
-  const iframeUrl = `http://localhost:3001/public/dashboard/${dashboardId}${params ? "?" + params : ""}`;
-
   return (
     <iframe
-      src={iframeUrl}
-      frameBorder={0}
-      width="100%"
-      height="600"
-      style={{ background: "white" }}
+      src={src}
+      style={{ width: "100%", height: `${height}px`, border: "none" }}
     />
   );
 }

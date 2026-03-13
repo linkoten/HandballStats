@@ -47,7 +47,11 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const successUrl = `${baseUrl}/dashboard?checkout=success`;
+    // Pour un abonnement : rediriger vers l'onboarding (création de club)
+    // Pour des tokens : rediriger vers le dashboard directement
+    const successUrl = planType
+      ? `${baseUrl}/onboarding?checkout=success`
+      : `${baseUrl}/dashboard?checkout=success`;
     const cancelUrl = `${baseUrl}/pricing?checkout=canceled`;
 
     // Abonnement ou jetons ?

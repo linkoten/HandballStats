@@ -2,22 +2,26 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { rescrapeCompetition } from "@/app/actions/scraping-actions";
+import { rescrapeClubCurrentSaison } from "@/app/actions/scraping-actions";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export default function RescrapeButton({
-  competitionId,
+export default function RescrapeAllButton({
+  clubId,
+  saison = "2025-2026",
+  variant = "default",
 }: {
-  competitionId: number;
+  clubId: number;
+  saison?: string;
+  variant?: "default" | "outline";
 }) {
   const [loading, setLoading] = useState(false);
 
   const handleRescrape = async () => {
     setLoading(true);
     try {
-      const result = await rescrapeCompetition([competitionId]);
+      const result = await rescrapeClubCurrentSaison(clubId, saison);
       if (result.success) {
         toast.success("Synchronisation lancée !", {
           description:
@@ -27,7 +31,7 @@ export default function RescrapeButton({
       } else {
         toast.error("Erreur", { description: result.error });
       }
-    } catch (err) {
+    } catch {
       toast.error("Erreur lors de la connexion au serveur");
     } finally {
       setLoading(false);
@@ -38,14 +42,16 @@ export default function RescrapeButton({
     <Button
       onClick={handleRescrape}
       disabled={loading}
+      variant={variant}
       size="lg"
       className={cn(
-        "rounded-2xl font-sport italic font-black uppercase tracking-tight text-sm px-8 shadow-lg shadow-secondary/30 transition-all",
+        "rounded-2xl font-sport italic font-black uppercase tracking-tight text-sm px-8 shadow-lg transition-all",
+        variant === "default" && "shadow-secondary/30",
         loading && "opacity-80",
       )}
     >
       <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-      {loading ? "Synchronisation en cours…" : "Mettre à jour les données"}
+      {loading ? "Synchronisation en cours…" : `Tout mettre à jour (${saison})`}
     </Button>
   );
 }

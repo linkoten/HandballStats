@@ -500,7 +500,25 @@ export async function getJoueurComplet(
 
     if (!joueur) return { success: false, error: "Joueur non trouvé" };
 
-    return { success: true, data: joueur };
+    // Compute team-level arrêts per match (sum of all players' arrêts)
+    const matchIds = joueur.statistiques_joueur
+      .map((s) => s.id_match)
+      .filter((id): id is number => id !== null);
+
+    const teamArretsRaw = await prisma.statistiques_joueur.groupBy({
+      by: ["id_match"],
+      where: { id_match: { in: matchIds } },
+      _sum: { arrets: true },
+    });
+
+    const arretsParMatch: Record<number, number> = {};
+    for (const row of teamArretsRaw) {
+      if (row.id_match !== null) {
+        arretsParMatch[row.id_match] = row._sum.arrets ?? 0;
+      }
+    }
+
+    return { success: true, data: { ...joueur, arretsParMatch } };
   } catch (error) {
     console.error("Erreur Prisma:", error);
     return {

@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { checkUserClubRole } from "@/lib/access-control";
+import { PLAN_LIMITS, PlanType } from "@/lib/stripe";
 
 export type ClubFormData = {
   nom: string;
@@ -140,6 +141,35 @@ export async function validateClubCode(code: string): Promise<ClubResponse> {
     // Déterminer le rôle selon le code utilisé
     const isCoachCode = club.coachCode === code.trim().toUpperCase();
     const newRole = isCoachCode ? "ENTRAINEUR" : "UTILISATEUR";
+
+    // Si code coach, vérifier la limite d'entraîneurs du plan de l'admin du club
+    if (isCoachCode) {
+      const adminMember = await prisma.userClub.findFirst({
+        where: {
+          clubId: club.id,
+          user: { role: "ADMIN_CLUB" },
+        },
+        include: { user: { select: { subscription: true } } },
+      });
+
+      if (adminMember) {
+        const plan = adminMember.user.subscription as PlanType;
+        const limits = PLAN_LIMITS[plan];
+        if (limits.maxEntraineurs !== -1) {
+          const currentCoachCount = await prisma.userClub.count({
+            where: {
+              clubId: club.id,
+              user: { role: { in: ["ADMIN_CLUB", "ENTRAINEUR"] as any[] } },
+            },
+          });
+          if (currentCoachCount >= limits.maxEntraineurs) {
+            throw new Error(
+              `Ce club a atteint sa limite d'entraîneurs (${limits.maxEntraineurs} max pour le plan ${plan}). L'administrateur doit passer à un plan supérieur.`,
+            );
+          }
+        }
+      }
+    }
 
     // Ajouter l'utilisateur au club
     await prisma.$transaction(async (tx) => {

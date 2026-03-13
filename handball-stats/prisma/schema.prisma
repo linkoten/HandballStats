@@ -149,6 +149,9 @@ model Competition {
   niveau String? @db.VarChar(100) // ex: "Régional", "Départemental"
   phase  String? @db.VarChar(50) // ex: "Poule", "Phase finale"
 
+  // Sélection manuelle de l'admin après downgrade
+  isPinned Boolean @default(false) @map("is_pinned")
+
   // Statut du scraping
   scrapingStatus   ScrapingStatus @default(PENDING) @map("scraping_status")
   scrapingProgress Int            @default(0) @map("scraping_progress") // 0-100

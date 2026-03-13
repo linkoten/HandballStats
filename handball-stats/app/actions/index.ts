@@ -92,6 +92,14 @@ export type { TokenResponse } from "./token-actions";
 
 export type { UserProfileResponse } from "./user-actions";
 
+export {
+  getClubEntraineurs,
+  removeEntraineurRole,
+  promoteToAdmin,
+  checkDowngradeQuotas,
+} from "./entraineur-actions";
+export type { EntraineurResponse } from "./entraineur-actions";
+
 export type {
   OnboardingResponse,
   CompetitionConfig,

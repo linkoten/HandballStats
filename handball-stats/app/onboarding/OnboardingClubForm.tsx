@@ -3,8 +3,13 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { createClub } from "@/app/actions/club-actions";
+import { CheckCircle2, MapPin, Trophy } from "lucide-react";
 
-export default function OnboardingClubForm() {
+export default function OnboardingClubForm({
+  fromCheckout = false,
+}: {
+  fromCheckout?: boolean;
+}) {
   const [nom, setNom] = useState("");
   const [ville, setVille] = useState("");
   const [region, setRegion] = useState("");
@@ -190,91 +195,118 @@ export default function OnboardingClubForm() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8">
-      <div className="max-w-lg w-full bg-card/40 rounded-xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold mb-6 text-center font-sport uppercase">
-          Bienvenue !
-        </h1>
-        <p className="mb-6 text-muted-foreground text-center">
-          Pour commencer, créez votre premier club afin d'accéder à toutes les
-          fonctionnalités du dashboard.
-        </p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Nom du club *
-            </label>
-            <input
-              name="nom"
-              required
-              className="w-full px-3 py-2 border rounded"
-              placeholder="Nom du club"
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-            />
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+      <div className="max-w-lg w-full space-y-6">
+        {/* Badge succès paiement */}
+        {fromCheckout && (
+          <div className="flex items-center justify-center gap-2 bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-4 py-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <p className="text-sm font-bold text-emerald-800">
+              Abonnement activé — plus qu'une étape !
+            </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Ville</label>
-            <input
-              name="ville"
-              className="w-full px-3 py-2 border rounded"
-              placeholder="Ville"
-              value={ville}
-              onChange={(e) => setVille(e.target.value)}
-            />
+        )}
+
+        {/* Header */}
+        <div className="bg-primary rounded-3xl p-8 text-white space-y-2 shadow-2xl">
+          <div className="flex items-center gap-2 text-secondary font-sport italic text-sm">
+            <Trophy size={16} className="fill-current" /> MISE EN PLACE
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Région</label>
-            <select
-              name="region"
-              className="w-full px-3 py-2 border rounded"
-              value={region}
-              onChange={(e) => {
-                setRegion(e.target.value);
-                setDepartement("");
-              }}
-              required
+          <h1 className="text-4xl font-sport font-black italic uppercase tracking-tighter">
+            Créez votre <span className="text-secondary">club</span>
+          </h1>
+          <p className="text-white/70 text-sm">
+            Votre espace de gestion des compétitions, équipes et joueurs.
+          </p>
+        </div>
+
+        {/* Formulaire */}
+        <div className="bg-card border-2 border-border rounded-3xl p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider mb-1.5 text-muted-foreground">
+                Nom du club *
+              </label>
+              <input
+                name="nom"
+                required
+                className="w-full px-4 py-2.5 border-2 rounded-xl font-medium focus:border-primary outline-none transition-colors"
+                placeholder="Ex: ASC Rennais"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider mb-1.5 text-muted-foreground">
+                <MapPin size={11} className="inline mr-1" />
+                Ville
+              </label>
+              <input
+                name="ville"
+                className="w-full px-4 py-2.5 border-2 rounded-xl font-medium focus:border-primary outline-none transition-colors"
+                placeholder="Ex: Rennes"
+                value={ville}
+                onChange={(e) => setVille(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider mb-1.5 text-muted-foreground">
+                  Région *
+                </label>
+                <select
+                  name="region"
+                  className="w-full px-4 py-2.5 border-2 rounded-xl font-medium focus:border-primary outline-none transition-colors bg-background"
+                  value={region}
+                  onChange={(e) => {
+                    setRegion(e.target.value);
+                    setDepartement("");
+                  }}
+                  required
+                >
+                  {regions.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider mb-1.5 text-muted-foreground">
+                  Département
+                </label>
+                <select
+                  name="departement"
+                  className="w-full px-4 py-2.5 border-2 rounded-xl font-medium focus:border-primary outline-none transition-colors bg-background disabled:opacity-40"
+                  value={departement}
+                  onChange={(e) => setDepartement(e.target.value)}
+                  required={!!region}
+                  disabled={!region}
+                >
+                  <option value="">
+                    {region ? "Choisir" : "Région d'abord"}
+                  </option>
+                  {departementsOptions.map((dep) => (
+                    <option key={dep.value} value={dep.value}>
+                      {dep.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {error && (
+              <div className="text-sm font-bold text-destructive bg-destructive/10 rounded-xl px-4 py-2">
+                {error}
+              </div>
+            )}
+            <Button
+              type="submit"
+              className="w-full font-sport italic uppercase text-base py-6 mt-2"
+              disabled={loading}
             >
-              {regions.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Département
-            </label>
-            <select
-              name="departement"
-              className="w-full px-3 py-2 border rounded"
-              value={departement}
-              onChange={(e) => setDepartement(e.target.value)}
-              required={!!region}
-              disabled={!region}
-            >
-              <option value="">
-                {region
-                  ? "Choisir un département"
-                  : "Sélectionnez d'abord une région"}
-              </option>
-              {departementsOptions.map((dep) => (
-                <option key={dep.value} value={dep.value}>
-                  {dep.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {error && <div className="text-red-600 text-sm">{error}</div>}
-          <Button type="submit" className="w-full mt-4" disabled={loading}>
-            {loading ? "Création..." : "Créer le club"}
-          </Button>
-        </form>
-        <div className="flex flex-col gap-4 mt-8">
-          <Button asChild className="w-full" variant="secondary">
-            <Link href="/dashboard">Passer (démo)</Link>
-          </Button>
+              {loading ? "Création en cours…" : "Créer mon club →"}
+            </Button>
+          </form>
         </div>
       </div>
     </div>

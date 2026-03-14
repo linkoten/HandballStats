@@ -8,7 +8,7 @@ import {
   useUser,
 } from "@clerk/nextjs";
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,9 @@ import {
   BarChart3,
   Gem,
   Zap,
-  ShieldCheck,
   Crown,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
@@ -36,8 +37,13 @@ type UserData = {
 
 export function Navbar() {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { isLoaded, isSignedIn } = useUser();
   const pathname = usePathname();
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -97,10 +103,7 @@ export function Navbar() {
                         "text-secondary hover:text-secondary hover:bg-secondary/5",
                     )}
                   >
-                    <link.icon
-                      size={14}
-                      className={cn(isActive ? "animate-pulse" : "")}
-                    />
+                    <link.icon size={14} className={cn(isActive ? "animate-pulse" : "")} />
                     {link.label}
                   </Link>
                 );
@@ -110,47 +113,38 @@ export function Navbar() {
         </div>
 
         {/* Action Section (Right) */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <SignedIn>
             {userData && (
               <div className="hidden md:flex items-center gap-2 mr-2">
                 {/* Tokens Badge */}
-                <div className="flex flex-col items-end">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "h-7 border-2 font-sport italic text-[10px] px-3 gap-1.5",
-                      userData.subscription === "PREMIUM"
-                        ? "border-secondary bg-secondary/10 text-secondary-foreground"
-                        : "border-primary/20 bg-primary/5 text-primary",
-                    )}
-                  >
-                    <Zap size={10} className="fill-current" />
-                    {userData.subscription === "PREMIUM"
-                      ? "ILLIMITÉ"
-                      : `${userData.tokensRemaining} TOKENS`}
-                  </Badge>
-                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "h-7 border-2 font-sport italic text-[10px] px-3 gap-1.5",
+                    userData.subscription === "PREMIUM"
+                      ? "border-secondary bg-secondary/10 text-secondary-foreground"
+                      : "border-primary/20 bg-primary/5 text-primary",
+                  )}
+                >
+                  <Zap size={10} className="fill-current" />
+                  {userData.subscription === "PREMIUM"
+                    ? "ILLIMITÉ"
+                    : `${userData.tokensRemaining} TOKENS`}
+                </Badge>
 
                 {/* Role Badge */}
                 <Badge
                   className={cn(
                     "h-7 font-sport italic text-[10px] border-2",
-                    userData.role === "ADMIN_GENERAL" ||
-                      userData.role === "ADMIN_CLUB"
+                    userData.role === "ADMIN_GENERAL" || userData.role === "ADMIN_CLUB"
                       ? "bg-foreground text-background border-foreground"
                       : "bg-muted text-muted-foreground border-transparent",
                   )}
                 >
-                  {userData.role === "ADMIN_GENERAL" && (
-                    <Crown size={10} className="mr-1" />
-                  )}
-                  {userData.role === "ENTRAINEUR" && (
-                    <Trophy size={10} className="mr-1" />
-                  )}
-                  {userData.role
-                    .replace("ADMIN_", "")
-                    .replace("UTILISATEUR", "JOUEUR")}
+                  {userData.role === "ADMIN_GENERAL" && <Crown size={10} className="mr-1" />}
+                  {userData.role === "ENTRAINEUR" && <Trophy size={10} className="mr-1" />}
+                  {userData.role.replace("ADMIN_", "").replace("UTILISATEUR", "JOUEUR")}
                 </Badge>
               </div>
             )}
@@ -160,13 +154,21 @@ export function Navbar() {
                 afterSignOutUrl="/"
                 appearance={{
                   elements: {
-                    avatarBox:
-                      "w-9 h-9 border-2 border-primary/20 hover:border-primary transition-colors",
+                    avatarBox: "w-9 h-9 border-2 border-primary/20 hover:border-primary transition-colors",
                     userButtonPopoverCard: "rounded-[2rem] border-2 shadow-2xl",
                   },
                 }}
               />
             </div>
+
+            {/* Hamburger - Mobile */}
+            <button
+              className="lg:hidden ml-1 p-2 rounded-xl hover:bg-primary/10 transition-colors"
+              onClick={() => setMobileOpen((o) => !o)}
+              aria-label="Menu"
+            >
+              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </SignedIn>
 
           <SignedOut>
@@ -178,6 +180,63 @@ export function Navbar() {
           </SignedOut>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      <SignedIn>
+        {mobileOpen && (
+          <div className="lg:hidden border-t-2 border-primary/10 bg-background/95 backdrop-blur-2xl px-4 py-4 flex flex-col gap-2">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "px-4 py-3 rounded-xl flex items-center gap-3 font-sport text-sm uppercase tracking-wider italic transition-all",
+                    isActive
+                      ? "bg-primary text-white shadow-lg shadow-primary/20"
+                      : "text-muted-foreground hover:text-primary hover:bg-primary/5",
+                    link.highlight && !isActive && "text-secondary hover:bg-secondary/5",
+                  )}
+                >
+                  <link.icon size={16} />
+                  {link.label}
+                </Link>
+              );
+            })}
+
+            {/* Badges mobile */}
+            {userData && (
+              <div className="flex items-center gap-2 pt-2 border-t border-border/50 mt-1">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "h-7 border-2 font-sport italic text-[10px] px-3 gap-1.5",
+                    userData.subscription === "PREMIUM"
+                      ? "border-secondary bg-secondary/10 text-secondary-foreground"
+                      : "border-primary/20 bg-primary/5 text-primary",
+                  )}
+                >
+                  <Zap size={10} className="fill-current" />
+                  {userData.subscription === "PREMIUM" ? "ILLIMITÉ" : `${userData.tokensRemaining} TOKENS`}
+                </Badge>
+                <Badge
+                  className={cn(
+                    "h-7 font-sport italic text-[10px] border-2",
+                    userData.role === "ADMIN_GENERAL" || userData.role === "ADMIN_CLUB"
+                      ? "bg-foreground text-background border-foreground"
+                      : "bg-muted text-muted-foreground border-transparent",
+                  )}
+                >
+                  {userData.role === "ADMIN_GENERAL" && <Crown size={10} className="mr-1" />}
+                  {userData.role === "ENTRAINEUR" && <Trophy size={10} className="mr-1" />}
+                  {userData.role.replace("ADMIN_", "").replace("UTILISATEUR", "JOUEUR")}
+                </Badge>
+              </div>
+            )}
+          </div>
+        )}
+      </SignedIn>
     </nav>
   );
 }

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reallocate-tokens",
+      "schedule": "0 6 1 8 *"
+    }
+  ]
+}

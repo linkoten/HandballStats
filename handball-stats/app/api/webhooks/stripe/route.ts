@@ -103,6 +103,15 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   // Mettre à jour l'utilisateur avec transaction
   await prisma.$transaction(async (tx) => {
     // Mettre à jour l'abonnement et les tokens
+    // Récupérer l'allocation bonus actuelle pour la conserver si l'utilisateur change de plan
+    const existingUser = await tx.user.findUnique({
+      where: { id: userId },
+      select: { baseTokenAllocation: true, subscription: true },
+    });
+    // Les tokens bonus achetés au-delà du plan précédent sont perdus lors d'un changement de plan
+    // L'allocation de base repart sur le nouveau plan
+    const newBaseAllocation = tokensToSet;
+
     await tx.user.update({
       where: { id: userId },
       data: {
@@ -115,6 +124,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
           (subscription as any).current_period_end * 1000,
         ),
         tokensRemaining: tokensToSet,
+        baseTokenAllocation: newBaseAllocation,
       },
     });
 
@@ -155,6 +165,7 @@ async function handleSubscriptionCancellation(
         subscription: "GRATUIT",
         // role conservé intentionnellement (ADMIN_CLUB)
         tokensRemaining: 0,
+        baseTokenAllocation: 0,
         stripeSubscriptionId: null,
         stripePriceId: null,
         // stripeCurrentPeriodEnd conservé pour savoir quand l'accès expire réellement
@@ -201,11 +212,12 @@ async function handleTokenPurchase(session: Stripe.Checkout.Session) {
 
   if (tokensToAdd > 0) {
     await prisma.$transaction(async (tx) => {
-      // Ajouter les tokens à l'utilisateur
+      // Ajouter les tokens à l'utilisateur ET à l'allocation de base (pour conserver le bonus au reset d'août)
       await tx.user.update({
         where: { id: userId },
         data: {
           tokensRemaining: { increment: tokensToAdd },
+          baseTokenAllocation: { increment: tokensToAdd },
         },
       });
 

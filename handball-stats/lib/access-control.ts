@@ -92,6 +92,7 @@ export async function checkUserClubRole({
 }
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
+import { PLAN_LIMITS } from "@/lib/stripe";
 
 /**
  * Récupère les IDs des équipes auxquelles l'utilisateur a accès
@@ -184,7 +185,7 @@ export async function getEquipeAccessFilter() {
  * Retourne le statut d'abonnement d'un club (basé sur son ADMIN_CLUB).
  *
  * - isActive          : true si la période payée est encore valide
- * - quota             : tokensRemaining de l'admin (-1 = illimité PREMIUM)
+ * - quota             : baseTokenAllocation de l'admin (-1 = illimité PREMIUM)
  * - selectionPending  : true si l'admin doit choisir manuellement ses compétitions
  * - lockedCompetitionIds : IDs des compétitions non-épinglées (une fois la sélection faite)
  */
@@ -204,6 +205,7 @@ export async function getClubSubscriptionStatus(clubId: number): Promise<{
           subscription: true,
           stripeCurrentPeriodEnd: true,
           tokensRemaining: true,
+          baseTokenAllocation: true,
         },
       },
     },
@@ -220,7 +222,7 @@ export async function getClubSubscriptionStatus(clubId: number): Promise<{
 
   if (!adminMembership) return empty;
 
-  const { subscription, stripeCurrentPeriodEnd, tokensRemaining } =
+  const { subscription, stripeCurrentPeriodEnd, tokensRemaining, baseTokenAllocation } =
     adminMembership.user;
   const now = new Date();
 
@@ -228,8 +230,18 @@ export async function getClubSubscriptionStatus(clubId: number): Promise<{
     subscription !== "GRATUIT" ||
     (stripeCurrentPeriodEnd !== null && stripeCurrentPeriodEnd > now);
 
-  // Plan PREMIUM = illimité
-  const quota = subscription === "PREMIUM" ? -1 : tokensRemaining;
+  // Quota = baseTokenAllocation (plan du souscripteur + bonus achetés à la carte)
+  // C'est la source de vérité : ne diminue pas à l'usage, reflète ce que l'utilisateur a payé.
+  // fallback sur tokensRemaining pour les comptes existants sans baseTokenAllocation encore peuplé.
+  const planKey = subscription as keyof typeof PLAN_LIMITS;
+  const planMax = PLAN_LIMITS[planKey]?.maxTokens ?? 0;
+  const effectiveAllocation = baseTokenAllocation > 0
+    ? baseTokenAllocation
+    : Math.max(tokensRemaining, planMax);
+  const quota =
+    subscription === "PREMIUM"
+      ? -1
+      : effectiveAllocation;
 
   const base = {
     isActive,

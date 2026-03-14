@@ -61,7 +61,7 @@ export default async function EquipesPage({
       </header>
 
       {/* Statistiques Rapides basées sur le mapping */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-card border-2 p-6 rounded-[2rem] flex items-center gap-4 shadow-sm">
           <div className="bg-primary/10 p-4 rounded-2xl text-primary">
             <Users size={28} />
@@ -87,18 +87,6 @@ export default async function EquipesPage({
             </p>
             <p className="text-xs uppercase font-bold text-muted-foreground tracking-widest">
               Joueurs Distincts
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-card border-2 p-6 rounded-[2rem] flex items-center gap-4 shadow-sm text-muted-foreground opacity-50">
-          <div className="bg-muted p-4 rounded-2xl">
-            <Trophy size={28} />
-          </div>
-          <div>
-            <p className="text-3xl font-sport italic font-black">S24-25</p>
-            <p className="text-xs uppercase font-bold tracking-widest">
-              Saison Actuelle
             </p>
           </div>
         </div>

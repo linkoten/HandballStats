@@ -28,8 +28,9 @@ model User {
   role         UserRole         @default(UTILISATEUR)
 
   // Gestion des tokens
-  tokensRemaining Int @default(0) @map("tokens_remaining") // Tokens disponibles
-  tokensUsed      Int @default(0) @map("tokens_used") // Tokens consommés
+  tokensRemaining     Int @default(0) @map("tokens_remaining")      // Tokens disponibles (décrémentés à l'usage, reset en août)
+  tokensUsed          Int @default(0) @map("tokens_used")           // Tokens consommés (historique cumulatif)
+  baseTokenAllocation Int @default(0) @map("base_token_allocation") // Allocation totale = plan + bonus achetés (source de vérité pour le reset août)
 
   // Relations
   clubs             UserClub[]

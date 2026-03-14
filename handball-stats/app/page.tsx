@@ -33,29 +33,26 @@ export default function Home() {
 
         <div className="relative z-10 container mx-auto px-6 py-24 md:py-36 text-center text-white">
           {/* Logo */}
-          <div className="flex justify-center mb-8">
-            <Logo size={220} mono />
+          <div className="flex justify-center mb-6">
+            <Logo size={220} />
           </div>
-          <p className="text-base md:text-lg text-white/60 max-w-xl mx-auto mb-12 leading-relaxed">
+          
+          <h1 className="text-4xl md:text-6xl font-sport font-black italic uppercase tracking-tighter mb-6">
+            Simplifiez <span className="text-secondary">votre saison</span>
+          </h1>
+
+          <p className="text-base md:text-lg text-white/80 max-w-xl mx-auto mb-12 leading-relaxed">
             La plateforme de statistiques dédiée aux clubs de handball. Suivez
             vos compétitions, analysez vos joueurs et pilotez votre saison en
             temps réel.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/sign-up">
-              <Button
-                size="lg"
-                className="bg-secondary text-secondary-foreground hover:bg-secondary/90 font-sport italic uppercase text-lg px-10 py-6 shadow-2xl hover:scale-105 transition-all"
-              >
-                Démarrer gratuitement
-              </Button>
-            </Link>
             <Link href="/pricing">
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white/30 text-white hover:bg-white/10 font-sport italic uppercase text-lg px-10 py-6 transition-all"
+                className="bg-transparent border-white/30 text-white hover:bg-white/10 hover:text-white font-sport italic uppercase text-lg px-10 py-6 transition-all"
               >
                 Voir les tarifs
               </Button>
@@ -192,40 +189,6 @@ export default function Home() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* === CTA === */}
-      <section className="container mx-auto px-6 py-24 text-center">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="flex justify-center">
-            <Logo size={180} />
-          </div>
-          <h2 className="text-4xl md:text-6xl font-sport font-black italic uppercase tracking-tighter">
-            Prêt à passer <span className="text-primary">niveau sup</span> ?
-          </h2>
-          <p className="text-muted-foreground text-lg">
-            Rejoignez les clubs qui pilotent leur saison avec HandStats.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Link href="/sign-up">
-              <Button
-                size="lg"
-                className="font-sport italic uppercase text-lg px-10 py-6 hover:scale-105 transition-all"
-              >
-                Commencer gratuitement <ChevronRight className="ml-2" />
-              </Button>
-            </Link>
-            <Link href="/pricing">
-              <Button
-                size="lg"
-                variant="outline"
-                className="font-sport italic uppercase text-lg px-10 py-6"
-              >
-                Voir les tarifs
-              </Button>
-            </Link>
           </div>
         </div>
       </section>

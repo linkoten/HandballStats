@@ -187,14 +187,6 @@ export default function DashboardClient({
         desc: "Classements officiels",
         roles: ["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR", "JOUEUR"],
       },
-      {
-        href: clubId ? `/dashboard/clubs/${clubId}/entraineurs` : "/dashboard",
-        icon: PersonStanding,
-        color: "primary",
-        label: "Entraîneurs",
-        desc: "Gérer les entraîneurs",
-        roles: ["ADMIN_CLUB", "ADMIN_GENERAL"],
-      },
     ];
 
     // Lien spécifique pour les entraîneurs - gestion des joueurs

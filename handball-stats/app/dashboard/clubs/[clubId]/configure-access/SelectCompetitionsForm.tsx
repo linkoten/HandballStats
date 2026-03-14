@@ -31,8 +31,19 @@ export function SelectCompetitionsForm({ competitions, quota, clubId }: Props) {
     () => new Set(competitions.filter((c) => c.isPinned).map((c) => c.id)),
   );
 
-  const remaining = quota - selectedIds.size;
-  const isValid = selectedIds.size > 0 && selectedIds.size <= quota;
+  // Même saison + même équipe = 1 seul slot consommé
+  function getEffectiveCount(ids: Set<number>): number {
+    const pairs = new Set<string>();
+    for (const id of ids) {
+      const comp = competitions.find((c) => c.id === id);
+      if (comp) pairs.add(`${comp.saison ?? ""}|${comp.equipeNom}`);
+    }
+    return pairs.size;
+  }
+
+  const effectiveCount = getEffectiveCount(selectedIds);
+  const remaining = quota - effectiveCount;
+  const isValid = effectiveCount > 0 && effectiveCount <= quota;
 
   function toggle(id: number) {
     setSelectedIds((prev) => {
@@ -40,7 +51,7 @@ export function SelectCompetitionsForm({ competitions, quota, clubId }: Props) {
       if (next.has(id)) {
         next.delete(id);
       } else {
-        if (next.size >= quota) return prev; // quota atteint
+        if (getEffectiveCount(new Set([...prev, id])) > quota) return prev;
         next.add(id);
       }
       return next;
@@ -79,7 +90,7 @@ export function SelectCompetitionsForm({ competitions, quota, clubId }: Props) {
           <Lock className="w-5 h-5 text-primary" />
           <div>
             <p className="text-sm font-black uppercase tracking-tight">
-              {selectedIds.size} / {quota} sélectionnée
+              {effectiveCount} / {quota} sélectionnée
               {quota !== 1 ? "s" : ""}
             </p>
             <p className="text-[11px] text-muted-foreground">
@@ -96,7 +107,7 @@ export function SelectCompetitionsForm({ competitions, quota, clubId }: Props) {
           <div
             className="h-full bg-primary rounded-full transition-all duration-300"
             style={{
-              width: `${Math.min((selectedIds.size / quota) * 100, 100)}%`,
+              width: `${Math.min((effectiveCount / quota) * 100, 100)}%`,
             }}
           />
         </div>
@@ -120,7 +131,10 @@ export function SelectCompetitionsForm({ competitions, quota, clubId }: Props) {
             <div className="grid grid-cols-1 gap-2">
               {bySaison[saison].map((competition) => {
                 const isSelected = selectedIds.has(competition.id);
-                const isDisabled = !isSelected && remaining === 0;
+                // Désactivé seulement si l'ajout consommerait un slot supplémentaire et dépasse le quota
+                const isDisabled =
+                  !isSelected &&
+                  getEffectiveCount(new Set([...selectedIds, competition.id])) > quota;
 
                 return (
                   <button

@@ -6,15 +6,21 @@ import { TokenAction } from "@prisma/client";
 /**
  * GET /api/cron/reallocate-tokens
  *
- * Cron job à exécuter chaque août pour réallouer les jetons correspondant
- * aux compétitions de la saison qui vient de se terminer.
+ * Cron job à exécuter chaque août pour réinitialiser les jetons de chaque utilisateur actif.
  *
- * Exemple : en août 2026, réalloue pour la saison "2025-2026".
- * Les jetons sont cumulatifs : tokens_restants += nombre_compétitions_de_la_saison_précédente.
+ * Logique :
+ *   tokensRemaining = baseTokenAllocation  (plan souscrit + bonus achetés à la carte)
+ *
+ * Les compétitions de la saison terminée (ex: 2025-2026) restent épinglées et accessibles
+ * sans consommer de tokens. L'utilisateur peut ensuite choisir jusqu'à baseTokenAllocation
+ * nouvelles compétitions pour la saison entrante, en plus des anciennes déjà épinglées.
+ *
+ * Exemple :
+ *   PRO (10) + 1 token acheté = baseTokenAllocation=11
+ *   Après reset en août : tokensRemaining=11
+ *   Les 3 compétitions 2025/2026 restent épinglées, l'admin peut sélectionner 11 nouvelles.
  *
  * Sécurité : nécessite l'en-tête `Authorization: Bearer CRON_SECRET`.
- *
- * Variables d'environnement requises : CRON_SECRET
  */
 export async function GET(request: NextRequest) {
   // ── Protection par secret ──────────────────────────────────────────────────
@@ -52,11 +58,12 @@ export async function GET(request: NextRequest) {
       id: true,
       subscription: true,
       tokensRemaining: true,
+      baseTokenAllocation: true,
     },
   });
 
   let totalProcessed = 0;
-  let totalTokensAdded = 0;
+  let totalTokensReset = 0;
   const skipped: string[] = [];
   const errors: string[] = [];
 
@@ -76,34 +83,9 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // Compter les compétitions de la saison précédente pour lesquelles un token a été utilisé
-      const competitionCount = await prisma.competitionAccess.count({
-        where: {
-          userId: user.id,
-          tokenUsed: true,
-          competition: {
-            saison: season,
-          },
-        },
-      });
-
-      if (competitionCount === 0) {
-        // Créer quand même l'entrée d'idempotence pour ne pas retraiter
-        await prisma.tokenUsageHistory.create({
-          data: {
-            userId: user.id,
-            action: TokenAction.SUBSCRIPTION,
-            amount: 0,
-            reason: `REALLOCATE-${season}`,
-          },
-        });
-        continue;
-      }
-
-      // Vérifier que le plan n'est pas PREMIUM (tokens illimités)
+      // PREMIUM : tokens illimités, rien à faire
       const planLimits = PLAN_LIMITS[user.subscription as PlanType];
       if (planLimits?.maxTokens === -1) {
-        // PREMIUM : pas besoin de réallouer, mais on logue quand même
         await prisma.tokenUsageHistory.create({
           data: {
             userId: user.id,
@@ -112,17 +94,36 @@ export async function GET(request: NextRequest) {
             reason: `REALLOCATE-${season} (PREMIUM - tokens illimités)`,
           },
         });
+        skipped.push(user.id);
         continue;
       }
 
-      // Ajouter les tokens de façon cumulative
+      // Allocation cible = baseTokenAllocation (plan + bonus achetés)
+      // Fallback sur planMax pour les comptes antérieurs à la migration
+      const planMax = planLimits?.maxTokens ?? 0;
+      const targetAllocation = user.baseTokenAllocation > 0
+        ? user.baseTokenAllocation
+        : planMax;
+
+      if (targetAllocation === 0) {
+        await prisma.tokenUsageHistory.create({
+          data: {
+            userId: user.id,
+            action: TokenAction.SUBSCRIPTION,
+            amount: 0,
+            reason: `REALLOCATE-${season} (allocation 0, rien à faire)`,
+          },
+        });
+        continue;
+      }
+
+      // Reset tokensRemaining = baseTokenAllocation
       await prisma.$transaction(async (tx) => {
         await tx.user.update({
           where: { id: user.id },
           data: {
-            tokensRemaining: {
-              increment: competitionCount,
-            },
+            tokensRemaining: targetAllocation,
+            // baseTokenAllocation reste inchangé (c'est la source de vérité permanente)
           },
         });
 
@@ -130,14 +131,18 @@ export async function GET(request: NextRequest) {
           data: {
             userId: user.id,
             action: TokenAction.SUBSCRIPTION,
-            amount: competitionCount,
-            reason: `REALLOCATE-${season}`,
+            amount: targetAllocation,
+            reason: `REALLOCATE-${season} (reset ${user.tokensRemaining} → ${targetAllocation})`,
           },
         });
       });
 
+      // Les compétitions de la saison écoulée (isPinned=true) restent épinglées :
+      // elles demeurent accessibles gratuitement, l'admin peut sélectionner
+      // targetAllocation nouvelles compétitions pour la saison entrante.
+
       totalProcessed++;
-      totalTokensAdded += competitionCount;
+      totalTokensReset += targetAllocation;
     } catch (err) {
       console.error(`[CRON] Erreur pour user ${user.id}:`, err);
       errors.push(user.id);
@@ -145,14 +150,14 @@ export async function GET(request: NextRequest) {
   }
 
   console.log(
-    `[CRON] Réallocation terminée : ${totalProcessed} users traités, ${totalTokensAdded} tokens ajoutés, ${skipped.length} ignorés (déjà traités), ${errors.length} erreurs`,
+    `[CRON] Réallocation terminée : ${totalProcessed} users traités, ${totalTokensReset} tokens réinitialisés, ${skipped.length} ignorés, ${errors.length} erreurs`,
   );
 
   return NextResponse.json({
     success: true,
     season,
     totalProcessed,
-    totalTokensAdded,
+    totalTokensReset,
     skipped: skipped.length,
     errors: errors.length,
   });

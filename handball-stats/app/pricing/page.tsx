@@ -186,9 +186,6 @@ export default function PricingPage() {
           </Link>
 
           <div className="flex flex-col items-center">
-            <div className="p-4 bg-secondary/10 rounded-full mb-6">
-              <span className="text-4xl">💎</span>
-            </div>
             <h1 className="text-4xl md:text-6xl font-sport font-extrabold uppercase tracking-tighter text-foreground mb-4">
               Choisissez votre <span className="text-secondary">plan</span>
             </h1>

@@ -164,6 +164,7 @@ model Competition {
   equipe            equipes             @relation(fields: [equipeId], references: [id], onDelete: Cascade)
   matchs            matchs[]
   competitionAccess CompetitionAccess[]
+  classementPoule     ClassementPoule[]
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -404,4 +405,35 @@ model joueur_objectifs {
   @@unique([id_joueur, saison, type_objectif])
   @@index([id_joueur])
   @@index([saison])
+}
+
+// ============================================
+// CLASSEMENT ACTUEL PAR COMPÉTITION
+// Mis à jour (écrasé) à chaque passage du scraper
+// ============================================
+model ClassementPoule {
+  id            Int      @id @default(autoincrement())
+  competitionId Int      @map("competition_id")
+
+  // Données du classement
+  position      Int
+  nomEquipe     String   @map("nom_equipe") @db.VarChar(255)
+  logoUrl       String?  @map("logo_url") @db.Text
+  points        Int
+  matchsJoues   Int      @map("matchs_joues")
+  victoires     Int
+  nuls          Int
+  defaites      Int
+  butsPour      Int      @map("buts_pour")
+  butsContre    Int      @map("buts_contre")
+  diffButs      Int      @map("diff_buts")
+  forme         String?  @db.VarChar(10) // ex: "GGGPN" (5 derniers résultats)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relation
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, nomEquipe])
+  @@index([competitionId])
+  @@map("classement_poule")
 }

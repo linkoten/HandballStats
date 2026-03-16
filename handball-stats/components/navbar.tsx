@@ -60,6 +60,7 @@ export function Navbar() {
 
   const clubId = userData?.clubs?.[0]?.id;
   const equipesUrl = clubId ? `/dashboard/clubs/${clubId}/equipes` : "/equipes";
+  const competitionsUrl = clubId ? `/dashboard/clubs/${clubId}/competitions` : "/competitions";
   const matchsUrl = clubId ? `/dashboard/clubs/${clubId}/matchs` : "/matchs";
   const statsUrl = clubId
     ? `/dashboard/clubs/${clubId}/statistiques`
@@ -67,6 +68,7 @@ export function Navbar() {
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: equipesUrl, label: "Équipes", icon: Users },
+    { href: competitionsUrl, label: "Compétitions", icon: Trophy },
     { href: matchsUrl, label: "Matchs", icon: Calendar },
     { href: statsUrl, label: "Stats", icon: BarChart3 },
     { href: "/pricing", label: "Premium", icon: Gem, highlight: true },

@@ -1,31 +1,26 @@
-import { getCompetitionById } from "@/app/actions/competition-actions";
+import { getCompetitionById, getClassementHistorique } from "@/app/actions/competition-actions";
 import { getCurrentUser } from "@/app/actions/user-actions";
 import { getClubSubscriptionStatus } from "@/lib/access-control";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Trophy,
   MapPin,
   Users,
-  Activity,
   ExternalLink,
   ArrowLeft,
-  ChevronRight,
   RefreshCw,
-  CheckCircle2,
-  MinusCircle,
-  XCircle,
-  Clock,
   Lock,
   ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
 import RescrapeButton from "./RescrapeButton";
+import CompetitionTabs from "./CompetitionTabs";
 
-type MatchResult = "win" | "draw" | "loss" | "upcoming";
-
-function getMatchResult(match: any, equipeId: number | undefined): MatchResult {
+function getMatchResult(
+  match: any,
+  equipeId: number | undefined,
+): "win" | "draw" | "loss" | "upcoming" {
   if (!equipeId || !match.score_final) return "upcoming";
   const parts = match.score_final.split("-");
   if (parts.length !== 2) return "upcoming";
@@ -39,39 +34,6 @@ function getMatchResult(match: any, equipeId: number | undefined): MatchResult {
   if (ourScore === theirScore) return "draw";
   return "loss";
 }
-
-const resultConfig: Record<
-  MatchResult,
-  { label: string; scoreCls: string; rowCls: string; icon: React.ReactNode }
-> = {
-  win: {
-    label: "Victoire",
-    scoreCls: "bg-emerald-500 text-white border-none",
-    rowCls:
-      "border-l-4 border-l-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10",
-    icon: <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />,
-  },
-  draw: {
-    label: "Nul",
-    scoreCls: "bg-amber-400 text-white border-none",
-    rowCls:
-      "border-l-4 border-l-amber-400 bg-amber-400/5 hover:bg-amber-400/10",
-    icon: <MinusCircle size={13} className="text-amber-500 shrink-0" />,
-  },
-  loss: {
-    label: "Défaite",
-    scoreCls: "bg-destructive text-white border-none",
-    rowCls:
-      "border-l-4 border-l-destructive bg-destructive/5 hover:bg-destructive/10",
-    icon: <XCircle size={13} className="text-destructive shrink-0" />,
-  },
-  upcoming: {
-    label: "",
-    scoreCls: "",
-    rowCls: "hover:bg-muted/50",
-    icon: <Clock size={13} className="text-muted-foreground/50 shrink-0" />,
-  },
-};
 
 export default async function CompetitionPage({
   params,
@@ -144,6 +106,18 @@ export default async function CompetitionPage({
   const competition = res.data;
   const matchs = competition.matchs || [];
   const equipeId = competition.equipe?.id as number | undefined;
+
+  // Historique des classements (toutes journées) pour le graphique
+  const historiqueRes = await getClassementHistorique(competitionId);
+  const historiqueClassement = historiqueRes.success ? (historiqueRes.data ?? []) : [];
+
+  // Classement actuel = snapshot de la journée la plus récente
+  const journeeMax = historiqueClassement.length > 0
+    ? Math.max(...historiqueClassement.map((r: any) => r.journee as number))
+    : 0;
+  const classement = historiqueClassement
+    .filter((r: any) => r.journee === journeeMax)
+    .sort((a: any, b: any) => a.position - b.position);
 
   const canRescrape =
     currentUser?.role === "ADMIN_CLUB" || currentUser?.role === "ADMIN_GENERAL";
@@ -304,174 +278,17 @@ export default async function CompetitionPage({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar Stats */}
-          <div className="lg:col-span-1 space-y-6">
-            <Card className="rounded-[2.5rem] border-2 overflow-hidden">
-              <CardHeader className="bg-muted/50 border-b">
-                <CardTitle className="font-sport italic text-sm uppercase flex items-center gap-2">
-                  <Activity size={18} className="text-primary" /> Bilan
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                {playedCount > 0 ? (
-                  <>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="flex flex-col items-center p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-                        <span className="text-2xl font-sport italic font-black text-emerald-600">
-                          {stats.wins}
-                        </span>
-                        <span className="text-[9px] font-black uppercase text-emerald-600/70 mt-0.5">
-                          Victoires
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center p-3 bg-amber-400/10 rounded-2xl border border-amber-400/20">
-                        <span className="text-2xl font-sport italic font-black text-amber-600">
-                          {stats.draws}
-                        </span>
-                        <span className="text-[9px] font-black uppercase text-amber-600/70 mt-0.5">
-                          Nuls
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center p-3 bg-destructive/10 rounded-2xl border border-destructive/20">
-                        <span className="text-2xl font-sport italic font-black text-destructive">
-                          {stats.losses}
-                        </span>
-                        <span className="text-[9px] font-black uppercase text-destructive/70 mt-0.5">
-                          Défaites
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground italic text-center py-2">
-                    Aucun match joué
-                  </p>
-                )}
-
-                <div className="flex justify-between items-center text-sm pt-2 border-t">
-                  <span className="font-bold text-muted-foreground uppercase text-[10px]">
-                    Mis à jour
-                  </span>
-                  <span className="font-sport italic text-xs">
-                    {competition.updatedAt
-                      ? new Date(competition.updatedAt).toLocaleDateString(
-                          "fr-FR",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )
-                      : "N/A"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Liste des Matchs */}
-          <div className="lg:col-span-3">
-            <Card className="rounded-[2.5rem] border-2 shadow-xl overflow-hidden">
-              <div className="bg-primary text-white px-8 py-6 flex justify-between items-center">
-                <h3 className="font-sport italic uppercase text-xl font-black tracking-tight">
-                  Calendrier & Résultats
-                </h3>
-                <Badge className="bg-secondary text-primary font-sport italic">
-                  {matchs.length} Rencontres
-                </Badge>
-              </div>
-
-              <div className="divide-y">
-                {matchs.length > 0 ? (
-                  matchs.map((match: any) => {
-                    const result = getMatchResult(match, equipeId);
-                    const cfg = resultConfig[result];
-                    return (
-                      <Link
-                        key={match.id}
-                        href={`/dashboard/matchs/${match.id}`}
-                        className={`flex items-center justify-between p-5 transition-colors group ${cfg.rowCls}`}
-                      >
-                        {/* Date */}
-                        <div className="w-20 shrink-0 flex flex-col items-center border-r pr-4">
-                          <span className="text-[10px] font-black uppercase text-muted-foreground">
-                            {match.date_match
-                              ? new Date(match.date_match).toLocaleDateString(
-                                  "fr-FR",
-                                  {
-                                    weekday: "short",
-                                  },
-                                )
-                              : "-"}
-                          </span>
-                          <span className="text-xl font-sport italic font-black text-primary">
-                            {match.date_match
-                              ? new Date(match.date_match).toLocaleDateString(
-                                  "fr-FR",
-                                  {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                  },
-                                )
-                              : "--/--"}
-                          </span>
-                        </div>
-
-                        {/* Teams + Score */}
-                        <div className="flex-1 px-4 md:px-6 grid grid-cols-3 items-center gap-2">
-                          <div className="text-right font-bold uppercase text-sm truncate">
-                            {match.recevant_nom_display}
-                          </div>
-                          <div className="flex flex-col items-center gap-1">
-                            {match.score_final ? (
-                              <Badge
-                                className={`px-3 py-1 font-sport italic text-base rounded-lg ${cfg.scoreCls}`}
-                              >
-                                {match.score_final}
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="font-sport italic text-muted-foreground"
-                              >
-                                VS
-                              </Badge>
-                            )}
-                            {result !== "upcoming" && (
-                              <span className="flex items-center gap-1 text-[10px] font-black uppercase text-muted-foreground">
-                                {cfg.icon} {cfg.label}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-left font-bold uppercase text-sm truncate">
-                            {match.exterieur_nom_display}
-                          </div>
-                        </div>
-
-                        {/* Action */}
-                        <div className="shrink-0 flex items-center gap-2 pl-2">
-                          <span className="hidden md:block text-[10px] font-black uppercase text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                            Détails
-                          </span>
-                          <ChevronRight
-                            className="text-primary group-hover:translate-x-1 transition-transform"
-                            size={20}
-                          />
-                        </div>
-                      </Link>
-                    );
-                  })
-                ) : (
-                  <div className="p-12 text-center text-muted-foreground italic font-sport uppercase tracking-widest opacity-50">
-                    Aucun match trouvé pour cette compétition
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
-        </div>
+        <CompetitionTabs
+          matchs={matchs}
+          classement={classement}
+          historiqueClassement={historiqueClassement}
+          equipeId={equipeId}
+          equipeNom={competition.equipe?.nom}
+          stats={stats}
+          playedCount={playedCount}
+          updatedAt={competition.updatedAt?.toString() ?? null}
+          clubId={clubId}
+        />
       </div>
     </div>
   );

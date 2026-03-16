@@ -238,6 +238,7 @@ export async function getCompetitionById(
           },
           orderBy: [{ date_match: "asc" }],
         },
+
       },
     });
 
@@ -251,6 +252,33 @@ export async function getCompetitionById(
     };
   } catch (error) {
     console.error("Erreur récupération compétition:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
+  }
+}
+
+/**
+ * Récupère l'historique des classements par journée pour le graphique d'évolution
+ * Retourne toutes les journées scrapées, groupées par journée
+ */
+export async function getClassementHistorique(
+  competitionId: number,
+): Promise<CompetitionResponse> {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Non authentifié");
+
+    const snapshots = await prisma.classementPoule.findMany({
+      where: {
+        competitionId,
+      },
+      orderBy: [{ journee: "asc" }, { position: "asc" }],
+    });
+
+    return { success: true, data: snapshots };
+  } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur serveur",

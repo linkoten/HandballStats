@@ -415,6 +415,9 @@ model ClassementPoule {
   id            Int      @id @default(autoincrement())
   competitionId Int      @map("competition_id")
 
+  // Numéro de journée au moment du snapshot
+  journee       Int      @default(0)
+
   // Données du classement
   position      Int
   nomEquipe     String   @map("nom_equipe") @db.VarChar(255)
@@ -433,7 +436,8 @@ model ClassementPoule {
   // Relation
   competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
 
-  @@unique([competitionId, nomEquipe])
+  @@unique([competitionId, nomEquipe, journee])
   @@index([competitionId])
+  @@index([competitionId, journee])
   @@map("classement_poule")
 }

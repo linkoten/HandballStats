@@ -174,7 +174,7 @@ export default async function MatchDetailPage({
                   scoreBgColor,
                 )}
               >
-                <span className="text-6xl md:text-8xl font-sport font-black italic tracking-tighter shadow-sm text-center block leading-none">
+                <span className="text-4xl md:text-6xl font-sport font-black italic tracking-tighter shadow-sm text-center block leading-none">
                   {match.score_final || "VS"}
                 </span>
               </div>

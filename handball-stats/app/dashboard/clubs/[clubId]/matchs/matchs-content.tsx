@@ -225,7 +225,7 @@ export default function MatchsContent({
                                   : "bg-muted text-foreground border-border group-hover:border-primary/30",
                           )}
                         >
-                          <span className="text-3xl font-sport font-black italic tracking-tighter shadow-sm">
+                          <span className="text-xl sm:text-2xl font-sport font-black italic tracking-tighter shadow-sm">
                             {match.score_final || "VS"}
                           </span>
                         </div>

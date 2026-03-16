@@ -4,7 +4,7 @@ import { getJoueursByEquipe } from "@/app/actions/joueur-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Settings, ChevronLeft } from "lucide-react";
+import { Users, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import EquipeContent from "./equipe-content";
@@ -83,9 +83,6 @@ export default async function EquipeDetailPage({
             <ChevronLeft size={16} /> Retour aux équipes
           </Button>
         </Link>
-        <Button variant="outline" size="icon" className="rounded-xl w-fit px-3 sm:size-10">
-          <Settings size={20} />
-        </Button>
       </div>
 
       {/* Hero Header Équipe */}
@@ -105,7 +102,7 @@ export default async function EquipeDetailPage({
             </h1>
           </div>
 
-          <div className="flex flex-wrap gap-4 md:gap-8 items-center bg-white/5 p-4 rounded-3xl backdrop-blur-sm border border-white/10">
+          <div className="flex gap-4 md:gap-8 items-center bg-white/5 p-4 rounded-3xl backdrop-blur-sm border border-white/10">
             <div className="text-center px-4">
               <p className="text-primary font-sport italic text-3xl md:text-4xl font-black leading-none">
                 {equipe._count.joueurs}

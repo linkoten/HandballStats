@@ -218,7 +218,7 @@ export default function DashboardClient({
 
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               {userRole === "ADMIN_CLUB" && (
                 <Badge className="bg-purple-600 text-white font-sport animate-pulse flex items-center gap-2">
                   <Crown className="w-3 h-3" /> ADMIN CLUB
@@ -248,7 +248,7 @@ export default function DashboardClient({
                 <Zap className="w-3 h-3 mr-1 fill-current" /> ANALYSE EN DIRECT
               </Badge>
             </div>
-            <h1 className="text-5xl md:text-7xl font-sport font-black uppercase italic tracking-tighter text-white leading-none">
+            <h1 className="text-4xl md:text-7xl font-sport font-black uppercase italic tracking-tighter text-white leading-none">
               Hello,{" "}
               <span className="text-secondary drop-shadow-sm">
                 {user?.firstName || "Coach"}
@@ -261,16 +261,6 @@ export default function DashboardClient({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              onClick={() => router.refresh()}
-              className="bg-white text-primary hover:bg-secondary hover:text-white font-sport italic px-8 py-6 text-lg transition-transform hover:scale-105 shadow-xl"
-            >
-              {isPending ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "SYNCHRONISER DATA"
-              )}
-            </Button>
             {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") &&
               clubId && (
                 <RescrapeAllButton
@@ -437,7 +427,7 @@ export default function DashboardClient({
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500">
                     <link.icon size={24} />
                   </div>
-                  <CardTitle className="font-sport italic uppercase text-xl group-hover:translate-x-1 transition-transform">
+                  <CardTitle className="font-sport italic uppercase text-base sm:text-xl group-hover:translate-x-1 transition-transform">
                     {link.label}
                   </CardTitle>
                   <CardDescription className="font-medium">
@@ -527,9 +517,9 @@ export default function DashboardClient({
                   >
                     <Button
                       variant="ghost"
-                      className="group-hover:text-primary"
+                      className="group-hover:text-primary text-xs sm:text-sm px-2 sm:px-4"
                     >
-                      Stats <ChevronRight className="ml-2 w-4 h-4" />
+                      Stats <ChevronRight className="ml-1 w-3 h-3" />
                     </Button>
                   </Link>
                 </div>

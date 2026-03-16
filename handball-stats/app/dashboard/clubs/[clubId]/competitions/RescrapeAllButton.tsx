@@ -11,10 +11,12 @@ export default function RescrapeAllButton({
   clubId,
   saison = "2025-2026",
   variant = "default",
+  className,
 }: {
   clubId: number;
   saison?: string;
   variant?: "default" | "outline";
+  className?: string;
 }) {
   const [loading, setLoading] = useState(false);
 
@@ -45,9 +47,10 @@ export default function RescrapeAllButton({
       variant={variant}
       size="lg"
       className={cn(
-        "rounded-2xl font-sport italic font-black uppercase tracking-tight text-sm px-8 shadow-lg transition-all",
+        "rounded-2xl font-sport italic font-black uppercase tracking-tight text-sm px-5 shadow-lg transition-all",
         variant === "default" && "shadow-secondary/30",
         loading && "opacity-80",
+        className,
       )}
     >
       <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />

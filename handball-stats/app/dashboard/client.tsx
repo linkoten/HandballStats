@@ -260,13 +260,14 @@ export default function DashboardClient({
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-3 w-full md:w-auto">
             {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") &&
               clubId && (
                 <RescrapeAllButton
                   clubId={Number(clubId)}
                   saison="2025-2026"
                   variant="outline"
+                  className="w-full"
                 />
               )}
           </div>

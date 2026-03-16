@@ -212,7 +212,7 @@ export default function MatchsContent({
                         )}
                       </div>
 
-                      <div className="flex flex-col items-center min-w-[110px] z-10">
+                      <div className="flex flex-col items-center min-w-[90px] z-10">
                         <div
                           className={cn(
                             "rounded-2xl px-5 py-2.5 border-b-4 transition-all duration-300 shadow-sm",

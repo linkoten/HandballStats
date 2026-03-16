@@ -206,7 +206,7 @@ export function CompetitionsClient({
 
       {/* Bannière quota limité */}
       {quota !== -1 && lockedIds.length > 0 && (
-        <div className="flex items-center justify-between gap-4 bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 py-3">
           <div className="flex items-center gap-3">
             <Lock className="w-5 h-5 text-amber-600 shrink-0" />
             <p className="text-sm font-bold text-amber-800">
@@ -217,7 +217,7 @@ export function CompetitionsClient({
               {lockedIds.length !== 1 ? "s" : ""}.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:ml-auto">
             <a
               href="configure-access"
               className="text-xs font-black uppercase bg-amber-600 text-white px-3 py-1.5 rounded-xl hover:bg-amber-700 transition-colors flex items-center gap-1"

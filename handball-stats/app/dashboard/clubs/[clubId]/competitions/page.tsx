@@ -46,7 +46,7 @@ export default async function CompetitionsPage({ params }: Props) {
         <div className="absolute top-0 right-0 p-4 opacity-10 font-sport text-9xl italic uppercase pointer-events-none">
           League
         </div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-secondary font-sport italic">
               <Trophy size={20} className="fill-current" /> CHAMPIONNATS &

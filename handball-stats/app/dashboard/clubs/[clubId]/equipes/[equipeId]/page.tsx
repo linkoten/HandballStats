@@ -77,13 +77,13 @@ export default async function EquipeDetailPage({
   return (
     <div className="min-h-screen p-4 md:p-8 space-y-12 max-w-7xl mx-auto">
       {/* Retour et Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Link href={`/dashboard/clubs/${clubId}/equipes`}>
           <Button variant="ghost" className="font-sport italic uppercase gap-2">
             <ChevronLeft size={16} /> Retour aux équipes
           </Button>
         </Link>
-        <Button variant="outline" size="icon" className="rounded-xl">
+        <Button variant="outline" size="icon" className="rounded-xl w-fit px-3 sm:size-10">
           <Settings size={20} />
         </Button>
       </div>

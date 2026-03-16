@@ -231,7 +231,7 @@ export default async function CompetitionPage({
             </div>
 
             {/* Stats panel */}
-            <div className="bg-white/10 backdrop-blur-md rounded-4xl p-6 border border-white/10 flex items-center gap-5 shrink-0">
+            <div className="bg-white/10 backdrop-blur-md rounded-4xl p-6 border border-white/10 flex flex-wrap items-center gap-5">
               <div className="text-center">
                 <p className="text-[10px] font-black uppercase opacity-60 mb-1">
                   Poule

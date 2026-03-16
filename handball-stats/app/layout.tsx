@@ -36,7 +36,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="fr" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} ${russoOne.variable} antialiased min-h-screen bg-slate-50`}
+          className={`${geistSans.variable} ${geistMono.variable} ${russoOne.variable} antialiased min-h-screen bg-slate-50 overflow-x-hidden`}
         >
           <Toaster />
           <UserSync />

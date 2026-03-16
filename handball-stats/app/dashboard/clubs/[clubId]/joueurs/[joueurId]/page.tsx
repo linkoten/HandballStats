@@ -471,7 +471,7 @@ export default function ProfilJoueurPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* ── HERO ──────────────────────────────────────────────────────────────── */}
-      <div className="bg-[#0F172A] text-white pt-10 pb-28 px-6 md:px-16 rounded-b-[4rem] relative overflow-hidden border-b-8 border-secondary shadow-2xl">
+      <div className="bg-[#0F172A] text-white pt-10 pb-28 px-4 sm:px-6 md:px-16 rounded-b-[4rem] relative overflow-hidden border-b-8 border-secondary shadow-2xl">
         <div className="absolute top-0 right-0 p-4 opacity-5 font-sport text-[20rem] italic uppercase pointer-events-none leading-none select-none">
           {joueur.num_maillot || "00"}
         </div>
@@ -520,7 +520,7 @@ export default function ProfilJoueurPage() {
                 </span>
               </div>
 
-              <h1 className="text-6xl md:text-9xl font-sport font-black italic uppercase leading-[0.8] tracking-tighter">
+              <h1 className="text-4xl sm:text-6xl md:text-9xl font-sport font-black italic uppercase leading-[0.8] tracking-tighter">
                 {joueur.nom_prenom.split(" ")[0]} <br />
                 <span className="text-primary font-outline-2">
                   {joueur.nom_prenom.split(" ").slice(1).join(" ")}
@@ -1047,7 +1047,7 @@ export default function ProfilJoueurPage() {
 
           {/* ── TAB: OBJECTIFS ──────────────────────────────────────────────────── */}
           <TabsContent value="objectifs" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h2 className="font-sport italic uppercase text-3xl tracking-tight">
                   Objectifs Saison {CURRENT_SAISON}

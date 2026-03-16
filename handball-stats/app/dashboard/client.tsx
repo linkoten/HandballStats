@@ -260,24 +260,26 @@ export default function DashboardClient({
             </p>
           </div>
 
-          <Button
-            onClick={() => router.refresh()}
-            className="bg-white text-primary hover:bg-secondary hover:text-white font-sport italic px-8 py-6 text-lg transition-transform hover:scale-105 shadow-xl"
-          >
-            {isPending ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              "SYNCHRONISER DATA"
-            )}
-          </Button>
-          {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") &&
-            clubId && (
-              <RescrapeAllButton
-                clubId={Number(clubId)}
-                saison="2025-2026"
-                variant="outline"
-              />
-            )}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => router.refresh()}
+              className="bg-white text-primary hover:bg-secondary hover:text-white font-sport italic px-8 py-6 text-lg transition-transform hover:scale-105 shadow-xl"
+            >
+              {isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "SYNCHRONISER DATA"
+              )}
+            </Button>
+            {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") &&
+              clubId && (
+                <RescrapeAllButton
+                  clubId={Number(clubId)}
+                  saison="2025-2026"
+                  variant="outline"
+                />
+              )}
+          </div>
         </div>
       </section>
 
@@ -474,14 +476,14 @@ export default function DashboardClient({
           <div
             className={`space-y-6 ${userRole === "ENTRAINEUR" || userRole === "JOUEUR" ? "lg:col-span-3" : "lg:col-span-2"}`}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <h2 className="text-3xl font-sport italic uppercase tracking-tighter flex items-center gap-3">
                 <div className="w-2 h-8 bg-secondary" /> Mes Équipes
               </h2>
 
               {/* Boutons d'action pour admin_club seulement */}
               {(userRole === "ADMIN_CLUB" || userRole === "ADMIN_GENERAL") && (
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2">
                   <Link
                     href={`/dashboard/clubs/${clubId}/competitions/create-competition`}
                   >

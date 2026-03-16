@@ -109,7 +109,7 @@ export default async function MatchDetailPage({
     <div className="min-h-screen bg-background pb-20">
       {/* 1. Barre de navigation */}
       <div className="bg-muted/30 border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
           <Link
             href={`/dashboard/clubs/${clubId}/matchs`}
             className="flex items-center gap-2 text-sm font-sport italic hover:text-primary transition-colors"
@@ -170,7 +170,7 @@ export default async function MatchDetailPage({
               )}
               <div
                 className={cn(
-                  "text-white px-12 py-8 rounded-[2.5rem] shadow-2xl transform hover:scale-105 transition-transform duration-300 border-4 border-white/20",
+                  "text-white px-8 md:px-12 py-6 md:py-8 rounded-[2.5rem] shadow-2xl transform hover:scale-105 transition-transform duration-300 border-4 border-white/20",
                   scoreBgColor,
                 )}
               >
@@ -212,7 +212,7 @@ export default async function MatchDetailPage({
         </div>
 
         {/* 3. Analyse & Stats */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Sidebar : Résumé de performance globale */}
           <div className="xl:col-span-1 space-y-6">
             <Card className="rounded-4xl border-2 bg-card overflow-hidden">

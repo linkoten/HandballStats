@@ -19,7 +19,7 @@ export default async function MatchsPage({
   const clubEquipes = equipesRes.success ? equipesRes.data : [];
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header Immersif */}
       <header className="relative overflow-hidden bg-primary rounded-[2.5rem] p-8 md:p-12 shadow-2xl border-b-8 border-secondary/50">
         <div className="absolute top-0 right-0 p-4 opacity-10 font-sport text-9xl italic uppercase pointer-events-none select-none">

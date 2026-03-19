@@ -189,3 +189,10 @@ body::before {
     @apply bg-background text-foreground;
   }
 }
+
+/* Recharts applique overflow:hidden en inline style sur .recharts-wrapper,
+   ce qui coupe les infobulles qui débordent. On force overflow visible. */
+.recharts-wrapper,
+.recharts-wrapper > svg {
+  overflow: visible !important;
+}

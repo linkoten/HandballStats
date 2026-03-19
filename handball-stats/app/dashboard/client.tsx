@@ -189,15 +189,19 @@ export default function DashboardClient({
       },
     ];
 
-    // Lien spécifique pour les entraîneurs - gestion des joueurs
-    if (userRole === "ENTRAINEUR") {
+    // Lien gestion des joueurs pour les entraîneurs et les admins
+    if (
+      userRole === "ENTRAINEUR" ||
+      userRole === "ADMIN_CLUB" ||
+      userRole === "ADMIN_GENERAL"
+    ) {
       baseLinks.splice(1, 0, {
         href: `/dashboard/clubs/${clubId}/joueurs/gestion`,
         icon: Settings,
         color: "secondary",
         label: "Gestion Joueurs",
         desc: "Gérer vos joueurs",
-        roles: ["ENTRAINEUR"],
+        roles: ["ENTRAINEUR", "ADMIN_CLUB", "ADMIN_GENERAL"],
       });
     }
 

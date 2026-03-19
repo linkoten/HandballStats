@@ -76,7 +76,7 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-100 w-full border-b-2 border-primary/10 bg-background/60 backdrop-blur-2xl">
-      <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+      <div className="w-full pl-3 pr-5 sm:pl-4 sm:pr-7 md:pl-5 md:pr-8 h-20 flex items-center justify-between gap-4">
         {/* Logo Section */}
         <div className="flex items-center gap-10">
           <Link href="/" className="group flex items-center gap-2">

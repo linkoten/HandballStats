@@ -393,7 +393,9 @@ function JoueurCard({
 // ─────────────────────────────────────────────────────────────────────────────
 export default function JoueursClient({ initialEquipes }: any) {
   const [joueurs, setJoueurs] = useState<any[]>([]);
-  const [selectedEquipe, setSelectedEquipe] = useState<number | null>(null);
+  const [selectedEquipe, setSelectedEquipe] = useState<number | null>(
+    () => initialEquipes?.[0]?.id ?? null,
+  );
   const [selectedPoste, setSelectedPoste] = useState("");
   const [isPostePrincipal, setIsPostePrincipal] = useState(true);
   const [selectedJoueurs, setSelectedJoueurs] = useState<number[]>([]);
@@ -411,10 +413,6 @@ export default function JoueursClient({ initialEquipes }: any) {
     () => joueurs.filter((j) => !j.postePrincipal).length,
     [joueurs],
   );
-
-  useEffect(() => {
-    if (initialEquipes?.length > 0) setSelectedEquipe(initialEquipes[0].id);
-  }, [initialEquipes]);
 
   useEffect(() => {
     if (selectedEquipe) refreshJoueurs();
@@ -496,7 +494,7 @@ export default function JoueursClient({ initialEquipes }: any) {
               </div>
             )}
             <Select
-              value={selectedEquipe?.toString()}
+              value={selectedEquipe?.toString() ?? ""}
               onValueChange={(v) => {
                 setSelectedEquipe(Number(v));
                 setSelectedJoueurs([]);
@@ -511,6 +509,7 @@ export default function JoueursClient({ initialEquipes }: any) {
                   <SelectItem
                     key={e.id}
                     value={e.id.toString()}
+                    textValue={e.club?.nom ? `${e.club.nom} / ${e.nom}` : e.nom}
                     className="font-medium"
                   >
                     {e.club?.nom && (
@@ -529,7 +528,7 @@ export default function JoueursClient({ initialEquipes }: any) {
 
       {/* ── MAIN ───────────────────────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 lg:items-start">
           {/* LEFT: Court */}
           <div className="space-y-5">
             <div className="flex items-center gap-3 flex-wrap">
@@ -612,10 +611,10 @@ export default function JoueursClient({ initialEquipes }: any) {
           </div>
 
           {/* RIGHT: Players + action */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 lg:sticky lg:top-[73px]">
             <div
               className="bg-slate-900/70 border border-slate-800 rounded-3xl overflow-hidden flex flex-col"
-              style={{ maxHeight: "70vh" }}
+              style={{ maxHeight: "calc(100vh - 160px)" }}
             >
               <div className="p-5 border-b border-slate-800 space-y-3 shrink-0">
                 <div className="flex items-center justify-between">

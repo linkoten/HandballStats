@@ -1391,20 +1391,87 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
 
           {/* Forme récente — 5 derniers matchs */}
           {last5.length > 0 && (
-            <Card className="rounded-3xl border-2 p-5">
-              <p className="text-[10px] font-black uppercase text-muted-foreground mb-3">Forme récente (5 derniers matchs)</p>
-              <div className="flex gap-2 flex-wrap">
+            <Card className="rounded-3xl border-2 p-5 overflow-hidden">
+              <p className="text-[10px] font-black uppercase text-muted-foreground mb-4">Forme récente (5 derniers matchs)</p>
+              <div className="flex justify-center gap-2.5 overflow-x-auto pb-1">
                 {last5.map((s, i) => {
-                  const col = s.result === "win" ? "bg-emerald-500" : s.result === "loss" ? "bg-red-500" : "bg-amber-400";
-                  const letter = s.result === "win" ? "V" : s.result === "loss" ? "D" : "N";
+                  const isWin  = s.result === "win";
+                  const isLoss = s.result === "loss";
+                  const letter = isWin ? "V" : isLoss ? "D" : "N";
+                  const accentColor = isWin ? "#10b981" : isLoss ? "#ef4444" : "#f59e0b";
+                  const bgClass = isWin ? "bg-emerald-500/10 border-emerald-500/30" : isLoss ? "bg-red-500/10 border-red-500/30" : "bg-amber-400/10 border-amber-400/30";
                   const dateLabel = s.date_match ? fmtDate(s.date_match) : `M${i + 1}`;
+                  const buts = s.buts ?? 0;
+                  const tirs = s.tirs ?? 0;
+                  const pctTirMatch = pct(buts, tirs);
+                  const isHome = s.match.equipe_recevant_id === joueurEquipeId;
+                  const score = s.match.score_final ?? null;
+                  const maxButs = Math.max(...last5.map((x) => x.buts ?? 0), 1);
                   return (
-                    <div key={i} title={dateLabel} className={`${col} w-10 h-10 rounded-xl flex flex-col items-center justify-center`}>
-                      <span className="text-white font-black text-sm leading-none">{letter}</span>
-                      <span className="text-white/80 text-[9px] leading-none mt-0.5">{s.buts ?? 0}pts</span>
+                    <div key={i} className={`shrink-0 w-[120px] rounded-2xl border-2 ${bgClass} overflow-hidden`}>
+                      {/* Bande couleur du résultat */}
+                      <div className="h-1 w-full" style={{ background: accentColor }} />
+                      <div className="p-3 space-y-2">
+                        {/* Résultat + badge domicile/ext */}
+                        <div className="flex items-center justify-between">
+                          <span className="font-sport italic font-black text-xl leading-none" style={{ color: accentColor }}>{letter}</span>
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground">{isHome ? "Dom" : "Ext"}</span>
+                        </div>
+                        {/* Score du match */}
+                        {score && (
+                          <p className="text-[11px] font-black text-center tracking-wide">{score}</p>
+                        )}
+                        {/* Buts du joueur */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[9px] font-black uppercase text-muted-foreground">
+                            <span>Buts</span>
+                            <span style={{ color: accentColor }}>{buts}</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((buts / maxButs) * 100)}%`, background: accentColor }} />
+                          </div>
+                        </div>
+                        {/* Tirs + % */}
+                        {tirs > 0 && (
+                          <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                            <span>{tirs} tirs</span>
+                            <span className="font-bold">{pctTirMatch}%</span>
+                          </div>
+                        )}
+                        {/* Date */}
+                        <p className="text-[9px] text-muted-foreground/60 text-center">{dateLabel}</p>
+                      </div>
                     </div>
                   );
                 })}
+              </div>
+              {/* Barre récap V-N-D */}
+              <div className="flex items-center gap-3 mt-4 pt-3 border-t">
+                {[
+                  { label: "V", count: last5.filter((s) => s.result === "win").length,  color: "#10b981" },
+                  { label: "N", count: last5.filter((s) => s.result === "draw").length, color: "#f59e0b" },
+                  { label: "D", count: last5.filter((s) => s.result === "loss").length, color: "#ef4444" },
+                ].map(({ label, count, color }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-md flex items-center justify-center text-[9px] font-black text-white" style={{ background: color }}>{label}</span>
+                    <span className="text-xs font-black" style={{ color }}>{count}</span>
+                  </div>
+                ))}
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden flex">
+                  {(() => {
+                    const w = last5.filter((s) => s.result === "win").length;
+                    const n = last5.filter((s) => s.result === "draw").length;
+                    const d = last5.filter((s) => s.result === "loss").length;
+                    const total = last5.length;
+                    return (
+                      <>
+                        <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(w / total) * 100}%` }} />
+                        <div className="h-full bg-amber-400 transition-all" style={{ width: `${(n / total) * 100}%` }} />
+                        <div className="h-full bg-red-500 transition-all" style={{ width: `${(d / total) * 100}%` }} />
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             </Card>
           )}
@@ -1976,8 +2043,200 @@ function ScatterTooltipContent({
   );
 }
 
-function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
+// ── Scatter Section (top-level component for stable React identity) ──────────
+function ScatterSection({
+  title, xKey, yKey, xLabel, yLabel, sortKey, top5, top5Label,
+  xUnit = "", yUnit = "", showTeams = false,
+  agg, aggTeams, aggClub, visibleEquipes, equipeColorMap,
+}: {
+  title: string; xKey: keyof AggPlayer; yKey: keyof AggPlayer;
+  xLabel: string; yLabel: string; sortKey: keyof AggPlayer;
+  top5: AggPlayer[]; top5Label: string; xUnit?: string; yUnit?: string; showTeams?: boolean;
+  agg: AggPlayer[]; aggTeams: AggPlayer[]; aggClub: AggPlayer;
+  visibleEquipes: Array<{ id: number; nom: string }>;
+  equipeColorMap: Record<number, string>;
+}) {
   const [search, setSearch] = useState("");
+
+  const filteredAgg = useMemo(
+    () => search.trim() ? agg.filter((p) => p.nom.toLowerCase().includes(search.toLowerCase())) : agg,
+    [agg, search]
+  );
+  const ranks = computeRanks(agg, sortKey);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="md:col-span-2">
+        <ChartCard title={title}>
+          {/* Recherche joueur */}
+          <div className="mb-3 relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Rechercher un joueur…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <ResponsiveContainer width="100%" height={320} style={{ overflow: "visible" }}>
+              <ScatterChart margin={{ top: 16, right: 32, bottom: 32, left: 32 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                <XAxis
+                  dataKey={xKey as string}
+                  type="number"
+                  name={xLabel}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) => xUnit ? `${v}${xUnit}` : v}
+                  domain={["auto", "auto"]}
+                  label={{ value: xLabel, position: "insideBottom", offset: -16, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                />
+                <YAxis
+                  dataKey={yKey as string}
+                  type="number"
+                  name={yLabel}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) => yUnit ? `${v}${yUnit}` : v}
+                  domain={["auto", "auto"]}
+                  label={{ value: yLabel, angle: -90, position: "insideLeft", offset: 12, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                />
+                <ZAxis range={[50, 180]} />
+                <Tooltip
+                  cursor={{ strokeDasharray: "3 3" }}
+                  wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
+                  content={({ payload }) => (
+                    <ScatterTooltipContent
+                      payload={payload ?? []}
+                      xKey={xKey as string}
+                      yKey={yKey as string}
+                      xLabel={xLabel}
+                      yLabel={yLabel}
+                      sortKey={sortKey}
+                      agg={agg}
+                    />
+                  )}
+                />
+                <Scatter
+                  name="Joueurs"
+                  data={filteredAgg}
+                  shape={(props: any) => {
+                    const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggPlayer };
+                    const rank = ranks.global[payload.id] ?? 99;
+                    const isTop3 = rank <= 3;
+                    return (
+                      <g>
+                        {/* large transparent circle for reliable hover detection */}
+                        <circle cx={cx} cy={cy} r={14} fill="transparent" />
+                        <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5}
+                          fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75}
+                          stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
+                        {isTop3 && (
+                          <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">
+                            #{rank}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  }}
+                />
+                {showTeams && <Scatter
+                  name="Équipes"
+                  data={aggTeams}
+                  shape={(props: any) => {
+                    const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggPlayer };
+                    const s = 9;
+                    return (
+                      <g>
+                        <polygon
+                          points={`${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}`}
+                          fill={payload.equipeColor} stroke="white" strokeWidth={1.5} opacity={0.9}
+                        />
+                        <text x={cx} y={cy - s - 4} textAnchor="middle" fontSize={8} fill={payload.equipeColor} fontWeight="bold">
+                          {payload.nom.split(" ").pop()}
+                        </text>
+                      </g>
+                    );
+                  }}
+                />}
+                {showTeams && <Scatter
+                  name="Club"
+                  data={[aggClub]}
+                  shape={(props: any) => {
+                    const { cx, cy } = props as { cx: number; cy: number };
+                    const r1 = 10, r2 = 5, n = 5;
+                    const pts = Array.from({ length: n * 2 }, (_, k) => {
+                      const angle = (Math.PI / n) * k - Math.PI / 2;
+                      const r = k % 2 === 0 ? r1 : r2;
+                      return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
+                    }).join(" ");
+                    return (
+                      <g>
+                        <polygon points={pts} fill="#1e293b" stroke="white" strokeWidth={1.5} />
+                        <text x={cx} y={cy - r1 - 4} textAnchor="middle" fontSize={8} fill="#1e293b" fontWeight="bold">Club</text>
+                      </g>
+                    );
+                  }}
+                />}
+              </ScatterChart>
+            </ResponsiveContainer>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
+            {visibleEquipes.map((eq) => (
+              <div key={eq.id} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ background: equipeColorMap[eq.id] }} />
+                {eq.nom}
+              </div>
+            ))}
+            {showTeams && (
+              <>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <svg width="10" height="10" viewBox="-1 -1 2 2"><polygon points="0,-1 1,0 0,1 -1,0" fill="#64748b" /></svg>
+                  Équipes
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="text-[11px] leading-none">★</span>
+                  Club
+                </div>
+              </>
+            )}
+          </div>
+        </ChartCard>
+      </div>
+
+      <Card className="rounded-3xl border-2 overflow-hidden">
+        <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+          <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">Top 5 — {top5Label}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {top5.map((p, i) => (
+            <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+                {i + 1}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-xs truncate">{p.nom}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.equipeColor }} />
+                  <p className="text-[10px] text-muted-foreground truncate">{p.poste} · {p.equipeNom}</p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="font-sport italic font-black text-base text-primary">
+                  {sortKey === "pctTir" ? `${p[sortKey]}%` : p[sortKey]}
+                </span>
+                <p className="text-[9px] text-muted-foreground">{p.matchs} matchs</p>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
+  const [gardienSearch, setGardienSearch] = useState("");
 
   const equipeColorMap = useMemo(() => {
     const m: Record<number, string> = {};
@@ -2135,9 +2394,9 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       .filter(Boolean) as AggGardien[];
   }, [data, filters, equipeColorMap, matchMap]);
 
-  const filteredAgg = useMemo(() =>
-    search.trim() ? agg.filter((p) => p.nom.toLowerCase().includes(search.toLowerCase())) : agg,
-    [agg, search]
+  const filteredGardiens = useMemo(
+    () => gardienSearch.trim() ? aggGardiens.filter((g) => g.nom.toLowerCase().includes(gardienSearch.toLowerCase())) : aggGardiens,
+    [aggGardiens, gardienSearch]
   );
 
   const top5Buts = [...agg].sort((a, b) => b.buts - a.buts).slice(0, 5);
@@ -2195,194 +2454,28 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
     );
   };
 
-  function ScatterSection({
-    title, xKey, yKey, xLabel, yLabel, sortKey, top5, top5Label, xUnit = "", yUnit = "", showTeams = false,
-  }: {
-    title: string; xKey: keyof AggPlayer; yKey: keyof AggPlayer;
-    xLabel: string; yLabel: string; sortKey: keyof AggPlayer;
-    top5: AggPlayer[]; top5Label: string; xUnit?: string; yUnit?: string; showTeams?: boolean;
-  }) {
-    const ranks = computeRanks(agg, sortKey);
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <ChartCard title={title}>
-            {/* Recherche joueur */}
-            <div className="mb-3 relative">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Rechercher un joueur…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
-              />
-            </div>
-            <ResponsiveContainer width="100%" height={320} style={{ overflow: "visible" }}>
-              <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                <XAxis
-                  dataKey={xKey as string}
-                  type="number"
-                  name={xLabel}
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => xUnit ? `${v}${xUnit}` : v}
-                  label={{ value: xLabel, position: "insideBottom", offset: -16, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                />
-                <YAxis
-                  dataKey={yKey as string}
-                  type="number"
-                  name={yLabel}
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => yUnit ? `${v}${yUnit}` : v}
-                  label={{ value: yLabel, angle: -90, position: "insideLeft", offset: 12, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                />
-                <ZAxis range={[50, 180]} />
-                <Tooltip
-                  cursor={{ strokeDasharray: "3 3" }}
-                  wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
-                  content={({ payload }) => (
-                    <ScatterTooltipContent
-                      payload={payload ?? []}
-                      xKey={xKey as string}
-                      yKey={yKey as string}
-                      xLabel={xLabel}
-                      yLabel={yLabel}
-                      sortKey={sortKey}
-                      agg={agg}
-                    />
-                  )}
-                />
-                {/* Joueurs — cercles colorés par équipe principale */}
-                <Scatter
-                  name="Joueurs"
-                  data={filteredAgg}
-                  shape={(props: any) => {
-                    const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggPlayer };
-                    const rank = ranks.global[payload.id] ?? 99;
-                    const isTop3 = rank <= 3;
-                    return (
-                      <g>
-                        <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5}
-                          fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75}
-                          stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
-                        {isTop3 && (
-                          <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">
-                            #{rank}
-                          </text>
-                        )}
-                      </g>
-                    );
-                  }}
-                />
-                {/* Équipes — diamants (seulement si showTeams) */}
-                {showTeams && <Scatter
-                  name="Équipes"
-                  data={aggTeams}
-                  shape={(props: any) => {
-                    const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggPlayer };
-                    const s = 9;
-                    return (
-                      <g>
-                        <polygon
-                          points={`${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}`}
-                          fill={payload.equipeColor} stroke="white" strokeWidth={1.5} opacity={0.9}
-                        />
-                        <text x={cx} y={cy - s - 4} textAnchor="middle" fontSize={8} fill={payload.equipeColor} fontWeight="bold">
-                          {payload.nom.split(" ").pop()}
-                        </text>
-                      </g>
-                    );
-                  }}
-                />}
-                {/* Club — étoile (seulement si showTeams) */}
-                {showTeams && <Scatter
-                  name="Club"
-                  data={[aggClub]}
-                  shape={(props: any) => {
-                    const { cx, cy } = props as { cx: number; cy: number };
-                    const r1 = 10, r2 = 5, n = 5;
-                    const pts = Array.from({ length: n * 2 }, (_, k) => {
-                      const angle = (Math.PI / n) * k - Math.PI / 2;
-                      const r = k % 2 === 0 ? r1 : r2;
-                      return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
-                    }).join(" ");
-                    return (
-                      <g>
-                        <polygon points={pts} fill="#1e293b" stroke="white" strokeWidth={1.5} />
-                        <text x={cx} y={cy - r1 - 4} textAnchor="middle" fontSize={8} fill="#1e293b" fontWeight="bold">Club</text>
-                      </g>
-                    );
-                  }}
-                />}
-              </ScatterChart>
-            </ResponsiveContainer>
-            {/* Légende couleurs équipes */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
-              {visibleEquipes.map((eq) => (
-                <div key={eq.id} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ background: equipeColorMap[eq.id] }} />
-                  {eq.nom}
-                </div>
-              ))}
-              {showTeams && (
-                <>
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <svg width="10" height="10" viewBox="-1 -1 2 2"><polygon points="0,-1 1,0 0,1 -1,0" fill="#64748b" /></svg>
-                    Équipes
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <span className="text-[11px] leading-none">★</span>
-                    Club
-                  </div>
-                </>
-              )}
-            </div>
-          </ChartCard>
-        </div>
-
-        <Card className="rounded-3xl border-2 overflow-hidden">
-          <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
-            <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">Top 5 — {top5Label}</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {top5.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-xs truncate">{p.nom}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.equipeColor }} />
-                    <p className="text-[10px] text-muted-foreground truncate">{p.poste} · {p.equipeNom}</p>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="font-sport italic font-black text-base text-primary">
-                    {sortKey === "pctTir" ? `${p[sortKey]}%` : p[sortKey]}
-                  </span>
-                  <p className="text-[9px] text-muted-foreground">{p.matchs} matchs</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
       {/* ─── Gardiens — % Arrêts ───────────────────────────────────────── */}
       {aggGardiens.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="relative z-40 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2">
             <ChartCard title="Gardiens — Moy. Arrêts vs % Arrêts (matchs ≥ 2 arrêts)">
+              {/* Recherche gardien */}
+              <div className="mb-3 relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Rechercher un gardien…"
+                  value={gardienSearch}
+                  onChange={(e) => setGardienSearch(e.target.value)}
+                  className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
               <ResponsiveContainer width="100%" height={320} style={{ overflow: "visible" }}>
-                <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 8 }}>
+                <ScatterChart margin={{ top: 16, right: 32, bottom: 32, left: 32 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
                   <XAxis
                     dataKey="moyArrets"
@@ -2408,7 +2501,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                   />
                   <Scatter
                     name="Gardiens"
-                    data={[...aggGardiens].sort((a, b) => b.pctArrets - a.pctArrets)}
+                    data={[...filteredGardiens].sort((a, b) => b.pctArrets - a.pctArrets)}
                     shape={(props: any) => {
                       const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
                       const sortedByPct = [...aggGardiens].sort((a, b) => b.pctArrets - a.pctArrets);
@@ -2469,21 +2562,33 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
         </div>
       )}
 
-      <ScatterSection
-        title="Total Buts vs Total Tirs"
-        xKey="tirs" yKey="buts" xLabel="Tirs" yLabel="Buts"
-        sortKey="buts" top5={top5Buts} top5Label="Total buts"
-      />
-      <ScatterSection
-        title="Moyenne Buts vs Moyenne Tirs / Match"
-        xKey="moyTirs" yKey="moyButs" xLabel="Moy. Tirs" yLabel="Moy. Buts"
-        sortKey="moyButs" top5={top5MoyButs} top5Label="Moy buts/match"
-      />
-      <ScatterSection
-        title="% au Tir — Efficacité"
-        xKey="pctTir" yKey="pctTir" xLabel="% au Tir" yLabel="% au Tir"
-        sortKey="pctTir" top5={top5Pct} top5Label="% au tir" xUnit="%" yUnit="%" showTeams
-      />
+      <div className="relative z-30">
+        <ScatterSection
+          title="Total Buts vs Total Tirs"
+          xKey="tirs" yKey="buts" xLabel="Tirs" yLabel="Buts"
+          sortKey="buts" top5={top5Buts} top5Label="Total buts"
+          agg={agg} aggTeams={aggTeams} aggClub={aggClub}
+          visibleEquipes={visibleEquipes} equipeColorMap={equipeColorMap}
+        />
+      </div>
+      <div className="relative z-20">
+        <ScatterSection
+          title="Moyenne Buts vs Moyenne Tirs / Match"
+          xKey="moyTirs" yKey="moyButs" xLabel="Moy. Tirs" yLabel="Moy. Buts"
+          sortKey="moyButs" top5={top5MoyButs} top5Label="Moy buts/match"
+          agg={agg} aggTeams={aggTeams} aggClub={aggClub}
+          visibleEquipes={visibleEquipes} equipeColorMap={equipeColorMap}
+        />
+      </div>
+      <div className="relative z-10">
+        <ScatterSection
+          title="% au Tir — Efficacité"
+          xKey="buts" yKey="pctTir" xLabel="Total Buts" yLabel="% au Tir"
+          sortKey="pctTir" top5={top5Pct} top5Label="% au tir" yUnit="%"
+          agg={agg} aggTeams={aggTeams} aggClub={aggClub}
+          visibleEquipes={visibleEquipes} equipeColorMap={equipeColorMap}
+        />
+      </div>
     </div>
   );
 }
@@ -3686,13 +3791,13 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
               <table className="w-full text-xs" style={{ minWidth: 960 }}>
                 <thead>
                   <tr className="bg-muted/50 border-b">
-                    {TCOLS.map((col) => (
+                    {TCOLS.map((col, ci) => (
                       <th
                         key={col.key}
                         onClick={() => handleSort(col.key)}
                         className={`px-3 py-2.5 text-left cursor-pointer select-none whitespace-nowrap font-black uppercase text-[10px] hover:bg-muted/80 transition-colors ${
                           col.isEvol ? "bg-muted/30 text-center" : "text-muted-foreground"
-                        }`}
+                        } ${ci === 0 ? "sticky left-0 bg-muted/50 z-20" : ""}`}
                       >
                         <span className="inline-flex flex-col">
                           <span>
@@ -4108,7 +4213,7 @@ function VersusBoxPlotRow({
   }
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-3 border-b last:border-0">
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-3 py-2 sm:py-3 border-b last:border-0">
       {/* Côté A */}
       <div className="flex flex-col items-end gap-1">
         {boxPlot(aQ1, aMedian, aQ3, aRecord, colorA)}
@@ -4123,7 +4228,7 @@ function VersusBoxPlotRow({
         </div>
       </div>
       {/* Label central */}
-      <div className="text-center min-w-[90px] px-1">
+      <div className="text-center min-w-0 w-16 sm:w-auto sm:min-w-[90px] px-0.5 sm:px-1">
         <p className="text-[9px] font-black uppercase text-muted-foreground">{label}</p>
         {!tie ? (
           <p className="text-[9px] text-muted-foreground/60 mt-0.5">
@@ -4170,13 +4275,13 @@ function VersusRow({
   const tie = vA === vB;
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2 border-b last:border-0">
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2 py-1.5 sm:py-2 border-b last:border-0">
       {/* Côté A */}
-      <div className="flex items-center justify-end gap-2">
-        <span className={`font-sport italic font-black text-lg transition-all ${aWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
+      <div className="flex items-center justify-end gap-1 sm:gap-2">
+        <span className={`font-sport italic font-black text-sm sm:text-lg transition-all ${aWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
           {fmt(vA)}
         </span>
-        <div className="w-24 h-2 rounded-full bg-muted overflow-hidden flex justify-end">
+        <div className="w-12 sm:w-24 h-2 rounded-full bg-muted overflow-hidden flex justify-end">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -4188,8 +4293,8 @@ function VersusRow({
       </div>
 
       {/* Label + écart */}
-      <div className="text-center min-w-[110px] px-1">
-        <p className="text-[9px] font-black uppercase text-muted-foreground">{label}</p>
+      <div className="text-center min-w-0 w-[72px] sm:w-auto sm:min-w-[110px] px-1">
+        <p className="text-[8px] sm:text-[9px] font-black uppercase text-muted-foreground">{label}</p>
         {!tie && (
           <p className="text-[10px] font-black text-muted-foreground/60 mt-0.5">
             écart {fmt(delta)}
@@ -4199,8 +4304,8 @@ function VersusRow({
       </div>
 
       {/* Côté B */}
-      <div className="flex items-center justify-start gap-2">
-        <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
+      <div className="flex items-center justify-start gap-1 sm:gap-2">
+        <div className="w-12 sm:w-24 h-2 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -4209,7 +4314,7 @@ function VersusRow({
             }}
           />
         </div>
-        <span className={`font-sport italic font-black text-lg transition-all ${bWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
+        <span className={`font-sport italic font-black text-sm sm:text-lg transition-all ${bWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
           {fmt(vB)}
         </span>
       </div>
@@ -4228,6 +4333,22 @@ function EntitySelector({
   color: string;
 }) {
   const [type, setType] = useState<VersusEntity["type"]>("joueur");
+  const [joueurDropdownOpen, setJoueurDropdownOpen] = useState(false);
+  const [joueurSearch, setJoueurSearch] = useState("");
+  const [selectedJoueurLabel, setSelectedJoueurLabel] = useState<string | null>(null);
+
+  const joueurEquipeColorMap = useMemo(() => {
+    const m: Record<number, string> = {};
+    data.equipes.forEach((eq, i) => { m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length]; });
+    return m;
+  }, [data.equipes]);
+
+  const filteredJoueurs = useMemo(() =>
+    joueurSearch.trim()
+      ? data.joueurs.filter((j) => j.nom_prenom.toLowerCase().includes(joueurSearch.toLowerCase()))
+      : data.joueurs,
+    [data.joueurs, joueurSearch]
+  );
   const allPostes = useMemo(() => {
     const s = new Set<string>();
     data.joueurs.forEach((j) => {
@@ -4262,16 +4383,69 @@ function EntitySelector({
       </div>
       {/* Sélecteur selon type */}
       {type === "joueur" && (
-        <select
-          className="w-full text-xs font-bold rounded-xl border px-3 py-1.5 bg-background"
-          onChange={(e) => handleChange("joueur", Number(e.target.value))}
-          defaultValue=""
-        >
-          <option value="" disabled>Choisir un joueur…</option>
-          {data.joueurs.map((j) => (
-            <option key={j.id} value={j.id}>{j.nom_prenom} {j.poste_principal ? `(${j.poste_principal})` : ""}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <button
+            onClick={() => setJoueurDropdownOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-2 text-xs font-bold rounded-xl border px-3 py-1.5 bg-background text-left"
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {selectedJoueurLabel ? (
+                <>
+                  {(() => {
+                    const j = data.joueurs.find((jj) => jj.nom_prenom === selectedJoueurLabel);
+                    const c = j?.id_equipe ? (joueurEquipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0]) : TEAM_PALETTE[0];
+                    return <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c }} />;
+                  })()}
+                  <span className="truncate">{selectedJoueurLabel}</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">Choisir un joueur…</span>
+              )}
+            </div>
+            <ChevronDown size={12} className={`shrink-0 transition-transform ${joueurDropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+          {joueurDropdownOpen && (
+            <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden">
+              <div className="p-2 border-b">
+                <input
+                  type="text"
+                  placeholder="Rechercher…"
+                  value={joueurSearch}
+                  onChange={(e) => setJoueurSearch(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  autoFocus
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {filteredJoueurs.map((j) => {
+                  const c = j.id_equipe ? (joueurEquipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0]) : TEAM_PALETTE[0];
+                  const equipeNom = data.equipes.find((e) => e.id === j.id_equipe)?.nom ?? "";
+                  return (
+                    <button
+                      key={j.id}
+                      onClick={() => {
+                        handleChange("joueur", j.id);
+                        setSelectedJoueurLabel(j.nom_prenom);
+                        setJoueurDropdownOpen(false);
+                        setJoueurSearch("");
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left hover:bg-muted transition-colors border-b last:border-0"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c }} />
+                      <span className="flex-1 min-w-0">
+                        <span className="font-bold truncate block">{j.nom_prenom}</span>
+                        {equipeNom && <span className="text-[10px] text-muted-foreground truncate block">{equipeNom}{j.poste_principal ? ` · ${j.poste_principal}` : ""}</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+                {filteredJoueurs.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic px-3 py-2">Aucun joueur trouvé</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
       {type === "equipe" && (
         <select
@@ -4708,6 +4882,8 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
     jours: [],
     heures: [],
   }));
+  const [activeTab, setActiveTab] = useState("club");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!data) {
     return (
@@ -4717,12 +4893,43 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
     );
   }
 
+  const activeItem = TAB_ITEMS.find((t) => t.value === activeTab) ?? TAB_ITEMS[0];
+
   return (
     <div>
       <FilterBar data={data} filters={filters} setFilters={setFilters} />
 
-      <Tabs defaultValue="club">
-        <TabsList className="flex flex-wrap h-auto rounded-2xl bg-muted/60 border p-1.5 gap-1 mb-8 shadow-sm">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setMobileMenuOpen(false); }}>
+        {/* Mobile: burger menu */}
+        <div className="sm:hidden mb-6 relative z-50">
+          <button
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-muted/60 border font-sport italic uppercase text-xs"
+          >
+            <div className="flex items-center gap-2">
+              <activeItem.icon size={14} className="shrink-0" />
+              {activeItem.label}
+            </div>
+            <ChevronDown size={14} className={`transition-transform duration-200 ${mobileMenuOpen ? "rotate-180" : ""}`} />
+          </button>
+          {mobileMenuOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden">
+              {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => { setActiveTab(value); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-sport italic uppercase border-b last:border-0 transition-colors text-left ${activeTab === value ? "bg-primary text-white" : "hover:bg-muted"}`}
+                >
+                  <Icon size={13} className="shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop: tab list */}
+        <TabsList className="hidden sm:flex flex-wrap h-auto rounded-2xl bg-muted/60 border p-1.5 gap-1 mb-8 shadow-sm">
           {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}

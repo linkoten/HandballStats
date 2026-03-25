@@ -28,8 +28,8 @@ model User {
   role         UserRole         @default(UTILISATEUR)
 
   // Gestion des tokens
-  tokensRemaining     Int @default(0) @map("tokens_remaining")      // Tokens disponibles (décrémentés à l'usage, reset en août)
-  tokensUsed          Int @default(0) @map("tokens_used")           // Tokens consommés (historique cumulatif)
+  tokensRemaining     Int @default(0) @map("tokens_remaining") // Tokens disponibles (décrémentés à l'usage, reset en août)
+  tokensUsed          Int @default(0) @map("tokens_used") // Tokens consommés (historique cumulatif)
   baseTokenAllocation Int @default(0) @map("base_token_allocation") // Allocation totale = plan + bonus achetés (source de vérité pour le reset août)
 
   // Relations
@@ -164,7 +164,7 @@ model Competition {
   equipe            equipes             @relation(fields: [equipeId], references: [id], onDelete: Cascade)
   matchs            matchs[]
   competitionAccess CompetitionAccess[]
-  classementPoule     ClassementPoule[]
+  classementPoule   ClassementPoule[]
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -412,26 +412,26 @@ model joueur_objectifs {
 // Mis à jour (écrasé) à chaque passage du scraper
 // ============================================
 model ClassementPoule {
-  id            Int      @id @default(autoincrement())
-  competitionId Int      @map("competition_id")
+  id            Int @id @default(autoincrement())
+  competitionId Int @map("competition_id")
 
   // Numéro de journée au moment du snapshot
-  journee       Int      @default(0)
+  journee Int @default(0)
 
   // Données du classement
-  position      Int
-  nomEquipe     String   @map("nom_equipe") @db.VarChar(255)
-  logoUrl       String?  @map("logo_url") @db.Text
-  points        Int
-  matchsJoues   Int      @map("matchs_joues")
-  victoires     Int
-  nuls          Int
-  defaites      Int
-  butsPour      Int      @map("buts_pour")
-  butsContre    Int      @map("buts_contre")
-  diffButs      Int      @map("diff_buts")
-  forme         String?  @db.VarChar(10) // ex: "GGGPN" (5 derniers résultats)
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  position    Int
+  nomEquipe   String   @map("nom_equipe") @db.VarChar(255)
+  logoUrl     String?  @map("logo_url") @db.Text
+  points      Int
+  matchsJoues Int      @map("matchs_joues")
+  victoires   Int
+  nuls        Int
+  defaites    Int
+  butsPour    Int      @map("buts_pour")
+  butsContre  Int      @map("buts_contre")
+  diffButs    Int      @map("diff_buts")
+  forme       String?  @db.VarChar(10) // ex: "GGGPN" (5 derniers résultats)
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relation
   competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import type { StatsData } from "@/app/actions/stats-actions";
+import { formatNomPrenom } from "@/lib/utils";
 import {
   BarChart,
   Bar,
@@ -40,17 +41,33 @@ import {
 } from "lucide-react";
 
 // ─── Couleurs ────────────────────────────────────────────────────────────────
-const PALETTE = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4","#f97316","#84cc16","#ec4899","#14b8a6"];
+const PALETTE = [
+  "#6366f1",
+  "#f59e0b",
+  "#10b981",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#f97316",
+  "#84cc16",
+  "#ec4899",
+  "#14b8a6",
+];
 const COL_WIN = "#10b981";
 const COL_DRAW = "#f59e0b";
 const COL_LOSS = "#ef4444";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function getResult(match: StatsData["matchs"][0], equipeIds: number[]): "win" | "draw" | "loss" | null {
+function getResult(
+  match: StatsData["matchs"][0],
+  equipeIds: number[],
+): "win" | "draw" | "loss" | null {
   if (!match.score_final) return null;
   const [a, b] = match.score_final.split("-").map(Number);
   if (isNaN(a) || isNaN(b)) return null;
-  const isHome = match.equipe_recevant_id != null && equipeIds.includes(match.equipe_recevant_id);
+  const isHome =
+    match.equipe_recevant_id != null &&
+    equipeIds.includes(match.equipe_recevant_id);
   const ourScore = isHome ? a : b;
   const theirScore = isHome ? b : a;
   if (ourScore > theirScore) return "win";
@@ -73,7 +90,11 @@ function quartile(sorted: number[], q: number): number {
 // Format dd/mm/aa — inclut l'année pour gérer les saisons qui chevauchent deux années civiles
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "?";
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
 }
 function evolPct(cur: number | null, ref: number | null): number | null {
   if (cur === null || ref === null) return null;
@@ -97,7 +118,8 @@ function getDifficulte(
   const [a, b] = match.score_final.split("-").map(Number);
   if (isNaN(a) || isNaN(b)) return null;
   const isHome =
-    match.equipe_recevant_id != null && equipeIds.includes(match.equipe_recevant_id);
+    match.equipe_recevant_id != null &&
+    equipeIds.includes(match.equipe_recevant_id);
   const ours = isHome ? a : b;
   const theirs = isHome ? b : a;
   const diff = ours - theirs;
@@ -110,7 +132,15 @@ function getDifficulte(
   return "Défaite A Sens Unique";
 }
 
-const JOURS_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const JOURS_FR = [
+  "Dimanche",
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+];
 
 function getJourSemaine(dateStr: string | null): string | null {
   if (!dateStr) return null;
@@ -123,7 +153,8 @@ function getHeure(dateStr: string | null): string | null {
   // Only extract time if the string actually contains a time component.
   // Date-only strings ("2024-10-15") are parsed as UTC midnight by JS and
   // produce a wrong local hour due to timezone offset.
-  const hasTime = dateStr.includes("T") || (dateStr.length > 10 && dateStr.includes(":"));
+  const hasTime =
+    dateStr.includes("T") || (dateStr.length > 10 && dateStr.includes(":"));
   if (!hasTime) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
@@ -175,14 +206,17 @@ function applyMatchFilter(
 ): boolean {
   // Équipe
   const inEquipe =
-    (match.equipe_recevant_id != null && equipeIds.includes(match.equipe_recevant_id)) ||
-    (match.equipe_exterieur_id != null && equipeIds.includes(match.equipe_exterieur_id));
+    (match.equipe_recevant_id != null &&
+      equipeIds.includes(match.equipe_recevant_id)) ||
+    (match.equipe_exterieur_id != null &&
+      equipeIds.includes(match.equipe_exterieur_id));
   if (!inEquipe) return false;
 
   // Compétition
   if (
     filters.competitionIds.length > 0 &&
-    (match.competitionId == null || !filters.competitionIds.includes(match.competitionId))
+    (match.competitionId == null ||
+      !filters.competitionIds.includes(match.competitionId))
   )
     return false;
 
@@ -199,13 +233,20 @@ function applyMatchFilter(
   if (isNaN(_sa) || isNaN(_sb)) return false;
 
   // Dates
-  if (filters.dateDebut && match.date_match && match.date_match < filters.dateDebut) return false;
-  if (filters.dateFin && match.date_match && match.date_match > filters.dateFin) return false;
+  if (
+    filters.dateDebut &&
+    match.date_match &&
+    match.date_match < filters.dateDebut
+  )
+    return false;
+  if (filters.dateFin && match.date_match && match.date_match > filters.dateFin)
+    return false;
 
   // Localisation
   if (filters.localisation !== "tous") {
     const isHome =
-      match.equipe_recevant_id != null && equipeIds.includes(match.equipe_recevant_id);
+      match.equipe_recevant_id != null &&
+      equipeIds.includes(match.equipe_recevant_id);
     if (filters.localisation === "domicile" && !isHome) return false;
     if (filters.localisation === "exterieur" && isHome) return false;
   }
@@ -251,15 +292,19 @@ function MultiSelectDropdown({
 
   useEffect(() => {
     function onOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", onOutside);
     return () => document.removeEventListener("mousedown", onOutside);
   }, []);
 
   const allIds = options.map((o) => o.id);
-  const isAllSelected = selected.length === 0 || selected.length === allIds.length;
-  const filtered = options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
+  const isAllSelected =
+    selected.length === 0 || selected.length === allIds.length;
+  const filtered = options.filter((o) =>
+    o.label.toLowerCase().includes(search.toLowerCase()),
+  );
 
   function toggle(id: number) {
     const currentSelection = isAllSelected ? allIds : selected;
@@ -272,24 +317,48 @@ function MultiSelectDropdown({
   const buttonLabel = isAllSelected
     ? label
     : selected.length === 1
-    ? (options.find((o) => o.id === selected[0])?.label ?? label)
-    : `${label} · ${selected.length}`;
+      ? (options.find((o) => o.id === selected[0])?.label ?? label)
+      : `${label} · ${selected.length}`;
 
-  return <DropdownShell label={buttonLabel} active={!isAllSelected} open={open} setOpen={setOpen} ref_={ref}>
-    <DropdownSearch search={search} setSearch={setSearch} />
-    <div className="max-h-56 overflow-y-auto">
-      <button type="button" onClick={() => onChange([])}
-        className={`w-full text-left px-4 py-2 text-[10px] font-black uppercase transition-colors hover:bg-muted ${isAllSelected ? "text-primary" : "text-muted-foreground"}`}>
-        {allLabel}
-      </button>
-      {filtered.map((o) => {
-        const checked = !isAllSelected && selected.includes(o.id);
-        return <DropdownItem key={o.id} checked={isAllSelected || checked} label={o.label} onClick={() => toggle(o.id)} />;
-      })}
-      {filtered.length === 0 && <p className="px-4 py-3 text-xs text-muted-foreground italic">Aucun résultat</p>}
-    </div>
-    {!isAllSelected && <DropdownFooter count={selected.length} onClear={() => onChange([])} />}
-  </DropdownShell>;
+  return (
+    <DropdownShell
+      label={buttonLabel}
+      active={!isAllSelected}
+      open={open}
+      setOpen={setOpen}
+      ref_={ref}
+    >
+      <DropdownSearch search={search} setSearch={setSearch} />
+      <div className="max-h-56 overflow-y-auto">
+        <button
+          type="button"
+          onClick={() => onChange([])}
+          className={`w-full text-left px-4 py-2 text-[10px] font-black uppercase transition-colors hover:bg-muted ${isAllSelected ? "text-primary" : "text-muted-foreground"}`}
+        >
+          {allLabel}
+        </button>
+        {filtered.map((o) => {
+          const checked = !isAllSelected && selected.includes(o.id);
+          return (
+            <DropdownItem
+              key={o.id}
+              checked={isAllSelected || checked}
+              label={o.label}
+              onClick={() => toggle(o.id)}
+            />
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="px-4 py-3 text-xs text-muted-foreground italic">
+            Aucun résultat
+          </p>
+        )}
+      </div>
+      {!isAllSelected && (
+        <DropdownFooter count={selected.length} onClear={() => onChange([])} />
+      )}
+    </DropdownShell>
+  );
 }
 
 // ─── Multi-select dropdown (chaînes) ──────────────────────────────────────────
@@ -312,55 +381,104 @@ function StringMultiSelect({
 
   useEffect(() => {
     function onOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", onOutside);
     return () => document.removeEventListener("mousedown", onOutside);
   }, []);
 
-  const isAllSelected = selected.length === 0 || selected.length === options.length;
-  const filtered = options.filter((o) => o.toLowerCase().includes(search.toLowerCase()));
+  const isAllSelected =
+    selected.length === 0 || selected.length === options.length;
+  const filtered = options.filter((o) =>
+    o.toLowerCase().includes(search.toLowerCase()),
+  );
 
   function toggle(val: string) {
     const current = isAllSelected ? options : selected;
-    const next = current.includes(val) ? current.filter((s) => s !== val) : [...current, val];
+    const next = current.includes(val)
+      ? current.filter((s) => s !== val)
+      : [...current, val];
     onChange(next.length === 0 || next.length === options.length ? [] : next);
   }
 
   const buttonLabel = isAllSelected
     ? label
     : selected.length === 1
-    ? selected[0]
-    : `${label} · ${selected.length}`;
+      ? selected[0]
+      : `${label} · ${selected.length}`;
 
-  return <DropdownShell label={buttonLabel} active={!isAllSelected} open={open} setOpen={setOpen} ref_={ref}>
-    {options.length > 5 && <DropdownSearch search={search} setSearch={setSearch} />}
-    <div className="max-h-56 overflow-y-auto">
-      <button type="button" onClick={() => onChange([])}
-        className={`w-full text-left px-4 py-2 text-[10px] font-black uppercase transition-colors hover:bg-muted ${isAllSelected ? "text-primary" : "text-muted-foreground"}`}>
-        {allLabel}
-      </button>
-      {filtered.map((o) => {
-        const checked = !isAllSelected && selected.includes(o);
-        return <DropdownItem key={o} checked={isAllSelected || checked} label={o} onClick={() => toggle(o)} />;
-      })}
-      {filtered.length === 0 && <p className="px-4 py-3 text-xs text-muted-foreground italic">Aucun résultat</p>}
-    </div>
-    {!isAllSelected && <DropdownFooter count={selected.length} onClear={() => onChange([])} />}
-  </DropdownShell>;
+  return (
+    <DropdownShell
+      label={buttonLabel}
+      active={!isAllSelected}
+      open={open}
+      setOpen={setOpen}
+      ref_={ref}
+    >
+      {options.length > 5 && (
+        <DropdownSearch search={search} setSearch={setSearch} />
+      )}
+      <div className="max-h-56 overflow-y-auto">
+        <button
+          type="button"
+          onClick={() => onChange([])}
+          className={`w-full text-left px-4 py-2 text-[10px] font-black uppercase transition-colors hover:bg-muted ${isAllSelected ? "text-primary" : "text-muted-foreground"}`}
+        >
+          {allLabel}
+        </button>
+        {filtered.map((o) => {
+          const checked = !isAllSelected && selected.includes(o);
+          return (
+            <DropdownItem
+              key={o}
+              checked={isAllSelected || checked}
+              label={o}
+              onClick={() => toggle(o)}
+            />
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="px-4 py-3 text-xs text-muted-foreground italic">
+            Aucun résultat
+          </p>
+        )}
+      </div>
+      {!isAllSelected && (
+        <DropdownFooter count={selected.length} onClear={() => onChange([])} />
+      )}
+    </DropdownShell>
+  );
 }
 
 // ─── Sous-composants partagés des dropdowns ────────────────────────────────────
-function DropdownShell({ label, active, open, setOpen, ref_, children }: {
-  label: string; active: boolean; open: boolean; setOpen: (v: boolean) => void;
-  ref_: React.RefObject<HTMLDivElement | null>; children: React.ReactNode;
+function DropdownShell({
+  label,
+  active,
+  open,
+  setOpen,
+  ref_,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  ref_: React.RefObject<HTMLDivElement | null>;
+  children: React.ReactNode;
 }) {
   return (
     <div className="relative" ref={ref_}>
-      <button type="button" onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 text-xs font-bold uppercase rounded-xl border px-3 py-2 bg-background transition-colors ${active ? "border-primary text-primary" : "hover:border-primary/50"}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1.5 text-xs font-bold uppercase rounded-xl border px-3 py-2 bg-background transition-colors ${active ? "border-primary text-primary" : "hover:border-primary/50"}`}
+      >
         {label}
-        <ChevronDown size={12} className={`transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          size={12}
+          className={`transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
         <div className="absolute z-50 top-full mt-2 left-0 min-w-[220px] bg-background border rounded-2xl shadow-xl overflow-hidden">
@@ -371,41 +489,95 @@ function DropdownShell({ label, active, open, setOpen, ref_, children }: {
   );
 }
 
-function DropdownSearch({ search, setSearch }: { search: string; setSearch: (v: string) => void }) {
+function DropdownSearch({
+  search,
+  setSearch,
+}: {
+  search: string;
+  setSearch: (v: string) => void;
+}) {
   return (
     <div className="p-2 border-b">
       <div className="flex items-center gap-2 px-2 py-1.5 bg-muted rounded-xl">
         <Search size={11} className="text-muted-foreground shrink-0" />
-        <input autoFocus type="text" placeholder="Rechercher…" value={search}
+        <input
+          autoFocus
+          type="text"
+          placeholder="Rechercher…"
+          value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="text-xs bg-transparent outline-none w-full placeholder:text-muted-foreground" />
-        {search && <button type="button" onClick={() => setSearch("")}><X size={11} className="text-muted-foreground hover:text-foreground" /></button>}
+          className="text-xs bg-transparent outline-none w-full placeholder:text-muted-foreground"
+        />
+        {search && (
+          <button type="button" onClick={() => setSearch("")}>
+            <X
+              size={11}
+              className="text-muted-foreground hover:text-foreground"
+            />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function DropdownItem({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
+function DropdownItem({
+  checked,
+  label,
+  onClick,
+}: {
+  checked: boolean;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <label className="flex items-center gap-3 px-4 py-2 hover:bg-muted cursor-pointer transition-colors">
-      <button type="button" role="checkbox" aria-checked={checked} onClick={onClick}
-        className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-primary bg-primary" : "border-muted-foreground/40 bg-background"}`}>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        onClick={onClick}
+        className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-primary bg-primary" : "border-muted-foreground/40 bg-background"}`}
+      >
         {checked && (
-          <svg viewBox="0 0 10 8" className="w-2.5 fill-none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 10 8"
+            className="w-2.5 fill-none"
+            stroke="white"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M1 4l3 3 5-6" />
           </svg>
         )}
       </button>
-      <span className="text-xs truncate" onClick={onClick}>{label}</span>
+      <span className="text-xs truncate" onClick={onClick}>
+        {label}
+      </span>
     </label>
   );
 }
 
-function DropdownFooter({ count, onClear }: { count: number; onClear: () => void }) {
+function DropdownFooter({
+  count,
+  onClear,
+}: {
+  count: number;
+  onClear: () => void;
+}) {
   return (
     <div className="border-t px-4 py-2 flex items-center justify-between">
-      <span className="text-[10px] text-muted-foreground">{count} sélectionné{count > 1 ? "s" : ""}</span>
-      <button type="button" onClick={onClear} className="text-[10px] font-black uppercase text-primary hover:underline">Effacer</button>
+      <span className="text-[10px] text-muted-foreground">
+        {count} sélectionné{count > 1 ? "s" : ""}
+      </span>
+      <button
+        type="button"
+        onClick={onClear}
+        className="text-[10px] font-black uppercase text-primary hover:underline"
+      >
+        Effacer
+      </button>
     </div>
   );
 }
@@ -421,9 +593,14 @@ function FilterBar({
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const saisons = [...new Set(data.competitions.map((c) => c.saison))].sort().reverse();
+  const saisons = [...new Set(data.competitions.map((c) => c.saison))]
+    .sort()
+    .reverse();
 
-  const equipeOptions = data.equipes.map((eq) => ({ id: eq.id, label: eq.nom }));
+  const equipeOptions = data.equipes.map((eq) => ({
+    id: eq.id,
+    label: eq.nom,
+  }));
   const competitionOptions = data.competitions
     .filter((c) => !filters.saisonFilter || c.saison === filters.saisonFilter)
     .map((c) => ({ id: c.id, label: c.nom }));
@@ -431,23 +608,31 @@ function FilterBar({
   // Options dynamiques (dérivées des matchs présents)
   const availableJours = useMemo(() => {
     const s = new Set<string>();
-    data.matchs.forEach((m) => { const j = getJourSemaine(m.date_match); if (j) s.add(j); });
+    data.matchs.forEach((m) => {
+      const j = getJourSemaine(m.date_match);
+      if (j) s.add(j);
+    });
     return JOURS_FR.filter((j) => s.has(j));
   }, [data.matchs]);
 
   const availableHeures = useMemo(() => {
     const s = new Set<string>();
-    data.matchs.forEach((m) => { const h = getHeure(m.date_match); if (h) s.add(h); });
+    data.matchs.forEach((m) => {
+      const h = getHeure(m.date_match);
+      if (h) s.add(h);
+    });
     return [...s].sort();
   }, [data.matchs]);
 
   const hasBaseFilters =
-    (filters.equipeIds.length > 0 && filters.equipeIds.length < data.equipes.length) ||
+    (filters.equipeIds.length > 0 &&
+      filters.equipeIds.length < data.equipes.length) ||
     filters.competitionIds.length > 0 ||
     !!filters.saisonFilter;
 
   const hasAdvancedFilters =
-    !!filters.dateDebut || !!filters.dateFin ||
+    !!filters.dateDebut ||
+    !!filters.dateFin ||
     filters.localisation !== "tous" ||
     filters.difficultes.length > 0 ||
     filters.jours.length > 0 ||
@@ -473,71 +658,135 @@ function FilterBar({
   return (
     <div className="space-y-2 mb-6">
       {/* Ligne principale */}
-      <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/30 rounded-2xl border">
-        <Filter size={14} className="text-muted-foreground shrink-0 ml-1" />
+      <div className="flex flex-wrap gap-2 items-center p-3 bg-card rounded-2xl border-2 shadow-sm relative overflow-hidden">
+        {/* bande d'accent */}
+        <div className="absolute left-0 top-0 h-full w-1 bg-primary rounded-l-2xl" />
+        <Filter size={14} className="text-primary shrink-0 ml-3" />
 
         {/* Saison */}
         <select
           className={`text-xs font-bold uppercase rounded-xl border px-3 py-2 bg-background transition-colors hover:border-primary/50 ${filters.saisonFilter ? "border-primary text-primary" : ""}`}
           value={filters.saisonFilter}
-          onChange={(e) => setFilters({ ...filters, saisonFilter: e.target.value, competitionIds: [] })}
+          onChange={(e) =>
+            setFilters({
+              ...filters,
+              saisonFilter: e.target.value,
+              competitionIds: [],
+            })
+          }
         >
           <option value="">Toutes saisons</option>
-          {saisons.map((s) => <option key={s} value={s}>{s}</option>)}
+          {saisons.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
         </select>
 
         {/* Équipes */}
-        <MultiSelectDropdown label="Équipes" options={equipeOptions}
-          selected={filters.equipeIds.length === data.equipes.length ? [] : filters.equipeIds}
-          onChange={(ids) => setFilters({ ...filters, equipeIds: ids.length === 0 ? data.equipes.map((e) => e.id) : ids })}
-          allLabel="Toutes les équipes" />
+        <MultiSelectDropdown
+          label="Équipes"
+          options={equipeOptions}
+          selected={
+            filters.equipeIds.length === data.equipes.length
+              ? []
+              : filters.equipeIds
+          }
+          onChange={(ids) =>
+            setFilters({
+              ...filters,
+              equipeIds: ids.length === 0 ? data.equipes.map((e) => e.id) : ids,
+            })
+          }
+          allLabel="Toutes les équipes"
+        />
 
         {/* Compétitions */}
-        <MultiSelectDropdown label="Compétitions" options={competitionOptions}
+        <MultiSelectDropdown
+          label="Compétitions"
+          options={competitionOptions}
           selected={filters.competitionIds}
           onChange={(ids) => setFilters({ ...filters, competitionIds: ids })}
-          allLabel="Toutes les compétitions" />
+          allLabel="Toutes les compétitions"
+        />
 
         {/* Bouton avancé */}
-        <button type="button" onClick={() => setShowAdvanced((v) => !v)}
-          className={`flex items-center gap-1.5 text-xs font-bold uppercase rounded-xl border px-3 py-2 transition-colors ${hasAdvancedFilters ? "border-primary text-primary bg-primary/5" : "hover:border-primary/50"}`}>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className={`flex items-center gap-1.5 text-xs font-bold uppercase rounded-xl border px-3 py-2 transition-colors ${hasAdvancedFilters ? "border-primary text-primary bg-primary/5" : "hover:border-primary/50"}`}
+        >
           <Filter size={11} />
           Avancé
-          {hasAdvancedFilters && <span className="ml-1 w-4 h-4 rounded-full bg-primary text-white text-[9px] flex items-center justify-center font-black">
-            {[filters.dateDebut || filters.dateFin ? 1 : 0, filters.localisation !== "tous" ? 1 : 0, filters.difficultes.length > 0 ? 1 : 0, filters.jours.length > 0 ? 1 : 0, filters.heures.length > 0 ? 1 : 0].reduce((a, b) => a + b, 0)}
-          </span>}
-          <ChevronDown size={11} className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+          {hasAdvancedFilters && (
+            <span className="ml-1 w-4 h-4 rounded-full bg-primary text-white text-[9px] flex items-center justify-center font-black">
+              {[
+                filters.dateDebut || filters.dateFin ? 1 : 0,
+                filters.localisation !== "tous" ? 1 : 0,
+                filters.difficultes.length > 0 ? 1 : 0,
+                filters.jours.length > 0 ? 1 : 0,
+                filters.heures.length > 0 ? 1 : 0,
+              ].reduce((a, b) => a + b, 0)}
+            </span>
+          )}
+          <ChevronDown
+            size={11}
+            className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+          />
         </button>
 
         {hasActiveFilters && (
-          <button className="ml-auto flex items-center gap-1 text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors" onClick={reset}>
-            <X size={11} />Réinitialiser
+          <button
+            className="ml-auto flex items-center gap-1 text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors"
+            onClick={reset}
+          >
+            <X size={11} />
+            Réinitialiser
           </button>
         )}
       </div>
 
       {/* Ligne avancée */}
       {showAdvanced && (
-        <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/20 rounded-2xl border border-dashed">
+        <div className="flex flex-wrap gap-2 items-center p-3 bg-primary/5 rounded-2xl border-2 border-primary/20">
           {/* Dates */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-black uppercase text-muted-foreground">Du</span>
-            <input type="date" value={filters.dateDebut}
-              onChange={(e) => setFilters({ ...filters, dateDebut: e.target.value })}
-              className={`text-xs rounded-xl border px-2 py-1.5 bg-background ${filters.dateDebut ? "border-primary text-primary" : ""}`} />
+            <span className="text-[10px] font-black uppercase text-muted-foreground">
+              Du
+            </span>
+            <input
+              type="date"
+              value={filters.dateDebut}
+              onChange={(e) =>
+                setFilters({ ...filters, dateDebut: e.target.value })
+              }
+              className={`text-xs rounded-xl border px-2 py-1.5 bg-background ${filters.dateDebut ? "border-primary text-primary" : ""}`}
+            />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-black uppercase text-muted-foreground">Au</span>
-            <input type="date" value={filters.dateFin}
-              onChange={(e) => setFilters({ ...filters, dateFin: e.target.value })}
-              className={`text-xs rounded-xl border px-2 py-1.5 bg-background ${filters.dateFin ? "border-primary text-primary" : ""}`} />
+            <span className="text-[10px] font-black uppercase text-muted-foreground">
+              Au
+            </span>
+            <input
+              type="date"
+              value={filters.dateFin}
+              onChange={(e) =>
+                setFilters({ ...filters, dateFin: e.target.value })
+              }
+              className={`text-xs rounded-xl border px-2 py-1.5 bg-background ${filters.dateFin ? "border-primary text-primary" : ""}`}
+            />
           </div>
 
           {/* Localisation */}
           <select
             className={`text-xs font-bold uppercase rounded-xl border px-3 py-2 bg-background transition-colors ${filters.localisation !== "tous" ? "border-primary text-primary" : "hover:border-primary/50"}`}
             value={filters.localisation}
-            onChange={(e) => setFilters({ ...filters, localisation: e.target.value as Filters["localisation"] })}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                localisation: e.target.value as Filters["localisation"],
+              })
+            }
           >
             <option value="tous">Dom. + Ext.</option>
             <option value="domicile">Domicile</option>
@@ -545,25 +794,36 @@ function FilterBar({
           </select>
 
           {/* Difficulté */}
-          <StringMultiSelect label="Difficulté" options={ALL_DIFFICULTES}
+          <StringMultiSelect
+            label="Difficulté"
+            options={ALL_DIFFICULTES}
             selected={filters.difficultes as string[]}
-            onChange={(vals) => setFilters({ ...filters, difficultes: vals as Difficulte[] })}
-            allLabel="Toutes difficultés" />
+            onChange={(vals) =>
+              setFilters({ ...filters, difficultes: vals as Difficulte[] })
+            }
+            allLabel="Toutes difficultés"
+          />
 
           {/* Jours de semaine */}
           {availableJours.length > 0 && (
-            <StringMultiSelect label="Jour" options={availableJours}
+            <StringMultiSelect
+              label="Jour"
+              options={availableJours}
               selected={filters.jours}
               onChange={(vals) => setFilters({ ...filters, jours: vals })}
-              allLabel="Tous les jours" />
+              allLabel="Tous les jours"
+            />
           )}
 
           {/* Heures */}
           {availableHeures.length > 0 && (
-            <StringMultiSelect label="Heure" options={availableHeures}
+            <StringMultiSelect
+              label="Heure"
+              options={availableHeures}
               selected={filters.heures}
               onChange={(vals) => setFilters({ ...filters, heures: vals })}
-              allLabel="Toutes heures" />
+              allLabel="Toutes heures"
+            />
           )}
         </div>
       )}
@@ -572,12 +832,26 @@ function FilterBar({
 }
 
 // ─── Carte métrique simple ────────────────────────────────────────────────────
-function MetricCard({ label, value, sub, color = "text-primary" }: { label: string; value: string | number; sub?: string; color?: string }) {
+function MetricCard({
+  label,
+  value,
+  sub,
+  color = "text-primary",
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  color?: string;
+}) {
   return (
     <Card className="rounded-3xl border-2">
       <CardContent className="p-5">
-        <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">{label}</p>
-        <p className={`text-3xl font-sport italic font-black ${color}`}>{value}</p>
+        <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">
+          {label}
+        </p>
+        <p className={`text-3xl font-sport italic font-black ${color}`}>
+          {value}
+        </p>
         {sub && <p className="text-[10px] text-muted-foreground mt-1">{sub}</p>}
       </CardContent>
     </Card>
@@ -585,21 +859,41 @@ function MetricCard({ label, value, sub, color = "text-primary" }: { label: stri
 }
 
 // ─── ChartCard wrapper ────────────────────────────────────────────────────────
-function ChartCard({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
+function ChartCard({
+  title,
+  children,
+  className = "",
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <Card className={`rounded-3xl border-2 overflow-visible relative z-0 hover:z-10 ${className}`}>
+    <Card
+      className={`rounded-3xl border-2 overflow-visible relative z-0 hover:z-10 ${className}`}
+    >
       <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5 rounded-t-3xl overflow-hidden">
-        <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="p-4 overflow-visible [&_.recharts-wrapper]:overflow-visible [&_.recharts-surface]:overflow-visible">{children}</CardContent>
+      <CardContent className="p-4 overflow-visible [&_.recharts-wrapper]:overflow-visible [&_.recharts-surface]:overflow-visible">
+        {children}
+      </CardContent>
     </Card>
   );
 }
 
 // ─── Helpers d'analyse (breakdown par difficulté / jour) ─────────────────────
-type Breakdown = { byDifficulte: Record<string, number>; byJour: Record<string, number> };
+type Breakdown = {
+  byDifficulte: Record<string, number>;
+  byJour: Record<string, number>;
+};
 
-function computeBreakdown(matchList: StatsData["matchs"], equipeIds: number[]): Breakdown {
+function computeBreakdown(
+  matchList: StatsData["matchs"],
+  equipeIds: number[],
+): Breakdown {
   const byDifficulte: Record<string, number> = {};
   const byJour: Record<string, number> = {};
   matchList.forEach((m) => {
@@ -611,7 +905,11 @@ function computeBreakdown(matchList: StatsData["matchs"], equipeIds: number[]): 
   return { byDifficulte, byJour };
 }
 
-function BreakdownSection({ title, data, color = "hsl(var(--primary))" }: {
+function BreakdownSection({
+  title,
+  data,
+  color = "hsl(var(--primary))",
+}: {
   title: string;
   data: Record<string, number>;
   color?: string;
@@ -621,17 +919,31 @@ function BreakdownSection({ title, data, color = "hsl(var(--primary))" }: {
   if (!entries.length) return null;
   return (
     <div className="border-t pt-2 space-y-1.5 mt-1">
-      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wide">{title}</p>
+      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wide">
+        {title}
+      </p>
       {entries.map(([label, count]) => (
         <div key={label}>
           <div className="flex items-center justify-between mb-0.5">
-            <span className="text-[9px] text-muted-foreground truncate max-w-[140px]">{label}</span>
-            <span className="text-[9px] font-black ml-2 shrink-0">{count}
-              <span className="font-normal opacity-60"> ({Math.round(count / total * 100)}%)</span>
+            <span className="text-[9px] text-muted-foreground truncate max-w-[140px]">
+              {label}
+            </span>
+            <span className="text-[9px] font-black ml-2 shrink-0">
+              {count}
+              <span className="font-normal opacity-60">
+                {" "}
+                ({Math.round((count / total) * 100)}%)
+              </span>
             </span>
           </div>
           <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
-            <div className="h-full rounded-full opacity-70" style={{ width: `${Math.round(count / total * 100)}%`, background: color }} />
+            <div
+              className="h-full rounded-full opacity-70"
+              style={{
+                width: `${Math.round((count / total) * 100)}%`,
+                background: color,
+              }}
+            />
           </div>
         </div>
       ))}
@@ -645,23 +957,39 @@ function BreakdownSection({ title, data, color = "hsl(var(--primary))" }: {
 function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
   const equipeIds = filters.equipeIds;
 
-  const filteredMatchs = useMemo(() => data.matchs.filter((m) =>
-    applyMatchFilter(m, filters, equipeIds, data.competitions)
-  ), [data.matchs, data.competitions, equipeIds, filters]);
+  const filteredMatchs = useMemo(
+    () =>
+      data.matchs.filter((m) =>
+        applyMatchFilter(m, filters, equipeIds, data.competitions),
+      ),
+    [data.matchs, data.competitions, equipeIds, filters],
+  );
 
-  const winMatchs = useMemo(() => filteredMatchs.filter((m) => getResult(m, equipeIds) === "win"), [filteredMatchs, equipeIds]);
-  const drawMatchs = useMemo(() => filteredMatchs.filter((m) => getResult(m, equipeIds) === "draw"), [filteredMatchs, equipeIds]);
-  const lossMatchs = useMemo(() => filteredMatchs.filter((m) => getResult(m, equipeIds) === "loss"), [filteredMatchs, equipeIds]);
+  const winMatchs = useMemo(
+    () => filteredMatchs.filter((m) => getResult(m, equipeIds) === "win"),
+    [filteredMatchs, equipeIds],
+  );
+  const drawMatchs = useMemo(
+    () => filteredMatchs.filter((m) => getResult(m, equipeIds) === "draw"),
+    [filteredMatchs, equipeIds],
+  );
+  const lossMatchs = useMemo(
+    () => filteredMatchs.filter((m) => getResult(m, equipeIds) === "loss"),
+    [filteredMatchs, equipeIds],
+  );
   const wins = winMatchs.length;
   const draws = drawMatchs.length;
   const losses = lossMatchs.length;
   const total = wins + draws + losses;
 
-  const pieBreakdowns = useMemo(() => ({
-    Victoires: computeBreakdown(winMatchs, equipeIds),
-    Nuls: computeBreakdown(drawMatchs, equipeIds),
-    Défaites: computeBreakdown(lossMatchs, equipeIds),
-  }), [winMatchs, drawMatchs, lossMatchs, equipeIds]);
+  const pieBreakdowns = useMemo(
+    () => ({
+      Victoires: computeBreakdown(winMatchs, equipeIds),
+      Nuls: computeBreakdown(drawMatchs, equipeIds),
+      Défaites: computeBreakdown(lossMatchs, equipeIds),
+    }),
+    [winMatchs, drawMatchs, lossMatchs, equipeIds],
+  );
 
   const pieData = [
     { name: "Victoires", value: wins, fill: COL_WIN },
@@ -671,19 +999,25 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
 
   // % victoires cumulées par équipe (multi-courbes)
   const cumulEquipes = useMemo(() => {
-    return data.equipes.filter((eq) => equipeIds.includes(eq.id)).map((eq) => {
-      const eqMatchs = data.matchs
-        .filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions))
-        .sort((a, b) => (a.date_match ?? "").localeCompare(b.date_match ?? ""));
-      let cumWins = 0;
-      return {
-        label: eq.nom,
-        points: eqMatchs.map((m, i) => {
-          if (getResult(m, [eq.id]) === "win") cumWins++;
-          return { match: i + 1, pctVictoire: pct(cumWins, i + 1) };
-        }),
-      };
-    });
+    return data.equipes
+      .filter((eq) => equipeIds.includes(eq.id))
+      .map((eq) => {
+        const eqMatchs = data.matchs
+          .filter((m) =>
+            applyMatchFilter(m, filters, [eq.id], data.competitions),
+          )
+          .sort((a, b) =>
+            (a.date_match ?? "").localeCompare(b.date_match ?? ""),
+          );
+        let cumWins = 0;
+        return {
+          label: eq.nom,
+          points: eqMatchs.map((m, i) => {
+            if (getResult(m, [eq.id]) === "win") cumWins++;
+            return { match: i + 1, pctVictoire: pct(cumWins, i + 1) };
+          }),
+        };
+      });
   }, [data, equipeIds, filters]);
 
   const cumulChartData = useMemo(() => {
@@ -700,27 +1034,39 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
   const cumulEquipeLabels = cumulEquipes.map((e) => e.label);
 
   // Par équipe si plusieurs
-  const parEquipe = useMemo(() => data.equipes
-    .filter((eq) => equipeIds.includes(eq.id))
-    .map((eq) => {
-      const ms = data.matchs.filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions));
-      const wMatchs = ms.filter((m) => getResult(m, [eq.id]) === "win");
-      const dMatchs = ms.filter((m) => getResult(m, [eq.id]) === "draw");
-      const lMatchs = ms.filter((m) => getResult(m, [eq.id]) === "loss");
-      return {
-        equipe: eq.nom,
-        victoires: wMatchs.length, nuls: dMatchs.length, defaites: lMatchs.length,
-        total: ms.length,
-        brkVictoires: computeBreakdown(wMatchs, [eq.id]),
-        brkNuls: computeBreakdown(dMatchs, [eq.id]),
-        brkDefaites: computeBreakdown(lMatchs, [eq.id]),
-      };
-    }), [data, equipeIds, filters]);
+  const parEquipe = useMemo(
+    () =>
+      data.equipes
+        .filter((eq) => equipeIds.includes(eq.id))
+        .map((eq) => {
+          const ms = data.matchs.filter((m) =>
+            applyMatchFilter(m, filters, [eq.id], data.competitions),
+          );
+          const wMatchs = ms.filter((m) => getResult(m, [eq.id]) === "win");
+          const dMatchs = ms.filter((m) => getResult(m, [eq.id]) === "draw");
+          const lMatchs = ms.filter((m) => getResult(m, [eq.id]) === "loss");
+          return {
+            equipe: eq.nom,
+            victoires: wMatchs.length,
+            nuls: dMatchs.length,
+            defaites: lMatchs.length,
+            total: ms.length,
+            brkVictoires: computeBreakdown(wMatchs, [eq.id]),
+            brkNuls: computeBreakdown(dMatchs, [eq.id]),
+            brkDefaites: computeBreakdown(lMatchs, [eq.id]),
+          };
+        }),
+    [data, equipeIds, filters],
+  );
 
   // ─── Tooltips enrichis ─────────────────────────────────────────────────────
   const PieTooltipContent = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
-    const d = payload[0].payload as { name: string; value: number; fill: string };
+    const d = payload[0].payload as {
+      name: string;
+      value: number;
+      fill: string;
+    };
     const pctVal = pct(d.value, total);
     const brk = pieBreakdowns[d.name as keyof typeof pieBreakdowns];
     return (
@@ -728,25 +1074,50 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
         <div className="overflow-y-auto max-h-80">
           <div className="p-3 text-xs space-y-2">
             <div className="flex items-center gap-2 pb-2 border-b">
-              <span className="w-3 h-3 rounded-full shrink-0" style={{ background: d.fill }} />
+              <span
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ background: d.fill }}
+              />
               <p className="font-black text-sm">{d.name}</p>
-              <span className="ml-auto font-black text-base" style={{ color: d.fill }}>{d.value}</span>
+              <span
+                className="ml-auto font-black text-base"
+                style={{ color: d.fill }}
+              >
+                {d.value}
+              </span>
             </div>
             <div className="space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Part du total</span>
-                <span className="font-black" style={{ color: d.fill }}>{pctVal}%</span>
+                <span className="font-black" style={{ color: d.fill }}>
+                  {pctVal}%
+                </span>
               </div>
               <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: `${pctVal}%`, background: d.fill }} />
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${pctVal}%`, background: d.fill }}
+                />
               </div>
               <div className="flex justify-between border-t pt-1.5">
                 <span className="text-muted-foreground">Total matchs</span>
                 <span className="font-bold">{total}</span>
               </div>
             </div>
-            {brk && <BreakdownSection title="Par type de résultat" data={brk.byDifficulte} color={d.fill} />}
-            {brk && <BreakdownSection title="Par jour" data={brk.byJour} color={d.fill} />}
+            {brk && (
+              <BreakdownSection
+                title="Par type de résultat"
+                data={brk.byDifficulte}
+                color={d.fill}
+              />
+            )}
+            {brk && (
+              <BreakdownSection
+                title="Par jour"
+                data={brk.byJour}
+                color={d.fill}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -756,37 +1127,90 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
   const BilanTooltipContent = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload as {
-      equipe: string; victoires: number; nuls: number; defaites: number; total: number;
-      brkVictoires: Breakdown; brkNuls: Breakdown; brkDefaites: Breakdown;
+      equipe: string;
+      victoires: number;
+      nuls: number;
+      defaites: number;
+      total: number;
+      brkVictoires: Breakdown;
+      brkNuls: Breakdown;
+      brkDefaites: Breakdown;
     };
     const rows = [
-      { label: "Victoires", val: d.victoires, color: COL_WIN, textColor: "text-emerald-600", brk: d.brkVictoires },
-      { label: "Nuls", val: d.nuls, color: COL_DRAW, textColor: "text-amber-500", brk: d.brkNuls },
-      { label: "Défaites", val: d.defaites, color: COL_LOSS, textColor: "text-red-500", brk: d.brkDefaites },
+      {
+        label: "Victoires",
+        val: d.victoires,
+        color: COL_WIN,
+        textColor: "text-emerald-600",
+        brk: d.brkVictoires,
+      },
+      {
+        label: "Nuls",
+        val: d.nuls,
+        color: COL_DRAW,
+        textColor: "text-amber-500",
+        brk: d.brkNuls,
+      },
+      {
+        label: "Défaites",
+        val: d.defaites,
+        color: COL_LOSS,
+        textColor: "text-red-500",
+        brk: d.brkDefaites,
+      },
     ];
     return (
       <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[230px] overflow-hidden">
         <div className="overflow-y-auto max-h-96">
           <div className="p-3 text-xs space-y-2">
-        <p className="font-black text-sm pb-2 border-b">{d.equipe} — {d.total} matchs</p>
-        {rows.map((row) => (
-          <div key={row.label} className="space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: row.color }} />
-                <span className={`font-black ${row.textColor}`}>{row.label}</span>
+            <p className="font-black text-sm pb-2 border-b">
+              {d.equipe} — {d.total} matchs
+            </p>
+            {rows.map((row) => (
+              <div key={row.label} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ background: row.color }}
+                    />
+                    <span className={`font-black ${row.textColor}`}>
+                      {row.label}
+                    </span>
+                  </div>
+                  <span className="font-black">
+                    {row.val}
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      ({pct(row.val, d.total)}%)
+                    </span>
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${pct(row.val, d.total)}%`,
+                      background: row.color,
+                    }}
+                  />
+                </div>
+                {row.val > 0 && (
+                  <BreakdownSection
+                    title="Par type"
+                    data={row.brk.byDifficulte}
+                    color={row.color}
+                  />
+                )}
+                {row.val > 0 && (
+                  <BreakdownSection
+                    title="Par jour"
+                    data={row.brk.byJour}
+                    color={row.color}
+                  />
+                )}
               </div>
-              <span className="font-black">{row.val}
-                <span className="font-normal text-muted-foreground"> ({pct(row.val, d.total)}%)</span>
-              </span>
-            </div>
-            <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${pct(row.val, d.total)}%`, background: row.color }} />
-            </div>
-            {row.val > 0 && <BreakdownSection title="Par type" data={row.brk.byDifficulte} color={row.color} />}
-            {row.val > 0 && <BreakdownSection title="Par jour" data={row.brk.byJour} color={row.color} />}
-          </div>
-        ))}
+            ))}
           </div>
         </div>
       </div>
@@ -795,7 +1219,9 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
 
   const CumulTooltipContent = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
-    const sorted = [...payload].sort((a: any, b: any) => (b.value ?? 0) - (a.value ?? 0));
+    const sorted = [...payload].sort(
+      (a: any, b: any) => (b.value ?? 0) - (a.value ?? 0),
+    );
     return (
       <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[200px] overflow-hidden">
         <div className="overflow-y-auto max-h-72">
@@ -806,13 +1232,23 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
                 <div key={i}>
                   <div className="flex items-center justify-between gap-4 mb-0.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-                      <span className="text-muted-foreground truncate max-w-[110px]">{p.dataKey}</span>
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: p.color }}
+                      />
+                      <span className="text-muted-foreground truncate max-w-[110px]">
+                        {p.dataKey}
+                      </span>
                     </div>
-                    <span className="font-black" style={{ color: p.color }}>{p.value}%</span>
+                    <span className="font-black" style={{ color: p.color }}>
+                      {p.value}%
+                    </span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${p.value}%`, background: p.color }} />
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${p.value}%`, background: p.color }}
+                    />
                   </div>
                 </div>
               ))}
@@ -828,22 +1264,59 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
       {/* Métriques */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <MetricCard label="Matchs joués" value={total} />
-        <MetricCard label="Victoires" value={wins} color="text-emerald-600" sub={`${pct(wins, total)}%`} />
-        <MetricCard label="Nuls" value={draws} color="text-amber-500" sub={`${pct(draws, total)}%`} />
-        <MetricCard label="Défaites" value={losses} color="text-destructive" sub={`${pct(losses, total)}%`} />
+        <MetricCard
+          label="Victoires"
+          value={wins}
+          color="text-emerald-600"
+          sub={`${pct(wins, total)}%`}
+        />
+        <MetricCard
+          label="Nuls"
+          value={draws}
+          color="text-amber-500"
+          sub={`${pct(draws, total)}%`}
+        />
+        <MetricCard
+          label="Défaites"
+          value={losses}
+          color="text-destructive"
+          sub={`${pct(losses, total)}%`}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Camembert résultats */}
         <ChartCard title="Répartition des résultats">
-          <ResponsiveContainer width="100%" height={260} style={{ overflow: "visible" }}>
+          <ResponsiveContainer
+            width="100%"
+            height={260}
+            style={{ overflow: "visible" }}
+          >
             <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95}
-                label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ""} ${Math.round((percent ?? 0) * 100)}%`}
-                labelLine>
-                {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={95}
+                label={({
+                  name,
+                  percent,
+                }: {
+                  name?: string;
+                  percent?: number;
+                }) => `${name ?? ""} ${Math.round((percent ?? 0) * 100)}%`}
+                labelLine
+              >
+                {pieData.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill} />
+                ))}
               </Pie>
-              <Tooltip content={<PieTooltipContent />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+              <Tooltip
+                content={<PieTooltipContent />}
+                wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -851,16 +1324,38 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
         {/* Barres par équipe */}
         {parEquipe.length > 1 && (
           <ChartCard title="Bilan par équipe">
-            <ResponsiveContainer width="100%" height={260} style={{ overflow: "visible" }}>
+            <ResponsiveContainer
+              width="100%"
+              height={260}
+              style={{ overflow: "visible" }}
+            >
               <BarChart data={parEquipe}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey="equipe" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip content={<BilanTooltipContent />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+                <Tooltip
+                  content={<BilanTooltipContent />}
+                  wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+                />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="victoires" name="Victoires" fill={COL_WIN} radius={[4,4,0,0]} />
-                <Bar dataKey="nuls" name="Nuls" fill={COL_DRAW} radius={[4,4,0,0]} />
-                <Bar dataKey="defaites" name="Défaites" fill={COL_LOSS} radius={[4,4,0,0]} />
+                <Bar
+                  dataKey="victoires"
+                  name="Victoires"
+                  fill={COL_WIN}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="nuls"
+                  name="Nuls"
+                  fill={COL_DRAW}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="defaites"
+                  name="Défaites"
+                  fill={COL_LOSS}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -870,15 +1365,38 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
       {/* % victoires cumulées par équipe */}
       {cumulChartData.length > 1 && (
         <ChartCard title="% Victoires cumulé au fil des matchs — par équipe">
-          <ResponsiveContainer width="100%" height={260} style={{ overflow: "visible" }}>
+          <ResponsiveContainer
+            width="100%"
+            height={260}
+            style={{ overflow: "visible" }}
+          >
             <LineChart data={cumulChartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="match" tickFormatter={(v) => `M${v}`} tick={{ fontSize: 10 }} />
-              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-              <Tooltip content={<CumulTooltipContent />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+              <XAxis
+                dataKey="match"
+                tickFormatter={(v) => `M${v}`}
+                tick={{ fontSize: 10 }}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+                tick={{ fontSize: 11 }}
+              />
+              <Tooltip
+                content={<CumulTooltipContent />}
+                wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+              />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {cumulEquipeLabels.map((nom, i) => (
-                <Line key={nom} type="monotone" dataKey={nom} stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} connectNulls />
+                <Line
+                  key={nom}
+                  type="monotone"
+                  dataKey={nom}
+                  stroke={PALETTE[i % PALETTE.length]}
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls
+                />
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -898,11 +1416,22 @@ function arretsColor(v: number): string {
 }
 
 // ─── Jauge 180° dégradé Rouge→Orange→Vert ────────────────────────────────────
-function GaugeArc({ value, label = "% au Tir", gradId, colorScheme = "tir" }: {
-  value: number; label?: string; gradId: string; colorScheme?: "tir" | "arrets";
+function GaugeArc({
+  value,
+  label = "% au Tir",
+  gradId,
+  colorScheme = "tir",
+}: {
+  value: number;
+  label?: string;
+  gradId: string;
+  colorScheme?: "tir" | "arrets";
 }) {
   const v = Math.min(100, Math.max(0, value));
-  const cx = 100, cy = 90, r = 70, sw = 15;
+  const cx = 100,
+    cy = 90,
+    r = 70,
+    sw = 15;
   const endAngle = (180 + v * 1.8) * (Math.PI / 180);
   const ex = cx + r * Math.cos(endAngle);
   const ey = cy + r * Math.sin(endAngle);
@@ -921,41 +1450,106 @@ function GaugeArc({ value, label = "% au Tir", gradId, colorScheme = "tir" }: {
     <svg viewBox="0 0 200 125" className="w-full max-w-[220px] mx-auto">
       <defs>
         {colorScheme === "tir" ? (
-          <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1="30" y1="90" x2="170" y2="90">
-            <stop offset="0%"   stopColor="hsl(0,85%,50%)" />
-            <stop offset="50%"  stopColor="hsl(30,90%,52%)" />
+          <linearGradient
+            id={gradId}
+            gradientUnits="userSpaceOnUse"
+            x1="30"
+            y1="90"
+            x2="170"
+            y2="90"
+          >
+            <stop offset="0%" stopColor="hsl(0,85%,50%)" />
+            <stop offset="50%" stopColor="hsl(30,90%,52%)" />
             <stop offset="100%" stopColor="hsl(120,72%,42%)" />
           </linearGradient>
         ) : (
-          <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1="30" y1="90" x2="170" y2="90">
-            <stop offset="0%"   stopColor="hsl(0,85%,50%)" />
-            <stop offset="15%"  stopColor="hsl(0,85%,50%)" />
-            <stop offset="50%"  stopColor="hsl(120,72%,42%)" />
+          <linearGradient
+            id={gradId}
+            gradientUnits="userSpaceOnUse"
+            x1="30"
+            y1="90"
+            x2="170"
+            y2="90"
+          >
+            <stop offset="0%" stopColor="hsl(0,85%,50%)" />
+            <stop offset="15%" stopColor="hsl(0,85%,50%)" />
+            <stop offset="50%" stopColor="hsl(120,72%,42%)" />
             <stop offset="100%" stopColor="hsl(120,72%,42%)" />
           </linearGradient>
         )}
       </defs>
       {/* Zone grise — portion non remplie */}
-      <path d={`M 30 90 A ${r} ${r} 0 1 1 170 90`}
-        fill="none" stroke="#94a3b8" strokeWidth={sw} strokeLinecap="round" opacity="0.28" />
+      <path
+        d={`M 30 90 A ${r} ${r} 0 1 1 170 90`}
+        fill="none"
+        stroke="#94a3b8"
+        strokeWidth={sw}
+        strokeLinecap="round"
+        opacity="0.28"
+      />
       {/* Arc rempli */}
       {v > 0 && (
-        <path d={`M 30 90 A ${r} ${r} 0 ${largeArc} 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`}
-          fill="none" stroke={`url(#${gradId})`} strokeWidth={sw} strokeLinecap="round" />
+        <path
+          d={`M 30 90 A ${r} ${r} 0 ${largeArc} 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`}
+          fill="none"
+          stroke={`url(#${gradId})`}
+          strokeWidth={sw}
+          strokeLinecap="round"
+        />
       )}
       {/* Curseur */}
       {v > 0 && v < 100 && (
-        <circle cx={ex} cy={ey} r={sw / 2 + 2} fill="white" stroke={color} strokeWidth="2.5" />
+        <circle
+          cx={ex}
+          cy={ey}
+          r={sw / 2 + 2}
+          fill="white"
+          stroke={color}
+          strokeWidth="2.5"
+        />
       )}
       {/* Valeur centrale */}
-      <text x="100" y="76" textAnchor="middle" fontWeight="900" fontSize="33"
-        fill={color} fontFamily="var(--font-russo, sans-serif)">{v}%</text>
+      <text
+        x="100"
+        y="76"
+        textAnchor="middle"
+        fontWeight="900"
+        fontSize="33"
+        fill={color}
+        fontFamily="var(--font-russo, sans-serif)"
+      >
+        {v}%
+      </text>
       {/* Libellé détail */}
-      <text x="100" y="96" textAnchor="middle" fontSize="9" fontWeight="600"
-        fill="hsl(var(--muted-foreground))">{label}</text>
+      <text
+        x="100"
+        y="96"
+        textAnchor="middle"
+        fontSize="9"
+        fontWeight="600"
+        fill="hsl(var(--muted-foreground))"
+      >
+        {label}
+      </text>
       {/* Min/max */}
-      <text x="14" y="120" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">0%</text>
-      <text x="186" y="120" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">100%</text>
+      <text
+        x="14"
+        y="120"
+        textAnchor="middle"
+        fontSize="8"
+        fill="hsl(var(--muted-foreground))"
+      >
+        0%
+      </text>
+      <text
+        x="186"
+        y="120"
+        textAnchor="middle"
+        fontSize="8"
+        fill="hsl(var(--muted-foreground))"
+      >
+        100%
+      </text>
     </svg>
   );
 }
@@ -963,18 +1557,52 @@ function GaugeArc({ value, label = "% au Tir", gradId, colorScheme = "tir" }: {
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  ONGLET 2 — STATS INDIVIDUELLES                                 ║
 // ╚══════════════════════════════════════════════════════════════════╝
-function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filters }) {
+function StatsIndividuelles({
+  data,
+  filters,
+}: {
+  data: StatsData;
+  filters: Filters;
+}) {
   const [selectedJoueurId, setSelectedJoueurId] = useState<number | null>(null);
-  const [compareMode, setCompareMode] = useState<"5M" | "5S" | "10M" | "10S" | "SAISON" | "TOTAL">("5M");
+  const [compareMode, setCompareMode] = useState<
+    "5M" | "5S" | "10M" | "10S" | "SAISON" | "TOTAL"
+  >("5M");
   const [refSaison, setRefSaison] = useState<string | null>(null);
-  const [compareModeGardien, setCompareModeGardien] = useState<"5M" | "5S" | "10M" | "10S" | "SAISON" | "TOTAL">("5M");
+  const [compareModeGardien, setCompareModeGardien] = useState<
+    "5M" | "5S" | "10M" | "10S" | "SAISON" | "TOTAL"
+  >("5M");
   const [refSaisonGardien, setRefSaisonGardien] = useState<string | null>(null);
+  const [indivDropdownOpen, setIndivDropdownOpen] = useState(false);
+  const [indivSearch, setIndivSearch] = useState("");
 
-  const joueursFiltres = useMemo(() =>
-    data.joueurs.filter((j) => equipeOk(j.id_equipe, filters.equipeIds)),
-  [data.joueurs, filters.equipeIds]);
+  const equipeColorMap = useMemo(() => {
+    const m: Record<number, string> = {};
+    data.equipes.forEach((eq, i) => {
+      m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length];
+    });
+    return m;
+  }, [data.equipes]);
 
-  const joueur = joueursFiltres.find((j) => j.id === selectedJoueurId) ?? joueursFiltres[0];
+  const joueursFiltres = useMemo(
+    () => data.joueurs.filter((j) => equipeOk(j.id_equipe, filters.equipeIds)),
+    [data.joueurs, filters.equipeIds],
+  );
+
+  const indivJoueursFiltres = useMemo(
+    () =>
+      joueursFiltres.filter((j) =>
+        indivSearch
+          ? formatNomPrenom(j.nom_prenom)
+              .toLowerCase()
+              .includes(indivSearch.toLowerCase())
+          : true,
+      ),
+    [joueursFiltres, indivSearch],
+  );
+
+  const joueur =
+    joueursFiltres.find((j) => j.id === selectedJoueurId) ?? joueursFiltres[0];
   const joueurId = joueur?.id ?? null;
   const joueurEquipeId = joueur?.id_equipe ?? null;
 
@@ -984,7 +1612,14 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
       .filter((s) => {
         if (s.id_joueur !== joueurId || !s.id_match) return false;
         const match = data.matchs.find((m) => m.id === s.id_match);
-        return match ? applyMatchFilter(match, filters, [joueurEquipeId], data.competitions) : false;
+        return match
+          ? applyMatchFilter(
+              match,
+              filters,
+              [joueurEquipeId],
+              data.competitions,
+            )
+          : false;
       })
       .map((s) => {
         const match = data.matchs.find((m) => m.id === s.id_match)!;
@@ -1002,15 +1637,16 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
   const totalButs = statsJoueur.reduce((a, s) => a + (s.buts ?? 0), 0);
   const totalTirs = statsJoueur.reduce((a, s) => a + (s.tirs ?? 0), 0);
   const pctTirVal = pct(totalButs, totalTirs);
-  const wins   = statsJoueur.filter((s) => s.result === "win").length;
-  const draws  = statsJoueur.filter((s) => s.result === "draw").length;
+  const wins = statsJoueur.filter((s) => s.result === "win").length;
+  const draws = statsJoueur.filter((s) => s.result === "draw").length;
   const losses = statsJoueur.filter((s) => s.result === "loss").length;
   const pctVictoireJoueur = pct(wins, matchsJoue);
   const last5 = statsJoueur.slice(-5);
 
   // Données cumulatives enrichies
   const cumulJoueur = useMemo(() => {
-    let cumButs = 0, cumTirs = 0;
+    let cumButs = 0,
+      cumTirs = 0;
     return statsJoueur.map((s, i) => {
       cumButs += s.buts ?? 0;
       cumTirs += s.tirs ?? 0;
@@ -1055,7 +1691,12 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
       const tb = arr.reduce((a, s) => a + (s.buts ?? 0), 0);
       const tt = arr.reduce((a, s) => a + (s.tirs ?? 0), 0);
       const n = arr.length;
-      return { moy_buts: n ? +(tb / n).toFixed(2) : 0, moy_tirs: n ? +(tt / n).toFixed(2) : 0, pct_tir: pct(tb, tt), n };
+      return {
+        moy_buts: n ? +(tb / n).toFixed(2) : 0,
+        moy_tirs: n ? +(tt / n).toFixed(2) : 0,
+        pct_tir: pct(tb, tt),
+        n,
+      };
     };
     let periodeCurrent: typeof statsJoueur = [];
     let periodeRef: typeof statsJoueur = [];
@@ -1068,24 +1709,41 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
         .map((s) => {
           const match = data.matchs.find((m) => m.id === s.id_match);
           if (!match) return null;
-          if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return null;
+          if (
+            match.equipe_recevant_id !== joueurEquipeId &&
+            match.equipe_exterieur_id !== joueurEquipeId
+          )
+            return null;
           if (getMatchSaison(match, data.competitions) !== saison) return null;
-          return { ...s, date_match: match.date_match ?? null, match, result: getResult(match, [joueurEquipeId]) ?? "draw" };
+          return {
+            ...s,
+            date_match: match.date_match ?? null,
+            match,
+            result: getResult(match, [joueurEquipeId]) ?? "draw",
+          };
         })
         .filter(Boolean) as typeof statsJoueur;
     };
     if (compareMode === "5M") {
-      periodeCurrent = statsJoueur.slice(-5); periodeRef = statsJoueur.slice(-10, -5);
-      labelCurrent = "5 derniers matchs"; labelRef = "5 matchs précédents";
+      periodeCurrent = statsJoueur.slice(-5);
+      periodeRef = statsJoueur.slice(-10, -5);
+      labelCurrent = "5 derniers matchs";
+      labelRef = "5 matchs précédents";
     } else if (compareMode === "5S") {
-      periodeCurrent = statsJoueur.slice(-5); periodeRef = allMatchesSaison(currentSaison);
-      labelCurrent = "5 derniers matchs"; labelRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
+      periodeCurrent = statsJoueur.slice(-5);
+      periodeRef = allMatchesSaison(currentSaison);
+      labelCurrent = "5 derniers matchs";
+      labelRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
     } else if (compareMode === "10M") {
-      periodeCurrent = statsJoueur.slice(-10); periodeRef = statsJoueur.slice(-20, -10);
-      labelCurrent = "10 derniers matchs"; labelRef = "10 matchs précédents";
+      periodeCurrent = statsJoueur.slice(-10);
+      periodeRef = statsJoueur.slice(-20, -10);
+      labelCurrent = "10 derniers matchs";
+      labelRef = "10 matchs précédents";
     } else if (compareMode === "10S") {
-      periodeCurrent = statsJoueur.slice(-10); periodeRef = allMatchesSaison(currentSaison);
-      labelCurrent = "10 derniers matchs"; labelRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
+      periodeCurrent = statsJoueur.slice(-10);
+      periodeRef = allMatchesSaison(currentSaison);
+      labelCurrent = "10 derniers matchs";
+      labelRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
     } else if (compareMode === "TOTAL") {
       periodeCurrent = allMatchesSaison(currentSaison);
       labelCurrent = `Saison ${currentSaison ?? "actuelle"}`;
@@ -1096,8 +1754,17 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
           .map((s) => {
             const match = data.matchs.find((m) => m.id === s.id_match);
             if (!match) return null;
-            if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return null;
-            return { ...s, date_match: match.date_match ?? null, match, result: getResult(match, [joueurEquipeId]) ?? "draw" };
+            if (
+              match.equipe_recevant_id !== joueurEquipeId &&
+              match.equipe_exterieur_id !== joueurEquipeId
+            )
+              return null;
+            return {
+              ...s,
+              date_match: match.date_match ?? null,
+              match,
+              result: getResult(match, [joueurEquipeId]) ?? "draw",
+            };
           })
           .filter(Boolean) as typeof statsJoueur;
       }
@@ -1111,20 +1778,39 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
             if (s.id_joueur !== joueurId || !s.id_match) return false;
             const match = data.matchs.find((m) => m.id === s.id_match);
             if (!match) return false;
-            if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return false;
+            if (
+              match.equipe_recevant_id !== joueurEquipeId &&
+              match.equipe_exterieur_id !== joueurEquipeId
+            )
+              return false;
             return getMatchSaison(match, data.competitions) === refSaison;
           })
           .map((s) => {
             const match = data.matchs.find((m) => m.id === s.id_match)!;
-            return { ...s, date_match: match.date_match ?? null, match, result: getResult(match, [joueurEquipeId]) ?? "draw" };
+            return {
+              ...s,
+              date_match: match.date_match ?? null,
+              match,
+              result: getResult(match, [joueurEquipeId]) ?? "draw",
+            };
           })
-          .sort((a, b) => (a.date_match ?? "").localeCompare(b.date_match ?? ""));
+          .sort((a, b) =>
+            (a.date_match ?? "").localeCompare(b.date_match ?? ""),
+          );
       }
     }
     const current = statsPerf(periodeCurrent);
     const ref = periodeRef.length ? statsPerf(periodeRef) : null;
     return { current, ref, labelCurrent, labelRef };
-  }, [data, statsJoueur, joueurId, joueurEquipeId, compareMode, refSaison, currentSaison]);
+  }, [
+    data,
+    statsJoueur,
+    joueurId,
+    joueurEquipeId,
+    compareMode,
+    refSaison,
+    currentSaison,
+  ]);
 
   // ── Gardien ──
   const isGardien = useMemo(() => {
@@ -1140,39 +1826,56 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
   }, [isGardien, statsJoueur]);
 
   const gardienMatchs = statsGardienJoueur.length;
-  const totalArrets = statsGardienJoueur.reduce((a, s) => a + (s.arrets ?? 0), 0);
+  const totalArrets = statsGardienJoueur.reduce(
+    (a, s) => a + (s.arrets ?? 0),
+    0,
+  );
   const butsEncGardien = statsGardienJoueur.reduce((acc, s) => {
     if (!s.match.score_final) return acc;
     const [a, b] = s.match.score_final.split("-").map(Number);
     return acc + (s.match.equipe_recevant_id === joueurEquipeId ? b : a);
   }, 0);
   const pctArretsVal = pct(totalArrets, totalArrets + butsEncGardien);
-  const moyArretsVal = gardienMatchs ? +(totalArrets / gardienMatchs).toFixed(1) : 0;
+  const moyArretsVal = gardienMatchs
+    ? +(totalArrets / gardienMatchs).toFixed(1)
+    : 0;
 
   const cumulGardien = useMemo(() => {
-    let cumArr = 0, cumEnc = 0;
-    return statsGardienJoueur.map((s, i) => {
-      if (!s.match.score_final) return null;
-      const [a, b] = s.match.score_final.split("-").map(Number);
-      const enc = s.match.equipe_recevant_id === joueurEquipeId ? b : a;
-      const arr = s.arrets ?? 0;
-      cumArr += arr;
-      cumEnc += enc;
-      const n = i + 1;
-      return {
-        label: s.date_match ? fmtDate(s.date_match) : `M${n}`,
-        arretsDuMatch: arr,
-        encDuMatch: enc,
-        pctArretsMatch: pct(arr, arr + enc),
-        moyArrets: +(cumArr / n).toFixed(2),
-        pctArretsCumul: pct(cumArr, cumArr + cumEnc),
-        result: s.result,
-      };
-    }).filter(Boolean) as { label: string; arretsDuMatch: number; encDuMatch: number; pctArretsMatch: number; moyArrets: number; pctArretsCumul: number; result: string }[];
+    let cumArr = 0,
+      cumEnc = 0;
+    return statsGardienJoueur
+      .map((s, i) => {
+        if (!s.match.score_final) return null;
+        const [a, b] = s.match.score_final.split("-").map(Number);
+        const enc = s.match.equipe_recevant_id === joueurEquipeId ? b : a;
+        const arr = s.arrets ?? 0;
+        cumArr += arr;
+        cumEnc += enc;
+        const n = i + 1;
+        return {
+          label: s.date_match ? fmtDate(s.date_match) : `M${n}`,
+          arretsDuMatch: arr,
+          encDuMatch: enc,
+          pctArretsMatch: pct(arr, arr + enc),
+          moyArrets: +(cumArr / n).toFixed(2),
+          pctArretsCumul: pct(cumArr, cumArr + cumEnc),
+          result: s.result,
+        };
+      })
+      .filter(Boolean) as {
+      label: string;
+      arretsDuMatch: number;
+      encDuMatch: number;
+      pctArretsMatch: number;
+      moyArrets: number;
+      pctArretsCumul: number;
+      result: string;
+    }[];
   }, [statsGardienJoueur, joueurEquipeId]);
 
   const gardienEvolutionComparison = useMemo(() => {
-    if (!isGardien || !statsGardienJoueur.length || !joueurEquipeId) return null;
+    if (!isGardien || !statsGardienJoueur.length || !joueurEquipeId)
+      return null;
     const gardienPerf = (arr: typeof statsGardienJoueur) => {
       if (!arr.length) return null;
       const totalArr = arr.reduce((a, s) => a + (s.arrets ?? 0), 0);
@@ -1182,96 +1885,194 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
         return acc + (s.match.equipe_recevant_id === joueurEquipeId ? b : a);
       }, 0);
       const n = arr.length;
-      return { moy_arrets: n ? +(totalArr / n).toFixed(2) : 0, pct_arrets: pct(totalArr, totalArr + totalEnc), n };
+      return {
+        moy_arrets: n ? +(totalArr / n).toFixed(2) : 0,
+        pct_arrets: pct(totalArr, totalArr + totalEnc),
+        n,
+      };
     };
-    const allGardienSaison = (saison: string | null): typeof statsGardienJoueur => {
+    const allGardienSaison = (
+      saison: string | null,
+    ): typeof statsGardienJoueur => {
       if (!saison || !joueurId) return [];
       return data.statsJoueurs
-        .filter((s) => s.id_joueur === joueurId && s.id_match != null && (s.arrets ?? 0) >= 2)
+        .filter(
+          (s) =>
+            s.id_joueur === joueurId &&
+            s.id_match != null &&
+            (s.arrets ?? 0) >= 2,
+        )
         .map((s) => {
           const match = data.matchs.find((m) => m.id === s.id_match);
           if (!match) return null;
-          if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return null;
+          if (
+            match.equipe_recevant_id !== joueurEquipeId &&
+            match.equipe_exterieur_id !== joueurEquipeId
+          )
+            return null;
           if (getMatchSaison(match, data.competitions) !== saison) return null;
-          return { ...s, date_match: match.date_match ?? null, match, result: getResult(match, [joueurEquipeId]) ?? "draw" };
+          return {
+            ...s,
+            date_match: match.date_match ?? null,
+            match,
+            result: getResult(match, [joueurEquipeId]) ?? "draw",
+          };
         })
         .filter(Boolean) as typeof statsGardienJoueur;
     };
     const allGardienTotal = (): typeof statsGardienJoueur => {
       if (!joueurId) return [];
       return data.statsJoueurs
-        .filter((s) => s.id_joueur === joueurId && s.id_match != null && (s.arrets ?? 0) >= 2)
+        .filter(
+          (s) =>
+            s.id_joueur === joueurId &&
+            s.id_match != null &&
+            (s.arrets ?? 0) >= 2,
+        )
         .map((s) => {
           const match = data.matchs.find((m) => m.id === s.id_match);
           if (!match) return null;
-          if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return null;
-          return { ...s, date_match: match.date_match ?? null, match, result: getResult(match, [joueurEquipeId]) ?? "draw" };
+          if (
+            match.equipe_recevant_id !== joueurEquipeId &&
+            match.equipe_exterieur_id !== joueurEquipeId
+          )
+            return null;
+          return {
+            ...s,
+            date_match: match.date_match ?? null,
+            match,
+            result: getResult(match, [joueurEquipeId]) ?? "draw",
+          };
         })
         .filter(Boolean) as typeof statsGardienJoueur;
     };
-    let pCur: typeof statsGardienJoueur = [], pRef: typeof statsGardienJoueur = [], lCur = "", lRef = "";
+    let pCur: typeof statsGardienJoueur = [],
+      pRef: typeof statsGardienJoueur = [],
+      lCur = "",
+      lRef = "";
     if (compareModeGardien === "5M") {
-      pCur = statsGardienJoueur.slice(-5); pRef = statsGardienJoueur.slice(-10, -5);
-      lCur = "5 derniers matchs"; lRef = "5 matchs précédents";
+      pCur = statsGardienJoueur.slice(-5);
+      pRef = statsGardienJoueur.slice(-10, -5);
+      lCur = "5 derniers matchs";
+      lRef = "5 matchs précédents";
     } else if (compareModeGardien === "5S") {
-      pCur = statsGardienJoueur.slice(-5); pRef = allGardienSaison(currentSaison);
-      lCur = "5 derniers matchs"; lRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
+      pCur = statsGardienJoueur.slice(-5);
+      pRef = allGardienSaison(currentSaison);
+      lCur = "5 derniers matchs";
+      lRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
     } else if (compareModeGardien === "10M") {
-      pCur = statsGardienJoueur.slice(-10); pRef = statsGardienJoueur.slice(-20, -10);
-      lCur = "10 derniers matchs"; lRef = "10 matchs précédents";
+      pCur = statsGardienJoueur.slice(-10);
+      pRef = statsGardienJoueur.slice(-20, -10);
+      lCur = "10 derniers matchs";
+      lRef = "10 matchs précédents";
     } else if (compareModeGardien === "10S") {
-      pCur = statsGardienJoueur.slice(-10); pRef = allGardienSaison(currentSaison);
-      lCur = "10 derniers matchs"; lRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
+      pCur = statsGardienJoueur.slice(-10);
+      pRef = allGardienSaison(currentSaison);
+      lCur = "10 derniers matchs";
+      lRef = `Saison ${currentSaison ?? "actuelle"} (tout)`;
     } else if (compareModeGardien === "TOTAL") {
-      pCur = allGardienSaison(currentSaison); pRef = allGardienTotal();
-      lCur = `Saison ${currentSaison ?? "actuelle"}`; lRef = "Tous matchs (toutes saisons)";
+      pCur = allGardienSaison(currentSaison);
+      pRef = allGardienTotal();
+      lCur = `Saison ${currentSaison ?? "actuelle"}`;
+      lRef = "Tous matchs (toutes saisons)";
     } else {
       pCur = allGardienSaison(currentSaison);
       pRef = refSaisonGardien ? allGardienSaison(refSaisonGardien) : [];
       lCur = `Saison ${currentSaison ?? "actuelle"}`;
-      lRef = refSaisonGardien ? `Saison ${refSaisonGardien}` : "— choisir une saison";
+      lRef = refSaisonGardien
+        ? `Saison ${refSaisonGardien}`
+        : "— choisir une saison";
     }
-    return { current: gardienPerf(pCur), ref: pRef.length ? gardienPerf(pRef) : null, labelCurrent: lCur, labelRef: lRef };
-  }, [isGardien, statsGardienJoueur, joueurEquipeId, joueurId, compareModeGardien, refSaisonGardien, currentSaison, data]);
+    return {
+      current: gardienPerf(pCur),
+      ref: pRef.length ? gardienPerf(pRef) : null,
+      labelCurrent: lCur,
+      labelRef: lRef,
+    };
+  }, [
+    isGardien,
+    statsGardienJoueur,
+    joueurEquipeId,
+    joueurId,
+    compareModeGardien,
+    refSaisonGardien,
+    currentSaison,
+    data,
+  ]);
 
   const CumulJoueurTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
-    const rcol = d.result === "win" ? "#10b981" : d.result === "loss" ? "#ef4444" : "#f59e0b";
-    const rlabel = d.result === "win" ? "Victoire" : d.result === "loss" ? "Défaite" : "Nul";
+    const rcol =
+      d.result === "win"
+        ? "#10b981"
+        : d.result === "loss"
+          ? "#ef4444"
+          : "#f59e0b";
+    const rlabel =
+      d.result === "win" ? "Victoire" : d.result === "loss" ? "Défaite" : "Nul";
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[190px] overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[190px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="overflow-y-auto max-h-80">
           <div className="p-3 text-xs space-y-2">
             <div className="flex items-center justify-between pb-2 border-b">
               <p className="font-black text-sm">{label}</p>
-              <span className="font-black text-[10px] px-2 py-0.5 rounded-full" style={{ background: rcol + "22", color: rcol }}>{rlabel}</span>
+              <span
+                className="font-black text-[10px] px-2 py-0.5 rounded-full"
+                style={{ background: rcol + "22", color: rcol }}
+              >
+                {rlabel}
+              </span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-emerald-500">{d.butsDuMatch}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts</p>
+                <p className="font-black text-sm text-emerald-500">
+                  {d.butsDuMatch}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Buts
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-indigo-500">{d.tirsDuMatch}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Tirs</p>
+                <p className="font-black text-sm text-indigo-500">
+                  {d.tirsDuMatch}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Tirs
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-emerald-400">{d.moyButs}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Moy. Buts</p>
+                <p className="font-black text-sm text-emerald-400">
+                  {d.moyButs}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Moy. Buts
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-indigo-400">{d.moyTirs}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Moy. Tirs</p>
+                <p className="font-black text-sm text-indigo-400">
+                  {d.moyTirs}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Moy. Tirs
+                </p>
               </div>
             </div>
             <div className="border-t pt-2 space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">% Tir cumulé</span>
-                <span className="font-black text-amber-500">{d.pctTirCumul}%</span>
+                <span className="font-black text-amber-500">
+                  {d.pctTirCumul}%
+                </span>
               </div>
               <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-amber-400" style={{ width: `${d.pctTirCumul}%` }} />
+                <div
+                  className="h-full rounded-full bg-amber-400"
+                  style={{ width: `${d.pctTirCumul}%` }}
+                />
               </div>
             </div>
           </div>
@@ -1283,46 +2084,94 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
   const CumulGardienTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
-    const rcol = d.result === "win" ? "#10b981" : d.result === "loss" ? "#ef4444" : "#f59e0b";
-    const rlabel = d.result === "win" ? "Victoire" : d.result === "loss" ? "Défaite" : "Nul";
+    const rcol =
+      d.result === "win"
+        ? "#10b981"
+        : d.result === "loss"
+          ? "#ef4444"
+          : "#f59e0b";
+    const rlabel =
+      d.result === "win" ? "Victoire" : d.result === "loss" ? "Défaite" : "Nul";
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[190px] overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[190px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="overflow-y-auto max-h-80">
           <div className="p-3 text-xs space-y-2">
             <div className="flex items-center justify-between pb-2 border-b">
               <p className="font-black text-sm">{label}</p>
-              <span className="font-black text-[10px] px-2 py-0.5 rounded-full" style={{ background: rcol + "22", color: rcol }}>{rlabel}</span>
+              <span
+                className="font-black text-[10px] px-2 py-0.5 rounded-full"
+                style={{ background: rcol + "22", color: rcol }}
+              >
+                {rlabel}
+              </span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-indigo-500">{d.arretsDuMatch}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Arrêts</p>
+                <p className="font-black text-sm text-indigo-500">
+                  {d.arretsDuMatch}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Arrêts
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-red-400">{d.encDuMatch}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts enc.</p>
+                <p className="font-black text-sm text-red-400">
+                  {d.encDuMatch}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Buts enc.
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center col-span-2">
-                <p className="font-black text-sm text-indigo-400">{d.moyArrets}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Moy. Arrêts</p>
+                <p className="font-black text-sm text-indigo-400">
+                  {d.moyArrets}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Moy. Arrêts
+                </p>
               </div>
             </div>
             <div className="border-t pt-2 space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">% Arrêts (match)</span>
-                <span className="font-black" style={{ color: arretsColor(d.pctArretsMatch) }}>{d.pctArretsMatch}%</span>
+                <span
+                  className="font-black"
+                  style={{ color: arretsColor(d.pctArretsMatch) }}
+                >
+                  {d.pctArretsMatch}%
+                </span>
               </div>
               <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${d.pctArretsMatch}%`, background: arretsColor(d.pctArretsMatch) }} />
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${d.pctArretsMatch}%`,
+                    background: arretsColor(d.pctArretsMatch),
+                  }}
+                />
               </div>
             </div>
             <div className="border-t pt-2 space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">% Arrêts cumulé</span>
-                <span className="font-black" style={{ color: arretsColor(d.pctArretsCumul) }}>{d.pctArretsCumul}%</span>
+                <span
+                  className="font-black"
+                  style={{ color: arretsColor(d.pctArretsCumul) }}
+                >
+                  {d.pctArretsCumul}%
+                </span>
               </div>
               <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${d.pctArretsCumul}%`, background: arretsColor(d.pctArretsCumul) }} />
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${d.pctArretsCumul}%`,
+                    background: arretsColor(d.pctArretsCumul),
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -1335,14 +2184,108 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
     <div className="space-y-6">
       {/* Sélecteur joueur */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-[10px] font-black uppercase text-muted-foreground">Joueur</span>
-        <select
-          className="text-xs font-bold uppercase rounded-xl border px-3 py-2 bg-background"
-          value={joueurId ?? ""}
-          onChange={(e) => setSelectedJoueurId(Number(e.target.value))}
-        >
-          {joueursFiltres.map((j) => <option key={j.id} value={j.id}>{j.nom_prenom}</option>)}
-        </select>
+        <span className="text-[10px] font-black uppercase text-muted-foreground">
+          Joueur
+        </span>
+        <div className="relative">
+          <button
+            onClick={() => setIndivDropdownOpen((v) => !v)}
+            className="flex items-center gap-2 text-xs font-bold rounded-xl border px-3 py-2 bg-background hover:bg-muted/50 transition-colors min-w-40"
+          >
+            {joueur && (
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                style={{
+                  background:
+                    equipeColorMap[joueur.id_equipe ?? -1] ?? TEAM_PALETTE[0],
+                }}
+              />
+            )}
+            <span className="truncate max-w-[200px]">
+              {joueur
+                ? formatNomPrenom(joueur.nom_prenom)
+                : "Choisir un joueur"}
+            </span>
+            <svg
+              className="ml-auto w-3 h-3 opacity-50 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+          {indivDropdownOpen && (
+            <div className="absolute left-0 top-full mt-1 z-50 min-w-60 bg-popover border rounded-xl shadow-lg overflow-hidden">
+              <div className="p-2 border-b">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Rechercher…"
+                  value={indivSearch}
+                  onChange={(e) => setIndivSearch(e.target.value)}
+                  className="w-full text-xs rounded-lg border px-2.5 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <ul className="max-h-56 overflow-y-auto py-1">
+                {indivJoueursFiltres.map((j) => {
+                  const equipe = data.equipes.find(
+                    (eq) => eq.id === j.id_equipe,
+                  );
+                  const color =
+                    equipeColorMap[j.id_equipe ?? -1] ?? TEAM_PALETTE[0];
+                  return (
+                    <li key={j.id}>
+                      <button
+                        onClick={() => {
+                          setSelectedJoueurId(j.id);
+                          setIndivDropdownOpen(false);
+                          setIndivSearch("");
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted/60 transition-colors text-left ${
+                          j.id === joueurId
+                            ? "bg-primary/10 font-bold"
+                            : "font-medium"
+                        }`}
+                      >
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ background: color }}
+                        />
+                        <span className="flex-1 truncate">
+                          {formatNomPrenom(j.nom_prenom)}
+                        </span>
+                        {equipe && (
+                          <span className="text-[10px] text-muted-foreground truncate max-w-20">
+                            {equipe.nom}
+                          </span>
+                        )}
+                        {j.poste_principal && (
+                          <span
+                            className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0"
+                            style={{ background: color + "30", color }}
+                          >
+                            {j.poste_principal}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+                {indivJoueursFiltres.length === 0 && (
+                  <li className="px-3 py-4 text-xs text-muted-foreground text-center">
+                    Aucun joueur
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
         {joueur?.poste_principal && (
           <Badge className="font-sport italic text-[10px] bg-primary/10 text-primary border-primary/20">
             {joueur.poste_principal}
@@ -1354,36 +2297,70 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
         <>
           {/* Métriques */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <MetricCard label="Matchs joués" value={matchsJoue} sub={`${wins}V · ${draws}N · ${losses}D`} />
-            <MetricCard label="Moy. Buts" value={matchsJoue ? (totalButs / matchsJoue).toFixed(1) : "—"} color="text-primary" sub={`${totalButs} au total`} />
-            <MetricCard label="Moy. Tirs" value={matchsJoue ? (totalTirs / matchsJoue).toFixed(1) : "—"} sub={`${totalTirs} au total`} />
+            <MetricCard
+              label="Matchs joués"
+              value={matchsJoue}
+              sub={`${wins}V · ${draws}N · ${losses}D`}
+            />
+            <MetricCard
+              label="Moy. Buts"
+              value={matchsJoue ? (totalButs / matchsJoue).toFixed(1) : "—"}
+              color="text-primary"
+              sub={`${totalButs} au total`}
+            />
+            <MetricCard
+              label="Moy. Tirs"
+              value={matchsJoue ? (totalTirs / matchsJoue).toFixed(1) : "—"}
+              sub={`${totalTirs} au total`}
+            />
           </div>
 
           {/* Jauges 180° */}
-          <div className={`grid grid-cols-1 gap-4 ${isGardien && gardienMatchs > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          <div
+            className={`grid grid-cols-1 gap-4 ${isGardien && gardienMatchs > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+          >
             <Card className="rounded-3xl border-2 overflow-hidden">
               <div className="bg-muted/50 border-b px-5 py-3">
-                <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">% au Tir</p>
+                <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+                  % au Tir
+                </p>
               </div>
               <div className="flex flex-col items-center px-4 py-2">
-                <GaugeArc value={pctTirVal} label={`${totalButs} buts / ${totalTirs} tirs`} gradId="gauge-tir" />
+                <GaugeArc
+                  value={pctTirVal}
+                  label={`${totalButs} buts / ${totalTirs} tirs`}
+                  gradId="gauge-tir"
+                />
               </div>
             </Card>
             <Card className="rounded-3xl border-2 overflow-hidden">
               <div className="bg-muted/50 border-b px-5 py-3">
-                <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">% Victoires</p>
+                <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">
+                  % Victoires
+                </p>
               </div>
               <div className="flex flex-col items-center px-4 py-2">
-                <GaugeArc value={pctVictoireJoueur} label={`${wins}V · ${draws}N · ${losses}D`} gradId="gauge-win" />
+                <GaugeArc
+                  value={pctVictoireJoueur}
+                  label={`${wins}V · ${draws}N · ${losses}D`}
+                  gradId="gauge-win"
+                />
               </div>
             </Card>
             {isGardien && gardienMatchs > 0 && (
               <Card className="rounded-3xl border-2 overflow-hidden">
                 <div className="bg-muted/50 border-b px-5 py-3">
-                  <p className="text-[11px] font-black uppercase tracking-wide text-indigo-600">% Arrêts</p>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-indigo-600">
+                    % Arrêts
+                  </p>
                 </div>
                 <div className="flex flex-col items-center px-4 py-2">
-                  <GaugeArc value={pctArretsVal} label={`${totalArrets} arrêts / ${totalArrets + butsEncGardien} enc.`} gradId="gauge-arrets-main" colorScheme="arrets" />
+                  <GaugeArc
+                    value={pctArretsVal}
+                    label={`${totalArrets} arrêts / ${totalArrets + butsEncGardien} enc.`}
+                    gradId="gauge-arrets-main"
+                    colorScheme="arrets"
+                  />
                 </div>
               </Card>
             )}
@@ -1392,15 +2369,27 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
           {/* Forme récente — 5 derniers matchs */}
           {last5.length > 0 && (
             <Card className="rounded-3xl border-2 p-5 overflow-hidden">
-              <p className="text-[10px] font-black uppercase text-muted-foreground mb-4">Forme récente (5 derniers matchs)</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground mb-4">
+                Forme récente (5 derniers matchs)
+              </p>
               <div className="flex justify-center gap-2.5 overflow-x-auto pb-1">
                 {last5.map((s, i) => {
-                  const isWin  = s.result === "win";
+                  const isWin = s.result === "win";
                   const isLoss = s.result === "loss";
                   const letter = isWin ? "V" : isLoss ? "D" : "N";
-                  const accentColor = isWin ? "#10b981" : isLoss ? "#ef4444" : "#f59e0b";
-                  const bgClass = isWin ? "bg-emerald-500/10 border-emerald-500/30" : isLoss ? "bg-red-500/10 border-red-500/30" : "bg-amber-400/10 border-amber-400/30";
-                  const dateLabel = s.date_match ? fmtDate(s.date_match) : `M${i + 1}`;
+                  const accentColor = isWin
+                    ? "#10b981"
+                    : isLoss
+                      ? "#ef4444"
+                      : "#f59e0b";
+                  const bgClass = isWin
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : isLoss
+                      ? "bg-red-500/10 border-red-500/30"
+                      : "bg-amber-400/10 border-amber-400/30";
+                  const dateLabel = s.date_match
+                    ? fmtDate(s.date_match)
+                    : `M${i + 1}`;
                   const buts = s.buts ?? 0;
                   const tirs = s.tirs ?? 0;
                   const pctTirMatch = pct(buts, tirs);
@@ -1408,18 +2397,33 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                   const score = s.match.score_final ?? null;
                   const maxButs = Math.max(...last5.map((x) => x.buts ?? 0), 1);
                   return (
-                    <div key={i} className={`shrink-0 w-[120px] rounded-2xl border-2 ${bgClass} overflow-hidden`}>
+                    <div
+                      key={i}
+                      className={`shrink-0 w-[120px] rounded-2xl border-2 ${bgClass} overflow-hidden`}
+                    >
                       {/* Bande couleur du résultat */}
-                      <div className="h-1 w-full" style={{ background: accentColor }} />
+                      <div
+                        className="h-1 w-full"
+                        style={{ background: accentColor }}
+                      />
                       <div className="p-3 space-y-2">
                         {/* Résultat + badge domicile/ext */}
                         <div className="flex items-center justify-between">
-                          <span className="font-sport italic font-black text-xl leading-none" style={{ color: accentColor }}>{letter}</span>
-                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground">{isHome ? "Dom" : "Ext"}</span>
+                          <span
+                            className="font-sport italic font-black text-xl leading-none"
+                            style={{ color: accentColor }}
+                          >
+                            {letter}
+                          </span>
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground">
+                            {isHome ? "Dom" : "Ext"}
+                          </span>
                         </div>
                         {/* Score du match */}
                         {score && (
-                          <p className="text-[11px] font-black text-center tracking-wide">{score}</p>
+                          <p className="text-[11px] font-black text-center tracking-wide">
+                            {score}
+                          </p>
                         )}
                         {/* Buts du joueur */}
                         <div className="space-y-1">
@@ -1428,7 +2432,13 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                             <span style={{ color: accentColor }}>{buts}</span>
                           </div>
                           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((buts / maxButs) * 100)}%`, background: accentColor }} />
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${Math.round((buts / maxButs) * 100)}%`,
+                                background: accentColor,
+                              }}
+                            />
                           </div>
                         </div>
                         {/* Tirs + % */}
@@ -1439,7 +2449,9 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                           </div>
                         )}
                         {/* Date */}
-                        <p className="text-[9px] text-muted-foreground/60 text-center">{dateLabel}</p>
+                        <p className="text-[9px] text-muted-foreground/60 text-center">
+                          {dateLabel}
+                        </p>
                       </div>
                     </div>
                   );
@@ -1448,13 +2460,32 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
               {/* Barre récap V-N-D */}
               <div className="flex items-center gap-3 mt-4 pt-3 border-t">
                 {[
-                  { label: "V", count: last5.filter((s) => s.result === "win").length,  color: "#10b981" },
-                  { label: "N", count: last5.filter((s) => s.result === "draw").length, color: "#f59e0b" },
-                  { label: "D", count: last5.filter((s) => s.result === "loss").length, color: "#ef4444" },
+                  {
+                    label: "V",
+                    count: last5.filter((s) => s.result === "win").length,
+                    color: "#10b981",
+                  },
+                  {
+                    label: "N",
+                    count: last5.filter((s) => s.result === "draw").length,
+                    color: "#f59e0b",
+                  },
+                  {
+                    label: "D",
+                    count: last5.filter((s) => s.result === "loss").length,
+                    color: "#ef4444",
+                  },
                 ].map(({ label, count, color }) => (
                   <div key={label} className="flex items-center gap-1.5">
-                    <span className="w-4 h-4 rounded-md flex items-center justify-center text-[9px] font-black text-white" style={{ background: color }}>{label}</span>
-                    <span className="text-xs font-black" style={{ color }}>{count}</span>
+                    <span
+                      className="w-4 h-4 rounded-md flex items-center justify-center text-[9px] font-black text-white"
+                      style={{ background: color }}
+                    >
+                      {label}
+                    </span>
+                    <span className="text-xs font-black" style={{ color }}>
+                      {count}
+                    </span>
                   </div>
                 ))}
                 <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden flex">
@@ -1465,9 +2496,18 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                     const total = last5.length;
                     return (
                       <>
-                        <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(w / total) * 100}%` }} />
-                        <div className="h-full bg-amber-400 transition-all" style={{ width: `${(n / total) * 100}%` }} />
-                        <div className="h-full bg-red-500 transition-all" style={{ width: `${(d / total) * 100}%` }} />
+                        <div
+                          className="h-full bg-emerald-500 transition-all"
+                          style={{ width: `${(w / total) * 100}%` }}
+                        />
+                        <div
+                          className="h-full bg-amber-400 transition-all"
+                          style={{ width: `${(n / total) * 100}%` }}
+                        />
+                        <div
+                          className="h-full bg-red-500 transition-all"
+                          style={{ width: `${(d / total) * 100}%` }}
+                        />
                       </>
                     );
                   })()}
@@ -1479,18 +2519,67 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
           {/* Courbe : moy. buts & tirs cumulés + buts par match */}
           {cumulJoueur.length > 1 && (
             <ChartCard title="Moyenne cumulée buts & tirs — évolution par match">
-              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+              <ResponsiveContainer
+                width="100%"
+                height={280}
+                style={{ overflow: "visible" }}
+              >
                 <ComposedChart data={cumulJoueur}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10 }}
+                    interval="preserveStartEnd"
+                  />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                  <Tooltip content={<CumulJoueurTooltip />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    content={<CumulJoueurTooltip />}
+                    wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+                  />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar yAxisId="left" dataKey="butsDuMatch" name="Buts (match)" fill="#10b981" opacity={0.2} radius={[2, 2, 0, 0]} />
-                  <Line yAxisId="left" type="monotone" dataKey="moyButs" name="Moy. Buts cumulée" stroke="#10b981" strokeWidth={2.5} dot={false} />
-                  <Line yAxisId="left" type="monotone" dataKey="moyTirs" name="Moy. Tirs cumulée" stroke="#6366f1" strokeWidth={2} dot={false} strokeDasharray="5 3" />
-                  <Line yAxisId="right" type="monotone" dataKey="pctTirCumul" name="% Tir cumulé" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="butsDuMatch"
+                    name="Buts (match)"
+                    fill="#10b981"
+                    opacity={0.2}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="moyButs"
+                    name="Moy. Buts cumulée"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="moyTirs"
+                    name="Moy. Tirs cumulée"
+                    stroke="#6366f1"
+                    strokeWidth={2}
+                    dot={false}
+                    strokeDasharray="5 3"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="pctTirCumul"
+                    name="% Tir cumulé"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={false}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -1499,25 +2588,100 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
           {/* Courbe arrêts cumulés (si gardien) */}
           {isGardien && cumulGardien.length > 1 && (
             <ChartCard title="Évolution arrêts & % arrêts cumulé — par match">
-              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+              <ResponsiveContainer
+                width="100%"
+                height={280}
+                style={{ overflow: "visible" }}
+              >
                 <ComposedChart data={cumulGardien}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10 }}
+                    interval="preserveStartEnd"
+                  />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                  <Tooltip content={<CumulGardienTooltip />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    content={<CumulGardienTooltip />}
+                    wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+                  />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar yAxisId="left" dataKey="arretsDuMatch" name="Arrêts (match)" fill="#6366f1" opacity={0.2} radius={[2, 2, 0, 0]} />
-                  <Line yAxisId="left" type="monotone" dataKey="moyArrets" name="Moy. Arrêts cumulée" stroke="#6366f1" strokeWidth={2.5} dot={false} />
-                  <Line yAxisId="right" type="monotone" dataKey="pctArretsMatch" name="% Arrêts (match)"
-                    stroke={arretsColor(cumulGardien.reduce((s, d) => s + d.pctArretsMatch, 0) / Math.max(1, cumulGardien.length))}
-                    strokeWidth={1.5} strokeDasharray="4 2"
-                    dot={(p: any) => <circle key={`am-${p.cx}`} cx={p.cx} cy={p.cy} r={3} fill={arretsColor(p.payload.pctArretsMatch)} />}
-                    activeDot={(p: any) => <circle cx={p.cx} cy={p.cy} r={5} fill={arretsColor(p.payload.pctArretsMatch)} stroke="white" strokeWidth={1.5} />} />
-                  <Line yAxisId="right" type="monotone" dataKey="pctArretsCumul" name="% Arrêts cumulé"
-                    stroke={arretsColor(cumulGardien.at(-1)?.pctArretsCumul ?? 0)}
-                    strokeWidth={2} dot={false}
-                    activeDot={(p: any) => <circle cx={p.cx} cy={p.cy} r={5} fill={arretsColor(p.payload.pctArretsCumul)} stroke="white" strokeWidth={1.5} />} />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="arretsDuMatch"
+                    name="Arrêts (match)"
+                    fill="#6366f1"
+                    opacity={0.2}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="moyArrets"
+                    name="Moy. Arrêts cumulée"
+                    stroke="#6366f1"
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="pctArretsMatch"
+                    name="% Arrêts (match)"
+                    stroke={arretsColor(
+                      cumulGardien.reduce((s, d) => s + d.pctArretsMatch, 0) /
+                        Math.max(1, cumulGardien.length),
+                    )}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 2"
+                    dot={(p: any) => (
+                      <circle
+                        key={`am-${p.cx}`}
+                        cx={p.cx}
+                        cy={p.cy}
+                        r={3}
+                        fill={arretsColor(p.payload.pctArretsMatch)}
+                      />
+                    )}
+                    activeDot={(p: any) => (
+                      <circle
+                        cx={p.cx}
+                        cy={p.cy}
+                        r={5}
+                        fill={arretsColor(p.payload.pctArretsMatch)}
+                        stroke="white"
+                        strokeWidth={1.5}
+                      />
+                    )}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="pctArretsCumul"
+                    name="% Arrêts cumulé"
+                    stroke={arretsColor(
+                      cumulGardien.at(-1)?.pctArretsCumul ?? 0,
+                    )}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={(p: any) => (
+                      <circle
+                        cx={p.cx}
+                        cy={p.cy}
+                        r={5}
+                        fill={arretsColor(p.payload.pctArretsCumul)}
+                        stroke="white"
+                        strokeWidth={1.5}
+                      />
+                    )}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -1528,20 +2692,34 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
             <Card className="rounded-3xl border-2 p-5 space-y-4">
               {/* Sélecteur de mode */}
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[10px] font-black uppercase text-muted-foreground mr-1">Analyse d'évolution</p>
-                {(["5M", "5S", "10M", "10S", "TOTAL", "SAISON"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setCompareMode(m)}
-                    className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border transition-colors ${
-                      compareMode === m
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-muted-foreground/30 hover:bg-muted"
-                    }`}
-                  >
-                    {m === "5M" ? "5 vs 5 préc." : m === "5S" ? "5 vs saison" : m === "10M" ? "10 vs 10 préc." : m === "10S" ? "10 vs saison" : m === "TOTAL" ? "Saison vs total" : "Saison vs saison"}
-                  </button>
-                ))}
+                <p className="text-[10px] font-black uppercase text-muted-foreground mr-1">
+                  Analyse d'évolution
+                </p>
+                {(["5M", "5S", "10M", "10S", "TOTAL", "SAISON"] as const).map(
+                  (m) => (
+                    <button
+                      key={m}
+                      onClick={() => setCompareMode(m)}
+                      className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border transition-colors ${
+                        compareMode === m
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-muted-foreground/30 hover:bg-muted"
+                      }`}
+                    >
+                      {m === "5M"
+                        ? "5 vs 5 préc."
+                        : m === "5S"
+                          ? "5 vs saison"
+                          : m === "10M"
+                            ? "10 vs 10 préc."
+                            : m === "10S"
+                              ? "10 vs saison"
+                              : m === "TOTAL"
+                                ? "Saison vs total"
+                                : "Saison vs saison"}
+                    </button>
+                  ),
+                )}
                 {compareMode === "SAISON" && (
                   <select
                     className="text-xs font-bold rounded-xl border px-3 py-2 bg-background ml-1"
@@ -1549,9 +2727,13 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                     onChange={(e) => setRefSaison(e.target.value || null)}
                   >
                     <option value="">— Saison de référence</option>
-                    {availableSaisons.filter((s) => s !== currentSaison).map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {availableSaisons
+                      .filter((s) => s !== currentSaison)
+                      .map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
                   </select>
                 )}
               </div>
@@ -1560,14 +2742,22 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
               <div className="flex flex-wrap gap-4 text-[10px]">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block" />
-                  <span className="font-black">{evolutionComparison.labelCurrent}</span>
-                  <span className="text-muted-foreground">({evolutionComparison.current.n} matchs)</span>
+                  <span className="font-black">
+                    {evolutionComparison.labelCurrent}
+                  </span>
+                  <span className="text-muted-foreground">
+                    ({evolutionComparison.current.n} matchs)
+                  </span>
                 </span>
                 {evolutionComparison.ref && (
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/60 inline-block" />
-                    <span className="font-black">{evolutionComparison.labelRef}</span>
-                    <span className="text-muted-foreground">({evolutionComparison.ref.n} matchs)</span>
+                    <span className="font-black">
+                      {evolutionComparison.labelRef}
+                    </span>
+                    <span className="text-muted-foreground">
+                      ({evolutionComparison.ref.n} matchs)
+                    </span>
                   </span>
                 )}
               </div>
@@ -1578,54 +2768,122 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {(
                       [
-                        { key: "moy_buts" as const, label: "Moy. Buts / match", colCur: "text-emerald-600", colPos: "text-emerald-500", colNeg: "text-red-500", suffix: "" },
-                        { key: "moy_tirs" as const, label: "Vol. Tirs / match", colCur: "text-indigo-600", colPos: "text-indigo-500", colNeg: "text-orange-500", suffix: "" },
-                        { key: "pct_tir" as const, label: "% au Tir", colCur: "text-amber-600", colPos: "text-amber-500", colNeg: "text-red-500", suffix: "%" },
-                      ] as { key: "moy_buts" | "moy_tirs" | "pct_tir"; label: string; colCur: string; colPos: string; colNeg: string; suffix: string }[]
+                        {
+                          key: "moy_buts" as const,
+                          label: "Moy. Buts / match",
+                          colCur: "text-emerald-600",
+                          colPos: "text-emerald-500",
+                          colNeg: "text-red-500",
+                          suffix: "",
+                        },
+                        {
+                          key: "moy_tirs" as const,
+                          label: "Vol. Tirs / match",
+                          colCur: "text-indigo-600",
+                          colPos: "text-indigo-500",
+                          colNeg: "text-orange-500",
+                          suffix: "",
+                        },
+                        {
+                          key: "pct_tir" as const,
+                          label: "% au Tir",
+                          colCur: "text-amber-600",
+                          colPos: "text-amber-500",
+                          colNeg: "text-red-500",
+                          suffix: "%",
+                        },
+                      ] as {
+                        key: "moy_buts" | "moy_tirs" | "pct_tir";
+                        label: string;
+                        colCur: string;
+                        colPos: string;
+                        colNeg: string;
+                        suffix: string;
+                      }[]
                     ).map(({ key, label, colCur, colPos, colNeg, suffix }) => {
                       const cur = evolutionComparison.current![key];
                       const ref = evolutionComparison.ref![key];
                       const delta = +(cur - ref).toFixed(2);
-                      const absPct = ref === 0 ? null : Math.abs(Math.round((delta / ref) * 100));
+                      const absPct =
+                        ref === 0
+                          ? null
+                          : Math.abs(Math.round((delta / ref) * 100));
                       const isUp = delta > 0.049;
                       const isDown = delta < -0.049;
-                      const arrowColor = isUp ? colPos : isDown ? colNeg : "text-muted-foreground";
+                      const arrowColor = isUp
+                        ? colPos
+                        : isDown
+                          ? colNeg
+                          : "text-muted-foreground";
                       const arrow = isUp ? "↑" : isDown ? "↓" : "→";
                       const phrase = isUp
                         ? `En progression${absPct != null ? ` · +${absPct}%` : ""}`
                         : isDown
-                        ? `En baisse${absPct != null ? ` · −${absPct}%` : ""}`
-                        : "Stable";
+                          ? `En baisse${absPct != null ? ` · −${absPct}%` : ""}`
+                          : "Stable";
                       const maxVal = Math.max(cur, ref, 0.01);
                       return (
-                        <div key={key} className="rounded-2xl border bg-muted/20 p-4 space-y-2.5">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground">{label}</p>
+                        <div
+                          key={key}
+                          className="rounded-2xl border bg-muted/20 p-4 space-y-2.5"
+                        >
+                          <p className="text-[10px] font-black uppercase text-muted-foreground">
+                            {label}
+                          </p>
                           <div className="flex items-baseline gap-2">
-                            <span className={`text-2xl font-black ${colCur}`}>{cur}{suffix}</span>
-                            <span className={`text-xl font-black ${arrowColor}`}>{arrow}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">réf. {ref}{suffix}</span>
+                            <span className={`text-2xl font-black ${colCur}`}>
+                              {cur}
+                              {suffix}
+                            </span>
+                            <span
+                              className={`text-xl font-black ${arrowColor}`}
+                            >
+                              {arrow}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              réf. {ref}
+                              {suffix}
+                            </span>
                           </div>
-                          <p className={`text-[11px] font-bold flex items-center gap-1 ${arrowColor}`}>
+                          <p
+                            className={`text-[11px] font-bold flex items-center gap-1 ${arrowColor}`}
+                          >
                             <span>{arrow}</span>
                             <span>{phrase}</span>
                             {delta !== 0 && (
-                              <span className="ml-auto font-black">{delta > 0 ? "+" : ""}{delta}{suffix}</span>
+                              <span className="ml-auto font-black">
+                                {delta > 0 ? "+" : ""}
+                                {delta}
+                                {suffix}
+                              </span>
                             )}
                           </p>
                           <div className="space-y-1.5">
                             <div className="flex justify-between text-[9px] text-muted-foreground">
                               <span>{evolutionComparison.labelCurrent}</span>
-                              <span>{cur}{suffix}</span>
+                              <span>
+                                {cur}
+                                {suffix}
+                              </span>
                             </div>
                             <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(cur / maxVal) * 100}%` }} />
+                              <div
+                                className="h-full rounded-full bg-primary transition-all"
+                                style={{ width: `${(cur / maxVal) * 100}%` }}
+                              />
                             </div>
                             <div className="flex justify-between text-[9px] text-muted-foreground">
                               <span>{evolutionComparison.labelRef}</span>
-                              <span>{ref}{suffix}</span>
+                              <span>
+                                {ref}
+                                {suffix}
+                              </span>
                             </div>
                             <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                              <div className="h-full rounded-full bg-muted-foreground/50 transition-all" style={{ width: `${(ref / maxVal) * 100}%` }} />
+                              <div
+                                className="h-full rounded-full bg-muted-foreground/50 transition-all"
+                                style={{ width: `${(ref / maxVal) * 100}%` }}
+                              />
                             </div>
                           </div>
                         </div>
@@ -1644,16 +2902,28 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                       const cur = evolutionComparison.current![key];
                       const ref = evolutionComparison.ref![key];
                       const delta = cur - ref;
-                      const absPct = ref === 0 ? null : Math.abs(Math.round((delta / ref) * 100));
+                      const absPct =
+                        ref === 0
+                          ? null
+                          : Math.abs(Math.round((delta / ref) * 100));
                       if (Math.abs(delta) <= 0.049) return `${nom} stable →`;
-                      if (delta > 0) return `${nom} en hausse ↑${absPct != null ? ` +${absPct}%` : ""}`;
+                      if (delta > 0)
+                        return `${nom} en hausse ↑${absPct != null ? ` +${absPct}%` : ""}`;
                       return `${nom} en baisse ↓${absPct != null ? ` −${absPct}%` : ""}`;
                     });
                     return (
                       <div className="rounded-2xl border bg-muted/30 p-3 text-xs">
-                        <span className="font-black">{joueur?.nom_prenom} — </span>
-                        <span className="text-muted-foreground">{parts.join(" · ")}</span>
-                        <span className="text-muted-foreground italic"> ({evolutionComparison.labelCurrent} vs {evolutionComparison.labelRef})</span>
+                        <span className="font-black">
+                          {formatNomPrenom(joueur?.nom_prenom)} —{" "}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {parts.join(" · ")}
+                        </span>
+                        <span className="text-muted-foreground italic">
+                          {" "}
+                          ({evolutionComparison.labelCurrent} vs{" "}
+                          {evolutionComparison.labelRef})
+                        </span>
                       </div>
                     );
                   })()}
@@ -1673,40 +2943,76 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
             <>
               <div className="flex items-center gap-2 pt-2 pb-1">
                 <Shield className="w-4 h-4 text-indigo-500" />
-                <p className="text-[11px] font-black uppercase text-indigo-600 tracking-wide">Stats Gardien</p>
-                <p className="text-[10px] text-muted-foreground">({gardienMatchs} matchs avec ≥ 2 arrêts)</p>
+                <p className="text-[11px] font-black uppercase text-indigo-600 tracking-wide">
+                  Stats Gardien
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  ({gardienMatchs} matchs avec ≥ 2 arrêts)
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <MetricCard label="Arrêts total" value={totalArrets} color="text-indigo-600" sub={`${gardienMatchs} matchs`} />
-                <MetricCard label="Moy. Arrêts" value={moyArretsVal} color="text-indigo-500" sub="par match valide" />
+                <MetricCard
+                  label="Arrêts total"
+                  value={totalArrets}
+                  color="text-indigo-600"
+                  sub={`${gardienMatchs} matchs`}
+                />
+                <MetricCard
+                  label="Moy. Arrêts"
+                  value={moyArretsVal}
+                  color="text-indigo-500"
+                  sub="par match valide"
+                />
               </div>
 
               {gardienMatchs >= 2 && gardienEvolutionComparison?.current && (
                 <Card className="rounded-3xl border-2 p-5 space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[10px] font-black uppercase text-muted-foreground mr-1">Évolution — Gardien</p>
-                    {(["5M", "5S", "10M", "10S", "TOTAL", "SAISON"] as const).map((m) => (
+                    <p className="text-[10px] font-black uppercase text-muted-foreground mr-1">
+                      Évolution — Gardien
+                    </p>
+                    {(
+                      ["5M", "5S", "10M", "10S", "TOTAL", "SAISON"] as const
+                    ).map((m) => (
                       <button
                         key={m}
                         onClick={() => setCompareModeGardien(m)}
                         className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border transition-colors ${
-                          compareModeGardien === m ? "bg-indigo-600 text-white border-indigo-600" : "border-muted-foreground/30 hover:bg-muted"
+                          compareModeGardien === m
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "border-muted-foreground/30 hover:bg-muted"
                         }`}
                       >
-                        {m === "5M" ? "5 vs 5 préc." : m === "5S" ? "5 vs saison" : m === "10M" ? "10 vs 10 préc." : m === "10S" ? "10 vs saison" : m === "TOTAL" ? "Saison vs total" : "Saison vs saison"}
+                        {m === "5M"
+                          ? "5 vs 5 préc."
+                          : m === "5S"
+                            ? "5 vs saison"
+                            : m === "10M"
+                              ? "10 vs 10 préc."
+                              : m === "10S"
+                                ? "10 vs saison"
+                                : m === "TOTAL"
+                                  ? "Saison vs total"
+                                  : "Saison vs saison"}
                       </button>
                     ))}
                     {compareModeGardien === "SAISON" && (
                       <select
                         className="text-xs font-bold rounded-xl border px-3 py-2 bg-background ml-1"
                         value={refSaisonGardien ?? ""}
-                        onChange={(e) => setRefSaisonGardien(e.target.value || null)}
+                        onChange={(e) =>
+                          setRefSaisonGardien(e.target.value || null)
+                        }
                       >
                         <option value="">— Saison de référence</option>
-                        {availableSaisons.filter((s) => s !== currentSaison).map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
+                        {availableSaisons
+                          .filter((s) => s !== currentSaison)
+                          .map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
                       </select>
                     )}
                   </div>
@@ -1714,14 +3020,22 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                   <div className="flex flex-wrap gap-4 text-[10px]">
                     <span className="flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />
-                      <span className="font-black">{gardienEvolutionComparison.labelCurrent}</span>
-                      <span className="text-muted-foreground">({gardienEvolutionComparison.current.n} matchs)</span>
+                      <span className="font-black">
+                        {gardienEvolutionComparison.labelCurrent}
+                      </span>
+                      <span className="text-muted-foreground">
+                        ({gardienEvolutionComparison.current.n} matchs)
+                      </span>
                     </span>
                     {gardienEvolutionComparison.ref && (
                       <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/60 inline-block" />
-                        <span className="font-black">{gardienEvolutionComparison.labelRef}</span>
-                        <span className="text-muted-foreground">({gardienEvolutionComparison.ref.n} matchs)</span>
+                        <span className="font-black">
+                          {gardienEvolutionComparison.labelRef}
+                        </span>
+                        <span className="text-muted-foreground">
+                          ({gardienEvolutionComparison.ref.n} matchs)
+                        </span>
                       </span>
                     )}
                   </div>
@@ -1729,67 +3043,182 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
                   {gardienEvolutionComparison.ref ? (
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {([
-                          { key: "moy_arrets" as const, label: "Moy. Arrêts / match", colCur: "text-indigo-600", colPos: "text-indigo-500", colNeg: "text-orange-500", suffix: "" },
-                          { key: "pct_arrets" as const, label: "% Arrêts", colCur: "dynamic", colPos: "text-emerald-500", colNeg: "text-red-500", suffix: "%" },
-                        ] as { key: "moy_arrets" | "pct_arrets"; label: string; colCur: string; colPos: string; colNeg: string; suffix: string }[]).map(({ key, label, colCur, colPos, colNeg, suffix }) => {
-                          const cur = gardienEvolutionComparison.current![key];
-                          const ref = gardienEvolutionComparison.ref![key];
-                          const delta = +(cur - ref).toFixed(2);
-                          const absPct = ref === 0 ? null : Math.abs(Math.round((delta / ref) * 100));
-                          const isUp = delta > 0.049;
-                          const isDown = delta < -0.049;
-                          const arrowColor = isUp ? colPos : isDown ? colNeg : "text-muted-foreground";
-                          const arrow = isUp ? "↑" : isDown ? "↓" : "→";
-                          const phrase = isUp ? `En progression${absPct != null ? ` · +${absPct}%` : ""}` : isDown ? `En baisse${absPct != null ? ` · −${absPct}%` : ""}` : "Stable";
-                          const maxVal = Math.max(cur, ref, 0.01);
-                          const curColor = colCur === "dynamic" ? arretsColor(cur as number) : undefined;
-                          return (
-                            <div key={key} className="rounded-2xl border bg-muted/20 p-4 space-y-2.5">
-                              <p className="text-[10px] font-black uppercase text-muted-foreground">{label}</p>
-                              <div className="flex items-baseline gap-2">
-                                <span className={`text-2xl font-black${colCur !== "dynamic" ? ` ${colCur}` : ""}`} style={curColor ? { color: curColor } : undefined}>{cur}{suffix}</span>
-                                <span className={`text-xl font-black ${arrowColor}`}>{arrow}</span>
-                                <span className="text-xs text-muted-foreground ml-auto">réf. {ref}{suffix}</span>
+                        {(
+                          [
+                            {
+                              key: "moy_arrets" as const,
+                              label: "Moy. Arrêts / match",
+                              colCur: "text-indigo-600",
+                              colPos: "text-indigo-500",
+                              colNeg: "text-orange-500",
+                              suffix: "",
+                            },
+                            {
+                              key: "pct_arrets" as const,
+                              label: "% Arrêts",
+                              colCur: "dynamic",
+                              colPos: "text-emerald-500",
+                              colNeg: "text-red-500",
+                              suffix: "%",
+                            },
+                          ] as {
+                            key: "moy_arrets" | "pct_arrets";
+                            label: string;
+                            colCur: string;
+                            colPos: string;
+                            colNeg: string;
+                            suffix: string;
+                          }[]
+                        ).map(
+                          ({ key, label, colCur, colPos, colNeg, suffix }) => {
+                            const cur =
+                              gardienEvolutionComparison.current![key];
+                            const ref = gardienEvolutionComparison.ref![key];
+                            const delta = +(cur - ref).toFixed(2);
+                            const absPct =
+                              ref === 0
+                                ? null
+                                : Math.abs(Math.round((delta / ref) * 100));
+                            const isUp = delta > 0.049;
+                            const isDown = delta < -0.049;
+                            const arrowColor = isUp
+                              ? colPos
+                              : isDown
+                                ? colNeg
+                                : "text-muted-foreground";
+                            const arrow = isUp ? "↑" : isDown ? "↓" : "→";
+                            const phrase = isUp
+                              ? `En progression${absPct != null ? ` · +${absPct}%` : ""}`
+                              : isDown
+                                ? `En baisse${absPct != null ? ` · −${absPct}%` : ""}`
+                                : "Stable";
+                            const maxVal = Math.max(cur, ref, 0.01);
+                            const curColor =
+                              colCur === "dynamic"
+                                ? arretsColor(cur as number)
+                                : undefined;
+                            return (
+                              <div
+                                key={key}
+                                className="rounded-2xl border bg-muted/20 p-4 space-y-2.5"
+                              >
+                                <p className="text-[10px] font-black uppercase text-muted-foreground">
+                                  {label}
+                                </p>
+                                <div className="flex items-baseline gap-2">
+                                  <span
+                                    className={`text-2xl font-black${colCur !== "dynamic" ? ` ${colCur}` : ""}`}
+                                    style={
+                                      curColor ? { color: curColor } : undefined
+                                    }
+                                  >
+                                    {cur}
+                                    {suffix}
+                                  </span>
+                                  <span
+                                    className={`text-xl font-black ${arrowColor}`}
+                                  >
+                                    {arrow}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground ml-auto">
+                                    réf. {ref}
+                                    {suffix}
+                                  </span>
+                                </div>
+                                <p
+                                  className={`text-[11px] font-bold flex items-center gap-1 ${arrowColor}`}
+                                >
+                                  <span>{arrow}</span>
+                                  <span>{phrase}</span>
+                                  {delta !== 0 && (
+                                    <span className="ml-auto font-black">
+                                      {delta > 0 ? "+" : ""}
+                                      {delta}
+                                      {suffix}
+                                    </span>
+                                  )}
+                                </p>
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                                    <span>
+                                      {gardienEvolutionComparison.labelCurrent}
+                                    </span>
+                                    <span>
+                                      {cur}
+                                      {suffix}
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-indigo-500 transition-all"
+                                      style={{
+                                        width: `${(cur / maxVal) * 100}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                                    <span>
+                                      {gardienEvolutionComparison.labelRef}
+                                    </span>
+                                    <span>
+                                      {ref}
+                                      {suffix}
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-muted-foreground/50 transition-all"
+                                      style={{
+                                        width: `${(ref / maxVal) * 100}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
                               </div>
-                              <p className={`text-[11px] font-bold flex items-center gap-1 ${arrowColor}`}>
-                                <span>{arrow}</span><span>{phrase}</span>
-                                {delta !== 0 && <span className="ml-auto font-black">{delta > 0 ? "+" : ""}{delta}{suffix}</span>}
-                              </p>
-                              <div className="space-y-1.5">
-                                <div className="flex justify-between text-[9px] text-muted-foreground">
-                                  <span>{gardienEvolutionComparison.labelCurrent}</span><span>{cur}{suffix}</span>
-                                </div>
-                                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                                  <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${(cur / maxVal) * 100}%` }} />
-                                </div>
-                                <div className="flex justify-between text-[9px] text-muted-foreground">
-                                  <span>{gardienEvolutionComparison.labelRef}</span><span>{ref}{suffix}</span>
-                                </div>
-                                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                                  <div className="h-full rounded-full bg-muted-foreground/50 transition-all" style={{ width: `${(ref / maxVal) * 100}%` }} />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          },
+                        )}
                       </div>
                       <div className="rounded-2xl border bg-muted/30 p-3 text-xs">
-                        <span className="font-black">{joueur?.nom_prenom} — </span>
-                        {([{ key: "moy_arrets" as const, nom: "arrêts" }, { key: "pct_arrets" as const, nom: "% arrêts" }]).map(({ key, nom }, i) => {
+                        <span className="font-black">
+                          {formatNomPrenom(joueur?.nom_prenom)} —{" "}
+                        </span>
+                        {[
+                          { key: "moy_arrets" as const, nom: "arrêts" },
+                          { key: "pct_arrets" as const, nom: "% arrêts" },
+                        ].map(({ key, nom }, i) => {
                           const cur = gardienEvolutionComparison.current![key];
                           const ref = gardienEvolutionComparison.ref![key];
                           const delta = cur - ref;
-                          const absPct = ref === 0 ? null : Math.abs(Math.round((delta / ref) * 100));
-                          const txt = Math.abs(delta) <= 0.049 ? `${nom} stable →` : delta > 0 ? `${nom} en hausse ↑${absPct != null ? ` +${absPct}%` : ""}` : `${nom} en baisse ↓${absPct != null ? ` −${absPct}%` : ""}`;
-                          return <span key={key} className="text-muted-foreground">{i > 0 ? " · " : ""}{txt}</span>;
+                          const absPct =
+                            ref === 0
+                              ? null
+                              : Math.abs(Math.round((delta / ref) * 100));
+                          const txt =
+                            Math.abs(delta) <= 0.049
+                              ? `${nom} stable →`
+                              : delta > 0
+                                ? `${nom} en hausse ↑${absPct != null ? ` +${absPct}%` : ""}`
+                                : `${nom} en baisse ↓${absPct != null ? ` −${absPct}%` : ""}`;
+                          return (
+                            <span key={key} className="text-muted-foreground">
+                              {i > 0 ? " · " : ""}
+                              {txt}
+                            </span>
+                          );
                         })}
-                        <span className="text-muted-foreground italic"> ({gardienEvolutionComparison.labelCurrent} vs {gardienEvolutionComparison.labelRef})</span>
+                        <span className="text-muted-foreground italic">
+                          {" "}
+                          ({gardienEvolutionComparison.labelCurrent} vs{" "}
+                          {gardienEvolutionComparison.labelRef})
+                        </span>
                       </div>
                     </>
                   ) : (
                     <p className="text-xs text-muted-foreground italic py-2">
-                      {compareModeGardien === "SAISON" ? "Sélectionne une saison de référence pour comparer." : "Pas assez de matchs pour cette période de comparaison."}
+                      {compareModeGardien === "SAISON"
+                        ? "Sélectionne une saison de référence pour comparer."
+                        : "Pas assez de matchs pour cette période de comparaison."}
                     </p>
                   )}
                 </Card>
@@ -1798,7 +3227,9 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
           )}
         </>
       ) : (
-        <p className="text-center text-muted-foreground italic py-12">Aucun joueur trouvé pour cette équipe.</p>
+        <p className="text-center text-muted-foreground italic py-12">
+          Aucun joueur trouvé pour cette équipe.
+        </p>
       )}
     </div>
   );
@@ -1807,7 +3238,16 @@ function StatsIndividuelles({ data, filters }: { data: StatsData; filters: Filte
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  ONGLET 3 — EFFICACITÉ                                          ║
 // ╚══════════════════════════════════════════════════════════════════╝
-const TEAM_PALETTE = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#ec4899"];
+const TEAM_PALETTE = [
+  "#6366f1",
+  "#f59e0b",
+  "#10b981",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#f97316",
+  "#ec4899",
+];
 
 type AggPlayer = {
   id: number;
@@ -1849,9 +3289,13 @@ type RankMap = {
 
 function computeRanks(players: AggPlayer[], sortKey: keyof AggPlayer): RankMap {
   const joueurs = players.filter((p) => p.serieType === "joueur");
-  const sorted = [...joueurs].sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number));
+  const sorted = [...joueurs].sort(
+    (a, b) => (b[sortKey] as number) - (a[sortKey] as number),
+  );
   const global: Record<number, number> = {};
-  sorted.forEach((p, i) => { global[p.id] = i + 1; });
+  sorted.forEach((p, i) => {
+    global[p.id] = i + 1;
+  });
 
   const equipe: Record<number, number> = {};
   const totalEquipe: Record<number, number> = {};
@@ -1864,8 +3308,11 @@ function computeRanks(players: AggPlayer[], sortKey: keyof AggPlayer): RankMap {
   Object.entries(byEquipe).forEach(([key, group]) => {
     const k = Number(key);
     totalEquipe[k] = group.length;
-    group.sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number))
-      .forEach((p, i) => { equipe[p.id] = i + 1; });
+    group
+      .sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number))
+      .forEach((p, i) => {
+        equipe[p.id] = i + 1;
+      });
   });
 
   const poste: Record<number, number> = {};
@@ -1877,26 +3324,53 @@ function computeRanks(players: AggPlayer[], sortKey: keyof AggPlayer): RankMap {
   });
   Object.entries(byPoste).forEach(([key, group]) => {
     totalPoste[key] = group.length;
-    group.sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number))
-      .forEach((p, i) => { poste[p.id] = i + 1; });
+    group
+      .sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number))
+      .forEach((p, i) => {
+        poste[p.id] = i + 1;
+      });
   });
 
-  return { global, equipe, poste, total: joueurs.length, totalEquipe, totalPoste };
+  return {
+    global,
+    equipe,
+    poste,
+    total: joueurs.length,
+    totalEquipe,
+    totalPoste,
+  };
 }
 
-function RankBadge({ rank, total, label }: { rank: number; total: number; label: string }) {
+function RankBadge({
+  rank,
+  total,
+  label,
+}: {
+  rank: number;
+  total: number;
+  label: string;
+}) {
   const ratio = rank / total;
   const color =
-    rank === 1 ? "bg-amber-400 text-white" :
-    ratio <= 0.25 ? "bg-emerald-500 text-white" :
-    ratio <= 0.5 ? "bg-primary/80 text-white" :
-    "bg-muted text-muted-foreground";
+    rank === 1
+      ? "bg-amber-400 text-white"
+      : ratio <= 0.25
+        ? "bg-emerald-500 text-white"
+        : ratio <= 0.5
+          ? "bg-primary/80 text-white"
+          : "bg-muted text-muted-foreground";
   return (
     <div className="flex items-center gap-1.5">
-      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${color}`}>
+      <span
+        className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${color}`}
+      >
         #{rank}
       </span>
-      <span className="text-[10px] text-muted-foreground leading-tight">{label}<br /><span className="text-[9px] opacity-70">/{total}</span></span>
+      <span className="text-[10px] text-muted-foreground leading-tight">
+        {label}
+        <br />
+        <span className="text-[9px] opacity-70">/{total}</span>
+      </span>
     </div>
   );
 }
@@ -1926,24 +3400,32 @@ function ScatterTooltipContent({
       <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[180px] overflow-hidden">
         <div className="overflow-y-auto max-h-72">
           <div className="p-3 text-xs space-y-2">
-        <div className="flex items-center gap-2 pb-2 border-b">
-          <svg width="12" height="12" viewBox="-1 -1 2 2"><polygon points="0,-1 1,0 0,1 -1,0" fill={d.equipeColor} /></svg>
-          <p className="font-black text-sm">{d.nom}</p>
-        </div>
-        <div className="grid grid-cols-3 gap-1.5">
-          <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-            <p className="font-black text-sm text-primary">{d.buts}</p>
-            <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts</p>
-          </div>
-          <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-            <p className="font-black text-sm">{d.tirs}</p>
-            <p className="text-[9px] text-muted-foreground uppercase font-bold">Tirs</p>
-          </div>
-          <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-            <p className="font-black text-sm text-amber-500">{d.pctTir}%</p>
-            <p className="text-[9px] text-muted-foreground uppercase font-bold">% Tir</p>
-          </div>
-        </div>
+            <div className="flex items-center gap-2 pb-2 border-b">
+              <svg width="12" height="12" viewBox="-1 -1 2 2">
+                <polygon points="0,-1 1,0 0,1 -1,0" fill={d.equipeColor} />
+              </svg>
+              <p className="font-black text-sm">{d.nom}</p>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
+                <p className="font-black text-sm text-primary">{d.buts}</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Buts
+                </p>
+              </div>
+              <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
+                <p className="font-black text-sm">{d.tirs}</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Tirs
+                </p>
+              </div>
+              <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
+                <p className="font-black text-sm text-amber-500">{d.pctTir}%</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  % Tir
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1962,15 +3444,21 @@ function ScatterTooltipContent({
             <div className="grid grid-cols-3 gap-1.5">
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
                 <p className="font-black text-sm text-primary">{d.buts}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Buts
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
                 <p className="font-black text-sm">{d.tirs}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Tirs</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Tirs
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
                 <p className="font-black text-sm text-amber-500">{d.pctTir}%</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">% Tir</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  % Tir
+                </p>
               </div>
             </div>
           </div>
@@ -1989,52 +3477,86 @@ function ScatterTooltipContent({
       <div className="overflow-y-auto max-h-96">
         <div className="p-3 text-xs space-y-2">
           <div className="flex items-start gap-2 pb-2 border-b">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-sm shrink-0" style={{ background: d.equipeColor }}>
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-sm shrink-0"
+              style={{ background: d.equipeColor }}
+            >
               {d.nom.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="font-black text-sm leading-tight truncate">{d.nom}</p>
-              <p className="text-[10px] text-muted-foreground">{d.poste} · {d.equipeNom}</p>
+              <p className="font-black text-sm leading-tight truncate">
+                {d.nom}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {d.poste} · {d.equipeNom}
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm text-primary">{d.buts}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Buts
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm">{d.tirs}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Tirs</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Tirs
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm text-amber-500">{d.pctTir}%</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">% Tir</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                % Tir
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm">{d.moyButs}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">B/match</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                B/match
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm">{d.moyTirs}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">T/match</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                T/match
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm">{d.matchs}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Matchs</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Matchs
+              </p>
             </div>
           </div>
           {(xKey !== "tirs" || yKey !== "buts") && (
             <div className="flex gap-2 text-[10px] text-muted-foreground border-t pt-2">
               <span className="font-bold">{xLabel}:</span> <span>{xVal}</span>
-              <span className="ml-2 font-bold">{yLabel}:</span> <span>{yIsPercent ? `${yVal}%` : yVal}</span>
+              <span className="ml-2 font-bold">{yLabel}:</span>{" "}
+              <span>{yIsPercent ? `${yVal}%` : yVal}</span>
             </div>
           )}
           <div className="border-t pt-2 space-y-1.5">
-            <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Classements ({xLabel} → {yLabel})</p>
-            <RankBadge rank={ranks.global[d.id] ?? 0} total={ranks.total} label="Classement global" />
-            <RankBadge rank={ranks.equipe[d.id] ?? 0} total={ranks.totalEquipe[d.idEquipe ?? -1] ?? 1} label="Dans son équipe" />
+            <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">
+              Classements ({xLabel} → {yLabel})
+            </p>
+            <RankBadge
+              rank={ranks.global[d.id] ?? 0}
+              total={ranks.total}
+              label="Classement global"
+            />
+            <RankBadge
+              rank={ranks.equipe[d.id] ?? 0}
+              total={ranks.totalEquipe[d.idEquipe ?? -1] ?? 1}
+              label="Dans son équipe"
+            />
             {d.poste !== "—" && (
-              <RankBadge rank={ranks.poste[d.id] ?? 0} total={ranks.totalPoste[d.poste] ?? 1} label={`Poste ${d.poste}`} />
+              <RankBadge
+                rank={ranks.poste[d.id] ?? 0}
+                total={ranks.totalPoste[d.poste] ?? 1}
+                label={`Poste ${d.poste}`}
+              />
             )}
           </div>
         </div>
@@ -2045,22 +3567,48 @@ function ScatterTooltipContent({
 
 // ── Scatter Section (top-level component for stable React identity) ──────────
 function ScatterSection({
-  title, xKey, yKey, xLabel, yLabel, sortKey, top5, top5Label,
-  xUnit = "", yUnit = "", showTeams = false,
-  agg, aggTeams, aggClub, visibleEquipes, equipeColorMap,
+  title,
+  xKey,
+  yKey,
+  xLabel,
+  yLabel,
+  sortKey,
+  top5,
+  top5Label,
+  xUnit = "",
+  yUnit = "",
+  showTeams = false,
+  agg,
+  aggTeams,
+  aggClub,
+  visibleEquipes,
+  equipeColorMap,
 }: {
-  title: string; xKey: keyof AggPlayer; yKey: keyof AggPlayer;
-  xLabel: string; yLabel: string; sortKey: keyof AggPlayer;
-  top5: AggPlayer[]; top5Label: string; xUnit?: string; yUnit?: string; showTeams?: boolean;
-  agg: AggPlayer[]; aggTeams: AggPlayer[]; aggClub: AggPlayer;
+  title: string;
+  xKey: keyof AggPlayer;
+  yKey: keyof AggPlayer;
+  xLabel: string;
+  yLabel: string;
+  sortKey: keyof AggPlayer;
+  top5: AggPlayer[];
+  top5Label: string;
+  xUnit?: string;
+  yUnit?: string;
+  showTeams?: boolean;
+  agg: AggPlayer[];
+  aggTeams: AggPlayer[];
+  aggClub: AggPlayer;
   visibleEquipes: Array<{ id: number; nom: string }>;
   equipeColorMap: Record<number, string>;
 }) {
   const [search, setSearch] = useState("");
 
   const filteredAgg = useMemo(
-    () => search.trim() ? agg.filter((p) => p.nom.toLowerCase().includes(search.toLowerCase())) : agg,
-    [agg, search]
+    () =>
+      search.trim()
+        ? agg.filter((p) => p.nom.toLowerCase().includes(search.toLowerCase()))
+        : agg,
+    [agg, search],
   );
   const ranks = computeRanks(agg, sortKey);
 
@@ -2070,8 +3618,15 @@ function ScatterSection({
         <ChartCard title={title}>
           {/* Recherche joueur */}
           <div className="mb-3 relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" />
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path strokeLinecap="round" d="m21 21-4.35-4.35" />
             </svg>
             <input
               type="text"
@@ -2081,91 +3636,144 @@ function ScatterSection({
               className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
-          <ResponsiveContainer width="100%" height={320} style={{ overflow: "visible" }}>
-              <ScatterChart margin={{ top: 16, right: 32, bottom: 32, left: 32 }}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                <XAxis
-                  dataKey={xKey as string}
-                  type="number"
-                  name={xLabel}
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => xUnit ? `${v}${xUnit}` : v}
-                  domain={["auto", "auto"]}
-                  label={{ value: xLabel, position: "insideBottom", offset: -16, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                />
-                <YAxis
-                  dataKey={yKey as string}
-                  type="number"
-                  name={yLabel}
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => yUnit ? `${v}${yUnit}` : v}
-                  domain={["auto", "auto"]}
-                  label={{ value: yLabel, angle: -90, position: "insideLeft", offset: 12, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                />
-                <ZAxis range={[50, 180]} />
-                <Tooltip
-                  cursor={{ strokeDasharray: "3 3" }}
-                  wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
-                  content={({ payload }) => (
-                    <ScatterTooltipContent
-                      payload={payload ?? []}
-                      xKey={xKey as string}
-                      yKey={yKey as string}
-                      xLabel={xLabel}
-                      yLabel={yLabel}
-                      sortKey={sortKey}
-                      agg={agg}
-                    />
-                  )}
-                />
+          <ResponsiveContainer
+            width="100%"
+            height={320}
+            style={{ overflow: "visible" }}
+          >
+            <ScatterChart margin={{ top: 16, right: 32, bottom: 32, left: 32 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+              <XAxis
+                dataKey={xKey as string}
+                type="number"
+                name={xLabel}
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => (xUnit ? `${v}${xUnit}` : v)}
+                domain={["auto", "auto"]}
+                label={{
+                  value: xLabel,
+                  position: "insideBottom",
+                  offset: -16,
+                  fontSize: 11,
+                  fill: "hsl(var(--muted-foreground))",
+                }}
+              />
+              <YAxis
+                dataKey={yKey as string}
+                type="number"
+                name={yLabel}
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => (yUnit ? `${v}${yUnit}` : v)}
+                domain={["auto", "auto"]}
+                label={{
+                  value: yLabel,
+                  angle: -90,
+                  position: "insideLeft",
+                  offset: 12,
+                  fontSize: 11,
+                  fill: "hsl(var(--muted-foreground))",
+                }}
+              />
+              <ZAxis range={[50, 180]} />
+              <Tooltip
+                cursor={{ strokeDasharray: "3 3" }}
+                wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
+                content={({ payload }) => (
+                  <ScatterTooltipContent
+                    payload={payload ?? []}
+                    xKey={xKey as string}
+                    yKey={yKey as string}
+                    xLabel={xLabel}
+                    yLabel={yLabel}
+                    sortKey={sortKey}
+                    agg={agg}
+                  />
+                )}
+              />
+              <Scatter
+                name="Joueurs"
+                data={filteredAgg}
+                shape={(props: any) => {
+                  const { cx, cy, payload } = props as {
+                    cx: number;
+                    cy: number;
+                    payload: AggPlayer;
+                  };
+                  const rank = ranks.global[payload.id] ?? 99;
+                  const isTop3 = rank <= 3;
+                  return (
+                    <g>
+                      {/* large transparent circle for reliable hover detection */}
+                      <circle cx={cx} cy={cy} r={14} fill="transparent" />
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={isTop3 ? 7 : 5}
+                        fill={payload.equipeColor}
+                        opacity={isTop3 ? 1 : 0.75}
+                        stroke={isTop3 ? "white" : "none"}
+                        strokeWidth={1.5}
+                      />
+                      {isTop3 && (
+                        <text
+                          x={cx}
+                          y={cy - 10}
+                          textAnchor="middle"
+                          fontSize={9}
+                          fill={payload.equipeColor}
+                          fontWeight="bold"
+                        >
+                          #{rank}
+                        </text>
+                      )}
+                    </g>
+                  );
+                }}
+              />
+              {showTeams && (
                 <Scatter
-                  name="Joueurs"
-                  data={filteredAgg}
-                  shape={(props: any) => {
-                    const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggPlayer };
-                    const rank = ranks.global[payload.id] ?? 99;
-                    const isTop3 = rank <= 3;
-                    return (
-                      <g>
-                        {/* large transparent circle for reliable hover detection */}
-                        <circle cx={cx} cy={cy} r={14} fill="transparent" />
-                        <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5}
-                          fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75}
-                          stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
-                        {isTop3 && (
-                          <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">
-                            #{rank}
-                          </text>
-                        )}
-                      </g>
-                    );
-                  }}
-                />
-                {showTeams && <Scatter
                   name="Équipes"
                   data={aggTeams}
                   shape={(props: any) => {
-                    const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggPlayer };
+                    const { cx, cy, payload } = props as {
+                      cx: number;
+                      cy: number;
+                      payload: AggPlayer;
+                    };
                     const s = 9;
                     return (
                       <g>
                         <polygon
                           points={`${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}`}
-                          fill={payload.equipeColor} stroke="white" strokeWidth={1.5} opacity={0.9}
+                          fill={payload.equipeColor}
+                          stroke="white"
+                          strokeWidth={1.5}
+                          opacity={0.9}
                         />
-                        <text x={cx} y={cy - s - 4} textAnchor="middle" fontSize={8} fill={payload.equipeColor} fontWeight="bold">
+                        <text
+                          x={cx}
+                          y={cy - s - 4}
+                          textAnchor="middle"
+                          fontSize={8}
+                          fill={payload.equipeColor}
+                          fontWeight="bold"
+                        >
                           {payload.nom.split(" ").pop()}
                         </text>
                       </g>
                     );
                   }}
-                />}
-                {showTeams && <Scatter
+                />
+              )}
+              {showTeams && (
+                <Scatter
                   name="Club"
                   data={[aggClub]}
                   shape={(props: any) => {
                     const { cx, cy } = props as { cx: number; cy: number };
-                    const r1 = 10, r2 = 5, n = 5;
+                    const r1 = 10,
+                      r2 = 5,
+                      n = 5;
                     const pts = Array.from({ length: n * 2 }, (_, k) => {
                       const angle = (Math.PI / n) * k - Math.PI / 2;
                       const r = k % 2 === 0 ? r1 : r2;
@@ -2173,25 +3781,48 @@ function ScatterSection({
                     }).join(" ");
                     return (
                       <g>
-                        <polygon points={pts} fill="#1e293b" stroke="white" strokeWidth={1.5} />
-                        <text x={cx} y={cy - r1 - 4} textAnchor="middle" fontSize={8} fill="#1e293b" fontWeight="bold">Club</text>
+                        <polygon
+                          points={pts}
+                          fill="#1e293b"
+                          stroke="white"
+                          strokeWidth={1.5}
+                        />
+                        <text
+                          x={cx}
+                          y={cy - r1 - 4}
+                          textAnchor="middle"
+                          fontSize={8}
+                          fill="#1e293b"
+                          fontWeight="bold"
+                        >
+                          Club
+                        </text>
                       </g>
                     );
                   }}
-                />}
-              </ScatterChart>
-            </ResponsiveContainer>
+                />
+              )}
+            </ScatterChart>
+          </ResponsiveContainer>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
             {visibleEquipes.map((eq) => (
-              <div key={eq.id} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ background: equipeColorMap[eq.id] }} />
+              <div
+                key={eq.id}
+                className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                  style={{ background: equipeColorMap[eq.id] }}
+                />
                 {eq.nom}
               </div>
             ))}
             {showTeams && (
               <>
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <svg width="10" height="10" viewBox="-1 -1 2 2"><polygon points="0,-1 1,0 0,1 -1,0" fill="#64748b" /></svg>
+                  <svg width="10" height="10" viewBox="-1 -1 2 2">
+                    <polygon points="0,-1 1,0 0,1 -1,0" fill="#64748b" />
+                  </svg>
                   Équipes
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
@@ -2206,26 +3837,40 @@ function ScatterSection({
 
       <Card className="rounded-3xl border-2 overflow-hidden">
         <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
-          <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">Top 5 — {top5Label}</CardTitle>
+          <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+            Top 5 — {top5Label}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {top5.map((p, i) => (
-            <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+            <div
+              key={p.id}
+              className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+            >
+              <span
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
+              >
                 {i + 1}
               </span>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-xs truncate">{p.nom}</p>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.equipeColor }} />
-                  <p className="text-[10px] text-muted-foreground truncate">{p.poste} · {p.equipeNom}</p>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: p.equipeColor }}
+                  />
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {p.poste} · {p.equipeNom}
+                  </p>
                 </div>
               </div>
               <div className="text-right shrink-0">
                 <span className="font-sport italic font-black text-base text-primary">
                   {sortKey === "pctTir" ? `${p[sortKey]}%` : p[sortKey]}
                 </span>
-                <p className="text-[9px] text-muted-foreground">{p.matchs} matchs</p>
+                <p className="text-[9px] text-muted-foreground">
+                  {p.matchs} matchs
+                </p>
               </div>
             </div>
           ))}
@@ -2240,19 +3885,23 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
   const equipeColorMap = useMemo(() => {
     const m: Record<number, string> = {};
-    data.equipes.forEach((eq, i) => { m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length]; });
+    data.equipes.forEach((eq, i) => {
+      m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length];
+    });
     return m;
   }, [data.equipes]);
 
   // Lookup rapide pour les matchs
   const matchMap = useMemo(
     () => Object.fromEntries(data.matchs.map((m) => [m.id, m])),
-    [data.matchs]
+    [data.matchs],
   );
 
   // Agrégats par nom de joueur — regroupe les joueurs ayant joué dans plusieurs équipes
   const agg = useMemo<AggPlayer[]>(() => {
-    const equipeMap = Object.fromEntries(data.equipes.map((e) => [e.id, e.nom]));
+    const equipeMap = Object.fromEntries(
+      data.equipes.map((e) => [e.id, e.nom]),
+    );
 
     const nameGroups: Record<string, typeof data.joueurs> = {};
     data.joueurs.forEach((j) => {
@@ -2261,7 +3910,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
     });
 
     const grouped = Object.entries(nameGroups).filter(([, joueurs]) =>
-      joueurs.some((j) => equipeOk(j.id_equipe, filters.equipeIds))
+      joueurs.some((j) => equipeOk(j.id_equipe, filters.equipeIds)),
     );
 
     const result = grouped.map(([nom, joueurs]) => {
@@ -2271,7 +3920,9 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       // Équipe principale + stats en une seule passe filtrée
       // → l'équipe principale reflète les filtres actifs (saison, compétition…)
       const matchsParEquipe: Record<number, number> = {};
-      let buts = 0, tirs = 0, matchs = 0;
+      let buts = 0,
+        tirs = 0,
+        matchs = 0;
       data.statsJoueurs.forEach((s) => {
         if (!s.id_joueur || !ids.has(s.id_joueur)) return;
         if (!s.id_match) return;
@@ -2279,16 +3930,22 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
         if (!match) return;
         const j = joueurByIdMap[s.id_joueur];
         if (!j?.id_equipe) return;
-        if (!applyMatchFilter(match, filters, [j.id_equipe], data.competitions)) return;
+        if (!applyMatchFilter(match, filters, [j.id_equipe], data.competitions))
+          return;
         matchsParEquipe[j.id_equipe] = (matchsParEquipe[j.id_equipe] ?? 0) + 1;
         buts += s.buts ?? 0;
         tirs += s.tirs ?? 0;
         matchs += 1;
       });
 
-      const equipeEntries = Object.entries(matchsParEquipe).sort((a, b) => b[1] - a[1]);
+      const equipeEntries = Object.entries(matchsParEquipe).sort(
+        (a, b) => b[1] - a[1],
+      );
       const idEquipe = equipeEntries[0] ? Number(equipeEntries[0][0]) : null;
-      const poste = joueurs.find((j) => j.id_equipe === idEquipe)?.poste_principal ?? joueurs[0]?.poste_principal ?? "—";
+      const poste =
+        joueurs.find((j) => j.id_equipe === idEquipe)?.poste_principal ??
+        joueurs[0]?.poste_principal ??
+        "—";
 
       return {
         id: joueurs[0].id,
@@ -2296,8 +3953,12 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
         poste,
         idEquipe,
         equipeNom: idEquipe ? (equipeMap[idEquipe] ?? "—") : "—",
-        equipeColor: idEquipe ? (equipeColorMap[idEquipe] ?? TEAM_PALETTE[0]) : TEAM_PALETTE[0],
-        buts, tirs, matchs,
+        equipeColor: idEquipe
+          ? (equipeColorMap[idEquipe] ?? TEAM_PALETTE[0])
+          : TEAM_PALETTE[0],
+        buts,
+        tirs,
+        matchs,
         moyButs: matchs ? +(buts / matchs).toFixed(2) : 0,
         moyTirs: matchs ? +(tirs / matchs).toFixed(2) : 0,
         pctTir: pct(buts, tirs),
@@ -2312,26 +3973,33 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
   const aggTeams = useMemo<AggPlayer[]>(() => {
     const teams = data.equipes.filter((e) => equipeOk(e.id, filters.equipeIds));
     return teams.map((eq) => {
-      const playerIds = new Set(data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id));
-      let buts = 0, tirs = 0, matchs = 0;
+      const playerIds = new Set(
+        data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id),
+      );
+      let buts = 0,
+        tirs = 0,
+        matchs = 0;
       data.statsJoueurs.forEach((s) => {
         if (!s.id_joueur || !playerIds.has(s.id_joueur)) return;
         if (!s.id_match) return;
         const match = matchMap[s.id_match];
         if (!match) return;
-        if (!applyMatchFilter(match, filters, [eq.id], data.competitions)) return;
+        if (!applyMatchFilter(match, filters, [eq.id], data.competitions))
+          return;
         buts += s.buts ?? 0;
         tirs += s.tirs ?? 0;
         matchs += 1;
       });
       return {
-        id: -(eq.id),
+        id: -eq.id,
         nom: eq.nom,
         poste: "équipe",
         idEquipe: eq.id,
         equipeNom: eq.nom,
         equipeColor: equipeColorMap[eq.id] ?? TEAM_PALETTE[0],
-        buts, tirs, matchs,
+        buts,
+        tirs,
+        matchs,
         moyButs: matchs ? +(buts / matchs).toFixed(2) : 0,
         moyTirs: matchs ? +(tirs / matchs).toFixed(2) : 0,
         pctTir: pct(buts, tirs),
@@ -2342,12 +4010,24 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
   // Point de référence club (forme étoile) — somme de tous les joueurs qualifiés
   const aggClub = useMemo<AggPlayer>(() => {
-    let buts = 0, tirs = 0, matchs = 0;
-    agg.forEach((p) => { buts += p.buts; tirs += p.tirs; matchs += p.matchs; });
+    let buts = 0,
+      tirs = 0,
+      matchs = 0;
+    agg.forEach((p) => {
+      buts += p.buts;
+      tirs += p.tirs;
+      matchs += p.matchs;
+    });
     return {
-      id: -9999, nom: "Club", poste: "club", idEquipe: null,
-      equipeNom: "Club", equipeColor: "#1e293b",
-      buts, tirs, matchs,
+      id: -9999,
+      nom: "Club",
+      poste: "club",
+      idEquipe: null,
+      equipeNom: "Club",
+      equipeColor: "#1e293b",
+      buts,
+      tirs,
+      matchs,
       moyButs: matchs ? +(buts / matchs).toFixed(2) : 0,
       moyTirs: matchs ? +(tirs / matchs).toFixed(2) : 0,
       pctTir: pct(buts, tirs),
@@ -2357,7 +4037,9 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
   // Agrégats gardiens — uniquement matchs avec ≥ 2 arrêts pour chaque gardien
   const aggGardiens = useMemo<AggGardien[]>(() => {
-    const equipeMap = Object.fromEntries(data.equipes.map((e) => [e.id, e.nom]));
+    const equipeMap = Object.fromEntries(
+      data.equipes.map((e) => [e.id, e.nom]),
+    );
     return data.joueurs
       .filter((j) => equipeOk(j.id_equipe, filters.equipeIds))
       .map((j) => {
@@ -2366,7 +4048,10 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
           if ((s.arrets ?? 0) < 2) return false;
           const match = matchMap[s.id_match];
           if (!match) return false;
-          return j.id_equipe != null && applyMatchFilter(match, filters, [j.id_equipe], data.competitions);
+          return (
+            j.id_equipe != null &&
+            applyMatchFilter(match, filters, [j.id_equipe], data.competitions)
+          );
         });
         if (statsG.length === 0) return null;
         const totalArrets = statsG.reduce((a, s) => a + (s.arrets ?? 0), 0);
@@ -2380,10 +4065,12 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
         const matchs = matchIds.size;
         return {
           id: j.id,
-          nom: j.nom_prenom,
+          nom: formatNomPrenom(j.nom_prenom),
           idEquipe: j.id_equipe,
           equipeNom: j.id_equipe ? (equipeMap[j.id_equipe] ?? "—") : "—",
-          equipeColor: j.id_equipe ? (equipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0]) : TEAM_PALETTE[0],
+          equipeColor: j.id_equipe
+            ? (equipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0])
+            : TEAM_PALETTE[0],
           arrets: totalArrets,
           butsEncaisses,
           matchs,
@@ -2395,60 +4082,186 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
   }, [data, filters, equipeColorMap, matchMap]);
 
   const filteredGardiens = useMemo(
-    () => gardienSearch.trim() ? aggGardiens.filter((g) => g.nom.toLowerCase().includes(gardienSearch.toLowerCase())) : aggGardiens,
-    [aggGardiens, gardienSearch]
+    () =>
+      gardienSearch.trim()
+        ? aggGardiens.filter((g) =>
+            g.nom.toLowerCase().includes(gardienSearch.toLowerCase()),
+          )
+        : aggGardiens,
+    [aggGardiens, gardienSearch],
+  );
+
+  // Gardiens qualifiés : minimum 5 matchs (pour classements et scatter arrêts)
+  const aggGardiensQual = useMemo(
+    () => aggGardiens.filter((g) => g.matchs >= 5),
+    [aggGardiens],
   );
 
   const top5Buts = [...agg].sort((a, b) => b.buts - a.buts).slice(0, 5);
-  const top5MoyButs = [...agg].sort((a, b) => b.moyButs - a.moyButs).slice(0, 5);
+  const top5MoyButs = [...agg]
+    .sort((a, b) => b.moyButs - a.moyButs)
+    .slice(0, 5);
   const top5Pct = [...agg].sort((a, b) => b.pctTir - a.pctTir).slice(0, 5);
 
-  const visibleEquipes = data.equipes.filter((e) => equipeOk(e.id, filters.equipeIds));
+  const visibleEquipes = data.equipes.filter((e) =>
+    equipeOk(e.id, filters.equipeIds),
+  );
 
   const GardienTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload as AggGardien;
-    const sortedByPct = [...aggGardiens].sort((a, b) => b.pctArrets - a.pctArrets);
+    const sortedByPct = [...aggGardiens].sort(
+      (a, b) => b.pctArrets - a.pctArrets,
+    );
     const rank = sortedByPct.findIndex((g) => g.id === d.id) + 1;
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[210px] overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[210px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="overflow-y-auto max-h-96">
           <div className="p-3 text-xs space-y-2">
             <div className="flex items-start gap-2 pb-2 border-b">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-sm shrink-0" style={{ background: d.equipeColor }}>
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-sm shrink-0"
+                style={{ background: d.equipeColor }}
+              >
                 {d.nom.charAt(0)}
               </div>
               <div>
                 <p className="font-black text-sm">{d.nom}</p>
-                <p className="text-[10px] text-muted-foreground">{d.equipeNom}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {d.equipeNom}
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
                 <p className="font-black text-sm text-indigo-500">{d.arrets}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Arrêts</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Arrêts
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-red-400">{d.butsEncaisses}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts enc.</p>
+                <p className="font-black text-sm text-red-400">
+                  {d.butsEncaisses}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Buts enc.
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-amber-500">{d.moyArrets}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Moy/match</p>
+                <p className="font-black text-sm text-amber-500">
+                  {d.moyArrets}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Moy/match
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
                 <p className="font-black text-sm">{d.matchs}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Matchs</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Matchs
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center col-span-2">
-                <p className="font-black text-sm" style={{ color: arretsColor(d.pctArrets) }}>{d.pctArrets}%</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">% Arrêts</p>
+                <p
+                  className="font-black text-sm"
+                  style={{ color: arretsColor(d.pctArrets) }}
+                >
+                  {d.pctArrets}%
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  % Arrêts
+                </p>
               </div>
             </div>
             <div className="border-t pt-2">
-              <RankBadge rank={rank} total={aggGardiens.length} label="Classement % arrêts" />
+              <RankBadge
+                rank={rank}
+                total={aggGardiens.length}
+                label="Classement % arrêts"
+              />
             </div>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const GardienArretTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload as AggGardien;
+    const sortedByArrets = [...aggGardiensQual].sort(
+      (a, b) => b.arrets - a.arrets,
+    );
+    const rank = sortedByArrets.findIndex((g) => g.id === d.id) + 1;
+    return (
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[210px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
+        <div className="p-3 text-xs space-y-2">
+          <div className="flex items-start gap-2 pb-2 border-b">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-sm shrink-0"
+              style={{ background: d.equipeColor }}
+            >
+              {d.nom.charAt(0)}
+            </div>
+            <div>
+              <p className="font-black text-sm">{d.nom}</p>
+              <p className="text-[10px] text-muted-foreground">{d.equipeNom}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
+              <p className="font-black text-sm text-indigo-500">{d.arrets}</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Total Arrêts
+              </p>
+            </div>
+            <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
+              <p className="font-black text-sm text-amber-500">{d.moyArrets}</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Moy/match
+              </p>
+            </div>
+            <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
+              <p className="font-black text-sm text-red-400">
+                {d.butsEncaisses}
+              </p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Buts enc.
+              </p>
+            </div>
+            <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
+              <p className="font-black text-sm">{d.matchs}</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Matchs
+              </p>
+            </div>
+            <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center col-span-2">
+              <p
+                className="font-black text-sm"
+                style={{ color: arretsColor(d.pctArrets) }}
+              >
+                {d.pctArrets}%
+              </p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                % Arrêts
+              </p>
+            </div>
+          </div>
+          {rank > 0 && (
+            <div className="border-t pt-2">
+              <RankBadge
+                rank={rank}
+                total={aggGardiensQual.length}
+                label="Classement total arrêts (≥ 5 matchs)"
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -2463,8 +4276,15 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
             <ChartCard title="Gardiens — Moy. Arrêts vs % Arrêts (matchs ≥ 2 arrêts)">
               {/* Recherche gardien */}
               <div className="mb-3 relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" />
+                <svg
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path strokeLinecap="round" d="m21 21-4.35-4.35" />
                 </svg>
                 <input
                   type="text"
@@ -2474,15 +4294,27 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                   className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
-              <ResponsiveContainer width="100%" height={320} style={{ overflow: "visible" }}>
-                <ScatterChart margin={{ top: 16, right: 32, bottom: 32, left: 32 }}>
+              <ResponsiveContainer
+                width="100%"
+                height={320}
+                style={{ overflow: "visible" }}
+              >
+                <ScatterChart
+                  margin={{ top: 16, right: 32, bottom: 32, left: 32 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
                   <XAxis
                     dataKey="moyArrets"
                     type="number"
                     name="Moy. Arrêts"
                     tick={{ fontSize: 11 }}
-                    label={{ value: "Moy. Arrêts / match", position: "insideBottom", offset: -16, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    label={{
+                      value: "Moy. Arrêts / match",
+                      position: "insideBottom",
+                      offset: -16,
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
                   <YAxis
                     dataKey="pctArrets"
@@ -2491,30 +4323,60 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                     domain={[0, 100]}
                     tick={{ fontSize: 11 }}
                     tickFormatter={(v) => `${v}%`}
-                    label={{ value: "% Arrêts", angle: -90, position: "insideLeft", offset: 12, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    label={{
+                      value: "% Arrêts",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 12,
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
                   <ZAxis dataKey="matchs" range={[50, 200]} />
                   <Tooltip
                     cursor={{ strokeDasharray: "3 3" }}
-                    wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+                    wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={<GardienTooltip />}
                   />
                   <Scatter
                     name="Gardiens"
-                    data={[...filteredGardiens].sort((a, b) => b.pctArrets - a.pctArrets)}
+                    data={[...filteredGardiens].sort(
+                      (a, b) => b.pctArrets - a.pctArrets,
+                    )}
                     shape={(props: any) => {
-                      const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
-                      const sortedByPct = [...aggGardiens].sort((a, b) => b.pctArrets - a.pctArrets);
-                      const rank = sortedByPct.findIndex((g) => g.id === payload.id) + 1;
+                      const { cx, cy, payload } = props as {
+                        cx: number;
+                        cy: number;
+                        payload: AggGardien;
+                      };
+                      const sortedByPct = [...aggGardiens].sort(
+                        (a, b) => b.pctArrets - a.pctArrets,
+                      );
+                      const rank =
+                        sortedByPct.findIndex((g) => g.id === payload.id) + 1;
                       const isTop3 = rank <= 3;
                       return (
                         <g>
-                          <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5}
-                            fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75}
-                            stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
+                          {/* large transparent circle for reliable hover detection */}
+                          <circle cx={cx} cy={cy} r={14} fill="transparent" />
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isTop3 ? 7 : 5}
+                            fill={payload.equipeColor}
+                            opacity={isTop3 ? 1 : 0.75}
+                            stroke={isTop3 ? "white" : "none"}
+                            strokeWidth={1.5}
+                          />
                           {isTop3 && (
-                            <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9}
-                              fill={payload.equipeColor} fontWeight="bold">
+                            <text
+                              x={cx}
+                              y={cy - 10}
+                              textAnchor="middle"
+                              fontSize={9}
+                              fill={payload.equipeColor}
+                              fontWeight="bold"
+                            >
                               #{rank}
                             </text>
                           )}
@@ -2526,8 +4388,14 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
               </ResponsiveContainer>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
                 {visibleEquipes.map((eq) => (
-                  <div key={eq.id} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ background: equipeColorMap[eq.id] }} />
+                  <div
+                    key={eq.id}
+                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                      style={{ background: equipeColorMap[eq.id] }}
+                    />
                     {eq.nom}
                   </div>
                 ))}
@@ -2536,27 +4404,214 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
           </div>
           <Card className="rounded-3xl border-2 overflow-hidden">
             <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
-              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">Top 5 — % Arrêts</CardTitle>
+              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+                Top 5 — % Arrêts
+              </CardTitle>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                ≥ 5 matchs
+              </p>
             </CardHeader>
             <CardContent className="p-0">
-              {[...aggGardiens].sort((a, b) => b.pctArrets - a.pctArrets).slice(0, 5).map((g, i) => (
-                <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs truncate">{g.nom}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.equipeColor }} />
-                      <p className="text-[10px] text-muted-foreground truncate">{g.equipeNom}</p>
+              {[...aggGardiensQual]
+                .sort((a, b) => b.pctArrets - a.pctArrets)
+                .slice(0, 5)
+                .map((g, i) => (
+                  <div
+                    key={g.id}
+                    className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+                  >
+                    <span
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-xs truncate">{g.nom}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ background: g.equipeColor }}
+                        />
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {g.equipeNom}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span
+                        className="font-sport italic font-black text-base"
+                        style={{ color: arretsColor(g.pctArrets) }}
+                      >
+                        {g.pctArrets}%
+                      </span>
+                      <p className="text-[9px] text-muted-foreground">
+                        {g.matchs} matchs
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <span className="font-sport italic font-black text-base" style={{ color: arretsColor(g.pctArrets) }}>{g.pctArrets}%</span>
-                    <p className="text-[9px] text-muted-foreground">{g.matchs} matchs</p>
+                ))}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ─── Gardiens — Moy. Arrêts vs Total Arrêts ──────────────────── */}
+      {aggGardiens.length > 0 && (
+        <div className="relative z-35 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2">
+            <ChartCard title="Gardiens — Moy. Arrêts / Match vs Total Arrêts">
+              <ResponsiveContainer
+                width="100%"
+                height={320}
+                style={{ overflow: "visible" }}
+              >
+                <ScatterChart
+                  margin={{ top: 16, right: 32, bottom: 32, left: 32 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis
+                    dataKey="moyArrets"
+                    type="number"
+                    name="Moy. Arrêts"
+                    tick={{ fontSize: 11 }}
+                    label={{
+                      value: "Moy. Arrêts / match",
+                      position: "insideBottom",
+                      offset: -16,
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                  />
+                  <YAxis
+                    dataKey="arrets"
+                    type="number"
+                    name="Total Arrêts"
+                    tick={{ fontSize: 11 }}
+                    label={{
+                      value: "Total Arrêts",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 12,
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                  />
+                  <ZAxis dataKey="matchs" range={[50, 200]} />
+                  <Tooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
+                    content={<GardienArretTooltip />}
+                  />
+                  <Scatter
+                    name="Gardiens"
+                    data={[...filteredGardiens].sort(
+                      (a, b) => b.arrets - a.arrets,
+                    )}
+                    shape={(props: any) => {
+                      const { cx, cy, payload } = props as {
+                        cx: number;
+                        cy: number;
+                        payload: AggGardien;
+                      };
+                      const sortedByArrets = [...aggGardiensQual].sort(
+                        (a, b) => b.arrets - a.arrets,
+                      );
+                      const rank =
+                        sortedByArrets.findIndex((g) => g.id === payload.id) +
+                        1;
+                      const isTop3 = rank >= 1 && rank <= 3;
+                      return (
+                        <g>
+                          {/* large transparent circle for reliable hover detection */}
+                          <circle cx={cx} cy={cy} r={14} fill="transparent" />
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isTop3 ? 7 : 5}
+                            fill={payload.equipeColor}
+                            opacity={isTop3 ? 1 : 0.75}
+                            stroke={isTop3 ? "white" : "none"}
+                            strokeWidth={1.5}
+                          />
+                          {isTop3 && (
+                            <text
+                              x={cx}
+                              y={cy - 10}
+                              textAnchor="middle"
+                              fontSize={9}
+                              fill={payload.equipeColor}
+                              fontWeight="bold"
+                            >
+                              #{rank}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    }}
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
+                {visibleEquipes.map((eq) => (
+                  <div
+                    key={eq.id}
+                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                      style={{ background: equipeColorMap[eq.id] }}
+                    />
+                    {eq.nom}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </ChartCard>
+          </div>
+          <Card className="rounded-3xl border-2 overflow-hidden">
+            <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+                Top 5 — Total Arrêts
+              </CardTitle>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                ≥ 5 matchs
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              {[...aggGardiensQual]
+                .sort((a, b) => b.arrets - a.arrets)
+                .slice(0, 5)
+                .map((g, i) => (
+                  <div
+                    key={g.id}
+                    className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+                  >
+                    <span
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-xs truncate">{g.nom}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ background: g.equipeColor }}
+                        />
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {g.equipeNom}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-sport italic font-black text-base text-indigo-500">
+                        {g.arrets}
+                      </span>
+                      <p className="text-[9px] text-muted-foreground">
+                        {g.matchs}m · {g.moyArrets}/m
+                      </p>
+                    </div>
+                  </div>
+                ))}
             </CardContent>
           </Card>
         </div>
@@ -2565,28 +4620,53 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       <div className="relative z-30">
         <ScatterSection
           title="Total Buts vs Total Tirs"
-          xKey="tirs" yKey="buts" xLabel="Tirs" yLabel="Buts"
-          sortKey="buts" top5={top5Buts} top5Label="Total buts"
-          agg={agg} aggTeams={aggTeams} aggClub={aggClub}
-          visibleEquipes={visibleEquipes} equipeColorMap={equipeColorMap}
+          xKey="tirs"
+          yKey="buts"
+          xLabel="Tirs"
+          yLabel="Buts"
+          sortKey="buts"
+          top5={top5Buts}
+          top5Label="Total buts"
+          agg={agg}
+          aggTeams={aggTeams}
+          aggClub={aggClub}
+          visibleEquipes={visibleEquipes}
+          equipeColorMap={equipeColorMap}
         />
       </div>
       <div className="relative z-20">
         <ScatterSection
           title="Moyenne Buts vs Moyenne Tirs / Match"
-          xKey="moyTirs" yKey="moyButs" xLabel="Moy. Tirs" yLabel="Moy. Buts"
-          sortKey="moyButs" top5={top5MoyButs} top5Label="Moy buts/match"
-          agg={agg} aggTeams={aggTeams} aggClub={aggClub}
-          visibleEquipes={visibleEquipes} equipeColorMap={equipeColorMap}
+          xKey="moyTirs"
+          yKey="moyButs"
+          xLabel="Moy. Tirs"
+          yLabel="Moy. Buts"
+          sortKey="moyButs"
+          top5={top5MoyButs}
+          top5Label="Moy buts/match"
+          agg={agg}
+          aggTeams={aggTeams}
+          aggClub={aggClub}
+          visibleEquipes={visibleEquipes}
+          equipeColorMap={equipeColorMap}
         />
       </div>
       <div className="relative z-10">
         <ScatterSection
           title="% au Tir — Efficacité"
-          xKey="buts" yKey="pctTir" xLabel="Total Buts" yLabel="% au Tir"
-          sortKey="pctTir" top5={top5Pct} top5Label="% au tir" yUnit="%"
-          agg={agg} aggTeams={aggTeams} aggClub={aggClub}
-          visibleEquipes={visibleEquipes} equipeColorMap={equipeColorMap}
+          xKey="buts"
+          yKey="pctTir"
+          xLabel="Total Buts"
+          yLabel="% au Tir"
+          sortKey="pctTir"
+          top5={top5Pct}
+          top5Label="% au tir"
+          yUnit="%"
+          agg={agg}
+          aggTeams={aggTeams}
+          aggClub={aggClub}
+          visibleEquipes={visibleEquipes}
+          equipeColorMap={equipeColorMap}
         />
       </div>
     </div>
@@ -2596,150 +4676,227 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  ONGLET 4 — STATS OFFENSIVES                                    ║
 // ╚══════════════════════════════════════════════════════════════════╝
-function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters }) {
+function StatsOffensives({
+  data,
+  filters,
+}: {
+  data: StatsData;
+  filters: Filters;
+}) {
   const equipeIds = filters.equipeIds;
 
   // ── Par équipe : moyenne buts & tirs (FIX: tirs filtrés sur les matchs filtrés) ──
-  const parEquipe = useMemo(() =>
-    data.equipes
-      .filter((eq) => equipeIds.includes(eq.id))
-      .map((eq) => {
-        const ms = data.matchs.filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions));
-        const msIds = new Set(ms.map((m) => m.id));
-        const butsMarques = ms.reduce((acc, m) => {
-          const [a, b] = m.score_final!.split("-").map(Number);
-          return acc + (m.equipe_recevant_id === eq.id ? a : b);
-        }, 0);
-        const butsEncaisses = ms.reduce((acc, m) => {
-          const [a, b] = m.score_final!.split("-").map(Number);
-          return acc + (m.equipe_recevant_id === eq.id ? b : a);
-        }, 0);
-        const tirsTotaux = data.statsJoueurs
-          .filter((s) => {
-            const j = data.joueurs.find((jj) => jj.id === s.id_joueur);
-            return j?.id_equipe === eq.id && s.id_match !== null && msIds.has(s.id_match!);
-          })
-          .reduce((acc, s) => acc + (s.tirs ?? 0), 0);
-        const n = ms.length;
-        return {
-          equipe: eq.nom,
-          moyButs: n ? +(butsMarques / n).toFixed(1) : 0,
-          moyTirs: n ? +(tirsTotaux / n).toFixed(1) : 0,
-          moyEncaisses: n ? +(butsEncaisses / n).toFixed(1) : 0,
-          pctTir: pct(butsMarques, tirsTotaux),
-          totalButs: butsMarques,
-          totalTirs: tirsTotaux,
-          matchs: n,
-        };
-      }), [data, equipeIds, filters]);
+  const parEquipe = useMemo(
+    () =>
+      data.equipes
+        .filter((eq) => equipeIds.includes(eq.id))
+        .map((eq) => {
+          const ms = data.matchs.filter((m) =>
+            applyMatchFilter(m, filters, [eq.id], data.competitions),
+          );
+          const msIds = new Set(ms.map((m) => m.id));
+          const butsMarques = ms.reduce((acc, m) => {
+            const [a, b] = m.score_final!.split("-").map(Number);
+            return acc + (m.equipe_recevant_id === eq.id ? a : b);
+          }, 0);
+          const butsEncaisses = ms.reduce((acc, m) => {
+            const [a, b] = m.score_final!.split("-").map(Number);
+            return acc + (m.equipe_recevant_id === eq.id ? b : a);
+          }, 0);
+          const tirsTotaux = data.statsJoueurs
+            .filter((s) => {
+              const j = data.joueurs.find((jj) => jj.id === s.id_joueur);
+              return (
+                j?.id_equipe === eq.id &&
+                s.id_match !== null &&
+                msIds.has(s.id_match!)
+              );
+            })
+            .reduce((acc, s) => acc + (s.tirs ?? 0), 0);
+          const n = ms.length;
+          return {
+            equipe: eq.nom,
+            moyButs: n ? +(butsMarques / n).toFixed(1) : 0,
+            moyTirs: n ? +(tirsTotaux / n).toFixed(1) : 0,
+            moyEncaisses: n ? +(butsEncaisses / n).toFixed(1) : 0,
+            pctTir: pct(butsMarques, tirsTotaux),
+            totalButs: butsMarques,
+            totalTirs: tirsTotaux,
+            matchs: n,
+          };
+        }),
+    [data, equipeIds, filters],
+  );
 
   // ── Buts par match (timeline, coloré V/N/D) ──
   const butsParMatch = useMemo(() => {
-    const rows: { label: string; buts: number; encaisses: number; result: string; equipe: string; date: string }[] = [];
-    data.equipes.filter((eq) => equipeIds.includes(eq.id)).forEach((eq) => {
-      data.matchs
-        .filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions))
-        .sort((a, b) => (a.date_match ?? "").localeCompare(b.date_match ?? ""))
-        .forEach((m, i) => {
-          const [a, b] = m.score_final!.split("-").map(Number);
-          const scored = m.equipe_recevant_id === eq.id ? a : b;
-          const conceded = m.equipe_recevant_id === eq.id ? b : a;
-          rows.push({
-            label: m.date_match ? fmtDate(m.date_match) : `M${i + 1}`,
-            buts: scored,
-            encaisses: conceded,
-            result: getResult(m, [eq.id]) ?? "draw",
-            equipe: eq.nom,
-            date: m.date_match ?? "",
+    const rows: {
+      label: string;
+      buts: number;
+      encaisses: number;
+      result: string;
+      equipe: string;
+      date: string;
+    }[] = [];
+    data.equipes
+      .filter((eq) => equipeIds.includes(eq.id))
+      .forEach((eq) => {
+        data.matchs
+          .filter((m) =>
+            applyMatchFilter(m, filters, [eq.id], data.competitions),
+          )
+          .sort((a, b) =>
+            (a.date_match ?? "").localeCompare(b.date_match ?? ""),
+          )
+          .forEach((m, i) => {
+            const [a, b] = m.score_final!.split("-").map(Number);
+            const scored = m.equipe_recevant_id === eq.id ? a : b;
+            const conceded = m.equipe_recevant_id === eq.id ? b : a;
+            rows.push({
+              label: m.date_match ? fmtDate(m.date_match) : `M${i + 1}`,
+              buts: scored,
+              encaisses: conceded,
+              result: getResult(m, [eq.id]) ?? "draw",
+              equipe: eq.nom,
+              date: m.date_match ?? "",
+            });
           });
-        });
-    });
+      });
     return rows;
   }, [data, equipeIds, filters]);
 
   // ── Domicile vs Extérieur ──
   const domExt = useMemo(() => {
     const acc = { dom: { buts: 0, n: 0 }, ext: { buts: 0, n: 0 } };
-    data.equipes.filter((eq) => equipeIds.includes(eq.id)).forEach((eq) => {
-      data.matchs
-        .filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions))
-        .forEach((m) => {
-          const [a, b] = m.score_final!.split("-").map(Number);
-          const scored = m.equipe_recevant_id === eq.id ? a : b;
-          if (m.equipe_recevant_id === eq.id) { acc.dom.buts += scored; acc.dom.n++; }
-          else { acc.ext.buts += scored; acc.ext.n++; }
-        });
-    });
+    data.equipes
+      .filter((eq) => equipeIds.includes(eq.id))
+      .forEach((eq) => {
+        data.matchs
+          .filter((m) =>
+            applyMatchFilter(m, filters, [eq.id], data.competitions),
+          )
+          .forEach((m) => {
+            const [a, b] = m.score_final!.split("-").map(Number);
+            const scored = m.equipe_recevant_id === eq.id ? a : b;
+            if (m.equipe_recevant_id === eq.id) {
+              acc.dom.buts += scored;
+              acc.dom.n++;
+            } else {
+              acc.ext.buts += scored;
+              acc.ext.n++;
+            }
+          });
+      });
     return [
-      { context: "Domicile", moyButs: acc.dom.n ? +(acc.dom.buts / acc.dom.n).toFixed(1) : 0, matchs: acc.dom.n },
-      { context: "Extérieur", moyButs: acc.ext.n ? +(acc.ext.buts / acc.ext.n).toFixed(1) : 0, matchs: acc.ext.n },
+      {
+        context: "Domicile",
+        moyButs: acc.dom.n ? +(acc.dom.buts / acc.dom.n).toFixed(1) : 0,
+        matchs: acc.dom.n,
+      },
+      {
+        context: "Extérieur",
+        moyButs: acc.ext.n ? +(acc.ext.buts / acc.ext.n).toFixed(1) : 0,
+        matchs: acc.ext.n,
+      },
     ];
   }, [data, equipeIds, filters]);
 
-  const equipeLabels = data.equipes.filter((eq) => equipeIds.includes(eq.id)).map((eq) => eq.nom);
+  const equipeLabels = data.equipes
+    .filter((eq) => equipeIds.includes(eq.id))
+    .map((eq) => eq.nom);
 
   // ── Moy. buts cumulée + % tir cumulé par équipe ──
   const cumulChartData = useMemo(() => {
     const map: Record<string, any> = {};
-    data.equipes.filter((eq) => equipeIds.includes(eq.id)).forEach((eq) => {
-      let cumButs = 0, cumTirs = 0, n = 0;
-      const msIds = new Set(
-        data.matchs
-          .filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions))
-          .map((m) => m.id)
-      );
-      const tirsByMatch: Record<number, number> = {};
-      data.statsJoueurs.forEach((s) => {
-        if (!s.id_match || !msIds.has(s.id_match)) return;
-        const j = data.joueurs.find((jj) => jj.id === s.id_joueur);
-        if (!j || j.id_equipe !== eq.id) return;
-        tirsByMatch[s.id_match] = (tirsByMatch[s.id_match] ?? 0) + (s.tirs ?? 0);
-      });
-      data.matchs
-        .filter((m) => msIds.has(m.id))
-        .sort((a, b) => (a.date_match ?? "").localeCompare(b.date_match ?? ""))
-        .forEach((m) => {
-          const [a, b] = m.score_final!.split("-").map(Number);
-          cumButs += m.equipe_recevant_id === eq.id ? a : b;
-          cumTirs += tirsByMatch[m.id] ?? 0;
-          n++;
-          const isoKey = m.date_match ?? `M${n}`;
-          const label = m.date_match ? fmtDate(m.date_match) : `M${n}`;
-          if (!map[isoKey]) map[isoKey] = { label };
-          map[isoKey][`${eq.nom}_moy`] = parseFloat((cumButs / n).toFixed(2));
-          map[isoKey][`${eq.nom}_pct`] = pct(cumButs, cumTirs);
+    data.equipes
+      .filter((eq) => equipeIds.includes(eq.id))
+      .forEach((eq) => {
+        let cumButs = 0,
+          cumTirs = 0,
+          n = 0;
+        const msIds = new Set(
+          data.matchs
+            .filter((m) =>
+              applyMatchFilter(m, filters, [eq.id], data.competitions),
+            )
+            .map((m) => m.id),
+        );
+        const tirsByMatch: Record<number, number> = {};
+        data.statsJoueurs.forEach((s) => {
+          if (!s.id_match || !msIds.has(s.id_match)) return;
+          const j = data.joueurs.find((jj) => jj.id === s.id_joueur);
+          if (!j || j.id_equipe !== eq.id) return;
+          tirsByMatch[s.id_match] =
+            (tirsByMatch[s.id_match] ?? 0) + (s.tirs ?? 0);
         });
-    });
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
+        data.matchs
+          .filter((m) => msIds.has(m.id))
+          .sort((a, b) =>
+            (a.date_match ?? "").localeCompare(b.date_match ?? ""),
+          )
+          .forEach((m) => {
+            const [a, b] = m.score_final!.split("-").map(Number);
+            cumButs += m.equipe_recevant_id === eq.id ? a : b;
+            cumTirs += tirsByMatch[m.id] ?? 0;
+            n++;
+            const isoKey = m.date_match ?? `M${n}`;
+            const label = m.date_match ? fmtDate(m.date_match) : `M${n}`;
+            if (!map[isoKey]) map[isoKey] = { label };
+            map[isoKey][`${eq.nom}_moy`] = parseFloat((cumButs / n).toFixed(2));
+            map[isoKey][`${eq.nom}_pct`] = pct(cumButs, cumTirs);
+          });
+      });
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, v]) => v);
   }, [data, equipeIds, filters]);
   const OffTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[200px] overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[200px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="overflow-y-auto max-h-72">
           <div className="p-3 text-xs space-y-2">
             <p className="font-black text-sm pb-2 border-b">{d.equipe}</p>
             <div className="grid grid-cols-2 gap-1.5">
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-emerald-500">{d.moyButs}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Moy. Buts</p>
+                <p className="font-black text-sm text-emerald-500">
+                  {d.moyButs}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Moy. Buts
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-indigo-500">{d.moyTirs}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Moy. Tirs</p>
+                <p className="font-black text-sm text-indigo-500">
+                  {d.moyTirs}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Moy. Tirs
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-                <p className="font-black text-sm text-red-400">{d.moyEncaisses}</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Moy. Enc.</p>
+                <p className="font-black text-sm text-red-400">
+                  {d.moyEncaisses}
+                </p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  Moy. Enc.
+                </p>
               </div>
               <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
                 <p className="font-black text-sm text-amber-500">{d.pctTir}%</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">% Tir</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  % Tir
+                </p>
               </div>
             </div>
             <div className="border-t pt-2 text-[10px] text-muted-foreground flex justify-between">
-              <span>{d.totalButs} buts / {d.totalTirs} tirs</span>
+              <span>
+                {d.totalButs} buts / {d.totalTirs} tirs
+              </span>
               <span>{d.matchs} matchs</span>
             </div>
           </div>
@@ -2751,23 +4908,43 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
   const MatchTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
-    const rcol = d.result === "win" ? COL_WIN : d.result === "loss" ? "#ef4444" : "#f59e0b";
-    const rlabel = d.result === "win" ? "Victoire" : d.result === "loss" ? "Défaite" : "Nul";
+    const rcol =
+      d.result === "win"
+        ? COL_WIN
+        : d.result === "loss"
+          ? "#ef4444"
+          : "#f59e0b";
+    const rlabel =
+      d.result === "win" ? "Victoire" : d.result === "loss" ? "Défaite" : "Nul";
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[180px] overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[180px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="p-3 text-xs space-y-2">
           <div className="flex justify-between items-center pb-2 border-b">
-            <p className="font-black">{d.label} · {d.equipe}</p>
-            <span className="font-black text-[10px] px-2 py-0.5 rounded-full ml-2" style={{ background: rcol + "22", color: rcol }}>{rlabel}</span>
+            <p className="font-black">
+              {d.label} · {d.equipe}
+            </p>
+            <span
+              className="font-black text-[10px] px-2 py-0.5 rounded-full ml-2"
+              style={{ background: rcol + "22", color: rcol }}
+            >
+              {rlabel}
+            </span>
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm text-emerald-500">{d.buts}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Buts
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm text-red-400">{d.encaisses}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Encaissés</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Encaissés
+              </p>
             </div>
           </div>
         </div>
@@ -2779,29 +4956,44 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[190px] overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[190px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="p-3 text-xs space-y-2">
           <p className="font-black text-sm pb-2 border-b truncate">{d.nom}</p>
           <div className="grid grid-cols-3 gap-1.5">
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm text-primary">{d.buts}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Buts
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm">{d.moyButs}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">B/match</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                B/match
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
               <p className="font-black text-sm text-amber-500">{d.pctTir}%</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">% Tir</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                % Tir
+              </p>
             </div>
           </div>
           <div className="border-t pt-2">
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-              <span>Efficacité</span><span>{d.buts}/{d.tirs}</span>
+              <span>Efficacité</span>
+              <span>
+                {d.buts}/{d.tirs}
+              </span>
             </div>
             <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full rounded-full bg-amber-400" style={{ width: `${d.pctTir}%` }} />
+              <div
+                className="h-full rounded-full bg-amber-400"
+                style={{ width: `${d.pctTir}%` }}
+              />
             </div>
           </div>
         </div>
@@ -2811,27 +5003,45 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
 
   // Couleur de barre selon résultat
   const getMatchBarColor = (entry: any) =>
-    entry.result === "win" ? COL_WIN : entry.result === "loss" ? "#ef4444" : "#f59e0b";
+    entry.result === "win"
+      ? COL_WIN
+      : entry.result === "loss"
+        ? "#ef4444"
+        : "#f59e0b";
 
   return (
     <div className="space-y-6">
-
       {/* Metrics globaux */}
       {parEquipe.length > 0 && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {parEquipe.map((eq) => (
-              <MetricCard key={eq.equipe} label={`Moy. Buts — ${eq.equipe}`} value={eq.moyButs} color="text-emerald-600" sub={`${eq.matchs} matchs`} />
+              <MetricCard
+                key={eq.equipe}
+                label={`Moy. Buts — ${eq.equipe}`}
+                value={eq.moyButs}
+                color="text-emerald-600"
+                sub={`${eq.matchs} matchs`}
+              />
             ))}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {parEquipe.map((eq, i) => (
-              <Card key={eq.equipe} className="rounded-3xl border-2 overflow-hidden">
+              <Card
+                key={eq.equipe}
+                className="rounded-3xl border-2 overflow-hidden"
+              >
                 <div className="bg-muted/50 border-b px-5 py-3">
-                  <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">% au Tir — {eq.equipe}</p>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">
+                    % au Tir — {eq.equipe}
+                  </p>
                 </div>
                 <div className="flex flex-col items-center px-4 py-2">
-                  <GaugeArc value={eq.pctTir} label={`${eq.totalButs} buts / ${eq.totalTirs} tirs`} gradId={`gauge-tir-off-${i}`} />
+                  <GaugeArc
+                    value={eq.pctTir}
+                    label={`${eq.totalButs} buts / ${eq.totalTirs} tirs`}
+                    gradId={`gauge-tir-off-${i}`}
+                  />
                 </div>
               </Card>
             ))}
@@ -2841,17 +5051,51 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
 
       {/* Moyenne Buts & Tirs par match + % au tir */}
       <ChartCard title="Moyenne Buts & Tirs par match — par équipe">
-        <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+        <ResponsiveContainer
+          width="100%"
+          height={280}
+          style={{ overflow: "visible" }}
+        >
           <ComposedChart data={parEquipe}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
             <XAxis dataKey="equipe" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-            <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-            <Tooltip content={<OffTooltip />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tickFormatter={(v) => `${v}%`}
+              tick={{ fontSize: 11 }}
+            />
+            <Tooltip
+              content={<OffTooltip />}
+              wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar yAxisId="left" dataKey="moyButs" name="Moy. Buts" fill={COL_WIN} radius={[4,4,0,0]} />
-            <Bar yAxisId="left" dataKey="moyTirs" name="Moy. Tirs" fill="#6366f1" opacity={0.6} radius={[4,4,0,0]} />
-            <Line yAxisId="right" type="monotone" dataKey="pctTir" name="% au Tir" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 5, fill: "#f59e0b" }} />
+            <Bar
+              yAxisId="left"
+              dataKey="moyButs"
+              name="Moy. Buts"
+              fill={COL_WIN}
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar
+              yAxisId="left"
+              dataKey="moyTirs"
+              name="Moy. Tirs"
+              fill="#6366f1"
+              opacity={0.6}
+              radius={[4, 4, 0, 0]}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="pctTir"
+              name="% au Tir"
+              stroke="#f59e0b"
+              strokeWidth={2.5}
+              dot={{ r: 5, fill: "#f59e0b" }}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -2859,19 +5103,71 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
       {/* Moy. buts cumulée + % tir cumulé */}
       {cumulChartData.length > 1 && (
         <ChartCard title="Moyenne de buts cumulée & % au tir cumulé — par équipe">
-          <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+          <ResponsiveContainer
+            width="100%"
+            height={280}
+            style={{ overflow: "visible" }}
+          >
             <ComposedChart data={cumulChartData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis yAxisId="left" tick={{ fontSize: 11 }} label={{ value: "Moy. buts", angle: -90, position: "insideLeft", fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-              <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} label={{ value: "% Tir", angle: 90, position: "insideRight", fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 10 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                yAxisId="left"
+                tick={{ fontSize: 11 }}
+                label={{
+                  value: "Moy. buts",
+                  angle: -90,
+                  position: "insideLeft",
+                  fontSize: 10,
+                  fill: "hsl(var(--muted-foreground))",
+                }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+                tick={{ fontSize: 11 }}
+                label={{
+                  value: "% Tir",
+                  angle: 90,
+                  position: "insideRight",
+                  fontSize: 10,
+                  fill: "hsl(var(--muted-foreground))",
+                }}
+              />
               <Tooltip wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {equipeLabels.map((nom, i) => (
-                <Line key={nom + "_moy"} yAxisId="left" type="monotone" dataKey={`${nom}_moy`} name={`${nom} — moy. buts`} stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} connectNulls />
+                <Line
+                  key={nom + "_moy"}
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey={`${nom}_moy`}
+                  name={`${nom} — moy. buts`}
+                  stroke={PALETTE[i % PALETTE.length]}
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls
+                />
               ))}
               {equipeLabels.map((nom, i) => (
-                <Line key={nom + "_pct"} yAxisId="right" type="monotone" dataKey={`${nom}_pct`} name={`${nom} — % tir`} stroke={PALETTE[i % PALETTE.length]} strokeWidth={1.5} dot={false} strokeDasharray="5 3" connectNulls />
+                <Line
+                  key={nom + "_pct"}
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey={`${nom}_pct`}
+                  name={`${nom} — % tir`}
+                  stroke={PALETTE[i % PALETTE.length]}
+                  strokeWidth={1.5}
+                  dot={false}
+                  strokeDasharray="5 3"
+                  connectNulls
+                />
               ))}
             </ComposedChart>
           </ResponsiveContainer>
@@ -2881,13 +5177,23 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
       {/* Domicile vs Extérieur */}
       {domExt.some((d) => d.matchs > 0) && (
         <ChartCard title="Moy. Buts — Domicile vs Extérieur">
-          <ResponsiveContainer width="100%" height={200} style={{ overflow: "visible" }}>
+          <ResponsiveContainer
+            width="100%"
+            height={200}
+            style={{ overflow: "visible" }}
+          >
             <BarChart data={domExt}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey="context" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip wrapperStyle={{ zIndex: 9999 }} formatter={(v: any, name?: string) => [`${v} buts/match`, name ?? ""]} />
-              <Bar dataKey="moyButs" name="Moy. Buts" radius={[6,6,0,0]}>
+              <Tooltip
+                wrapperStyle={{ zIndex: 9999 }}
+                formatter={(v: any, name?: string) => [
+                  `${v} buts/match`,
+                  name ?? "",
+                ]}
+              />
+              <Bar dataKey="moyButs" name="Moy. Buts" radius={[6, 6, 0, 0]}>
                 <Cell fill="#6366f1" />
                 <Cell fill="#f59e0b" />
               </Bar>
@@ -2895,7 +5201,6 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
           </ResponsiveContainer>
         </ChartCard>
       )}
-
     </div>
   );
 }
@@ -2903,31 +5208,54 @@ function StatsOffensives({ data, filters }: { data: StatsData; filters: Filters 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  ONGLET 5 — STATS DÉFENSIVES                                    ║
 // ╚══════════════════════════════════════════════════════════════════╝
-function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters }) {
+function StatsDefensives({
+  data,
+  filters,
+}: {
+  data: StatsData;
+  filters: Filters;
+}) {
   const equipeIds = filters.equipeIds;
+  const [gardienSort, setGardienSort] = useState<
+    "totalArrets" | "moyArrets" | "pctArrets"
+  >("totalArrets");
 
   // ── Stats par équipe ──
   const parEquipe = useMemo(() => {
     return data.equipes
       .filter((eq) => equipeIds.includes(eq.id))
       .map((eq) => {
-        const ms = data.matchs.filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions));
+        const ms = data.matchs.filter((m) =>
+          applyMatchFilter(m, filters, [eq.id], data.competitions),
+        );
 
         // Arrêts totaux par match — tous joueurs de l'équipe (les arrêts non nuls viennent toujours des gardiens)
         const teamPlayerIds = new Set(
-          data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id)
+          data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id),
         );
         const arretsByMatch: Record<number, number> = {};
         data.statsJoueurs.forEach((s) => {
-          if (!s.id_match || s.id_joueur == null || !teamPlayerIds.has(s.id_joueur)) return;
-          arretsByMatch[s.id_match] = (arretsByMatch[s.id_match] ?? 0) + (s.arrets ?? 0);
+          if (
+            !s.id_match ||
+            s.id_joueur == null ||
+            !teamPlayerIds.has(s.id_joueur)
+          )
+            return;
+          arretsByMatch[s.id_match] =
+            (arretsByMatch[s.id_match] ?? 0) + (s.arrets ?? 0);
         });
 
         // Exclusions 2 min : somme depuis statistiques_joueurs
         const exclByMatch: Record<number, number> = {};
         data.statsJoueurs.forEach((s) => {
-          if (!s.id_match || s.id_joueur == null || !teamPlayerIds.has(s.id_joueur)) return;
-          exclByMatch[s.id_match] = (exclByMatch[s.id_match] ?? 0) + (s.exclusions_2min ?? 0);
+          if (
+            !s.id_match ||
+            s.id_joueur == null ||
+            !teamPlayerIds.has(s.id_joueur)
+          )
+            return;
+          exclByMatch[s.id_match] =
+            (exclByMatch[s.id_match] ?? 0) + (s.exclusions_2min ?? 0);
         });
 
         // Matchs valides pour les stats gardien (≥ 2 arrêts enregistrés)
@@ -2943,15 +5271,26 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
           const [a, b] = m.score_final!.split("-").map(Number);
           return acc + (m.equipe_recevant_id === eq.id ? b : a);
         }, 0);
-        const totalArrets = msArrets.reduce((acc, m) => acc + (arretsByMatch[m.id] ?? 0), 0);
-        const totalExcl = ms.reduce((a: number, m) => a + (exclByMatch[m.id] ?? 0), 0);
-        const pctArrets = pct(totalArrets, totalArrets + butsEncaissesSurArrets);
+        const totalArrets = msArrets.reduce(
+          (acc, m) => acc + (arretsByMatch[m.id] ?? 0),
+          0,
+        );
+        const totalExcl = ms.reduce(
+          (a: number, m) => a + (exclByMatch[m.id] ?? 0),
+          0,
+        );
+        const pctArrets = pct(
+          totalArrets,
+          totalArrets + butsEncaissesSurArrets,
+        );
 
         return {
           equipe: eq.nom,
           equipeId: eq.id,
           butsEncaisses,
-          moyButsEncaisses: ms.length ? +(butsEncaisses / ms.length).toFixed(1) : 0,
+          moyButsEncaisses: ms.length
+            ? +(butsEncaisses / ms.length).toFixed(1)
+            : 0,
           totalArrets,
           pctArrets,
           exclusions2min: totalExcl,
@@ -2974,81 +5313,134 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
       moyArrets: number;
     }[] = [];
 
-    data.equipes.filter((eq) => equipeIds.includes(eq.id)).forEach((eq) => {
-      const ms = data.matchs.filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions));
-      const msIds = new Set(ms.map((m) => m.id));
-      const gardiens = data.joueurs.filter(
-        (j) => j.id_equipe === eq.id && j.poste_principal?.toLowerCase().includes("gardien")
-      );
-
-      // Utilise les gardiens tagués, sinon tout joueur ayant des arrêts enregistrés
-      const joueursSurValidMatchs = gardiens.length > 0
-        ? gardiens
-        : data.joueurs.filter(
-            (j) => j.id_equipe === eq.id &&
-            data.statsJoueurs.some((s) => s.id_joueur === j.id && msIds.has(s.id_match!) && (s.arrets ?? 0) > 0)
-          );
-
-      joueursSurValidMatchs.forEach((gardien) => {
-        // Seuls les matchs où CE gardien a ≥ 2 arrêts sont pris en compte
-        const statsG = data.statsJoueurs.filter(
-          (s) => s.id_joueur === gardien.id && s.id_match != null && msIds.has(s.id_match!) && (s.arrets ?? 0) >= 2
+    data.equipes
+      .filter((eq) => equipeIds.includes(eq.id))
+      .forEach((eq) => {
+        const ms = data.matchs.filter((m) =>
+          applyMatchFilter(m, filters, [eq.id], data.competitions),
         );
-        if (statsG.length === 0) return;
+        const msIds = new Set(ms.map((m) => m.id));
+        const gardiens = data.joueurs.filter(
+          (j) =>
+            j.id_equipe === eq.id &&
+            j.poste_principal?.toLowerCase().includes("gardien"),
+        );
 
-        const gardienMatchIds = new Set(statsG.map((s) => s.id_match));
-        const totalArrets = statsG.reduce((acc, s) => acc + (s.arrets ?? 0), 0);
-        const matchsJoues = gardienMatchIds.size;
-        const butsEncaisses = ms
-          .filter((m) => gardienMatchIds.has(m.id))
-          .reduce((acc, m) => {
-            const [a, b] = m.score_final!.split("-").map(Number);
-            return acc + (m.equipe_recevant_id === eq.id ? b : a);
-          }, 0);
+        // Utilise les gardiens tagués, sinon tout joueur ayant des arrêts enregistrés
+        const joueursSurValidMatchs =
+          gardiens.length > 0
+            ? gardiens
+            : data.joueurs.filter(
+                (j) =>
+                  j.id_equipe === eq.id &&
+                  data.statsJoueurs.some(
+                    (s) =>
+                      s.id_joueur === j.id &&
+                      msIds.has(s.id_match!) &&
+                      (s.arrets ?? 0) > 0,
+                  ),
+              );
 
-        result.push({
-          nom: gardien.nom_prenom,
-          equipe: eq.nom,
-          totalArrets,
-          totalButsEncaisses: butsEncaisses,
-          pctArrets: pct(totalArrets, totalArrets + butsEncaisses),
-          matchs: matchsJoues,
-          moyArrets: matchsJoues ? +(totalArrets / matchsJoues).toFixed(1) : 0,
+        joueursSurValidMatchs.forEach((gardien) => {
+          // Seuls les matchs où CE gardien a ≥ 2 arrêts sont pris en compte
+          const statsG = data.statsJoueurs.filter(
+            (s) =>
+              s.id_joueur === gardien.id &&
+              s.id_match != null &&
+              msIds.has(s.id_match!) &&
+              (s.arrets ?? 0) >= 2,
+          );
+          if (statsG.length === 0) return;
+
+          const gardienMatchIds = new Set(statsG.map((s) => s.id_match));
+          const totalArrets = statsG.reduce(
+            (acc, s) => acc + (s.arrets ?? 0),
+            0,
+          );
+          const matchsJoues = gardienMatchIds.size;
+          const butsEncaisses = ms
+            .filter((m) => gardienMatchIds.has(m.id))
+            .reduce((acc, m) => {
+              const [a, b] = m.score_final!.split("-").map(Number);
+              return acc + (m.equipe_recevant_id === eq.id ? b : a);
+            }, 0);
+
+          result.push({
+            nom: formatNomPrenom(gardien.nom_prenom),
+            equipe: eq.nom,
+            totalArrets,
+            totalButsEncaisses: butsEncaisses,
+            pctArrets: pct(totalArrets, totalArrets + butsEncaisses),
+            matchs: matchsJoues,
+            moyArrets: matchsJoues
+              ? +(totalArrets / matchsJoues).toFixed(1)
+              : 0,
+          });
         });
       });
-    });
 
-    return result.sort((a, b) => b.totalArrets - a.totalArrets);
+    return result;
   }, [data, equipeIds, filters]);
 
-  // ── Timeline % arrêts par match (matchs valides uniquement) ──
+  const sortedGardiens = useMemo(
+    () => [...statsGardiens].sort((a, b) => b[gardienSort] - a[gardienSort]),
+    [statsGardiens, gardienSort],
+  );
+
+  // ── Timeline % arrêts par match — numéro chronologique par équipe ──
   const arretTimeline = useMemo(() => {
-    const map: Record<string, any> = {};
-    data.equipes.filter((eq) => equipeIds.includes(eq.id)).forEach((eq) => {
-      const teamPlayerIds = new Set(
-        data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id)
-      );
-      const arretsByMatch: Record<number, number> = {};
-      data.statsJoueurs.forEach((s) => {
-        if (!s.id_match || s.id_joueur == null || !teamPlayerIds.has(s.id_joueur)) return;
-        arretsByMatch[s.id_match] = (arretsByMatch[s.id_match] ?? 0) + (s.arrets ?? 0);
-      });
-      data.matchs
-        .filter((m) => applyMatchFilter(m, filters, [eq.id], data.competitions) && (arretsByMatch[m.id] ?? 0) >= 2)
-        .sort((a, b) => (a.date_match ?? "").localeCompare(b.date_match ?? ""))
-        .forEach((m) => {
+    const equipeData: Record<
+      string,
+      Array<{ pct: number; arr: number; enc: number }>
+    > = {};
+    data.equipes
+      .filter((eq) => equipeIds.includes(eq.id))
+      .forEach((eq) => {
+        const teamPlayerIds = new Set(
+          data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id),
+        );
+        const arretsByMatch: Record<number, number> = {};
+        data.statsJoueurs.forEach((s) => {
+          if (
+            !s.id_match ||
+            s.id_joueur == null ||
+            !teamPlayerIds.has(s.id_joueur)
+          )
+            return;
+          arretsByMatch[s.id_match] =
+            (arretsByMatch[s.id_match] ?? 0) + (s.arrets ?? 0);
+        });
+        const validMatches = data.matchs
+          .filter(
+            (m) =>
+              applyMatchFilter(m, filters, [eq.id], data.competitions) &&
+              (arretsByMatch[m.id] ?? 0) >= 2,
+          )
+          .sort((a, b) =>
+            (a.date_match ?? "").localeCompare(b.date_match ?? ""),
+          );
+        equipeData[eq.nom] = validMatches.map((m) => {
           const [a, b] = m.score_final!.split("-").map(Number);
           const enc = m.equipe_recevant_id === eq.id ? b : a;
           const arr = arretsByMatch[m.id] ?? 0;
-          const isoKey = m.date_match ?? "?";
-          const label = m.date_match ? fmtDate(m.date_match) : "?";
-          if (!map[isoKey]) map[isoKey] = { label };
-          map[isoKey][eq.nom] = pct(arr, arr + enc);
-          map[isoKey][`${eq.nom}_arr`] = arr;
-          map[isoKey][`${eq.nom}_enc`] = enc;
+          return { pct: pct(arr, arr + enc), arr, enc };
         });
+      });
+    const maxLen = Math.max(
+      0,
+      ...Object.values(equipeData).map((d) => d.length),
+    );
+    return Array.from({ length: maxLen }, (_, i) => {
+      const row: Record<string, any> = { label: `Match ${i + 1}` };
+      Object.entries(equipeData).forEach(([nom, matches]) => {
+        if (i < matches.length) {
+          row[nom] = matches[i].pct;
+          row[`${nom}_arr`] = matches[i].arr;
+          row[`${nom}_enc`] = matches[i].enc;
+        }
+      });
+      return row;
     });
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
   }, [data, equipeIds, filters]);
 
   // ── Timeline exclusions 2 min — moyenne cumulée par match ──
@@ -3061,18 +5453,31 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
     // Précalcul exclusions par match et par équipe
     const exclByMatchByEquipe: Record<number, Record<number, number>> = {};
     eqs.forEach((eq) => {
-      const teamPlayerIds = new Set(data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id));
+      const teamPlayerIds = new Set(
+        data.joueurs.filter((j) => j.id_equipe === eq.id).map((j) => j.id),
+      );
       data.statsJoueurs.forEach((s) => {
-        if (!s.id_match || s.id_joueur == null || !teamPlayerIds.has(s.id_joueur)) return;
-        if (!exclByMatchByEquipe[s.id_match]) exclByMatchByEquipe[s.id_match] = {};
-        exclByMatchByEquipe[s.id_match][eq.id] = (exclByMatchByEquipe[s.id_match][eq.id] ?? 0) + (s.exclusions_2min ?? 0);
+        if (
+          !s.id_match ||
+          s.id_joueur == null ||
+          !teamPlayerIds.has(s.id_joueur)
+        )
+          return;
+        if (!exclByMatchByEquipe[s.id_match])
+          exclByMatchByEquipe[s.id_match] = {};
+        exclByMatchByEquipe[s.id_match][eq.id] =
+          (exclByMatchByEquipe[s.id_match][eq.id] ?? 0) +
+          (s.exclusions_2min ?? 0);
       });
     });
 
     // Compteurs cumulatifs par équipe
     const cumSum: Record<number, number> = {};
     const cumCount: Record<number, number> = {};
-    eqs.forEach((eq) => { cumSum[eq.id] = 0; cumCount[eq.id] = 0; });
+    eqs.forEach((eq) => {
+      cumSum[eq.id] = 0;
+      cumCount[eq.id] = 0;
+    });
 
     return ms.map((m) => {
       const point: any = { label: fmtDate(m.date_match) };
@@ -3080,35 +5485,58 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
         if (m.equipe_recevant_id === eq.id || m.equipe_exterieur_id === eq.id) {
           cumSum[eq.id] += exclByMatchByEquipe[m.id]?.[eq.id] ?? 0;
           cumCount[eq.id] += 1;
-          point[eq.nom] = cumCount[eq.id] > 0 ? +(cumSum[eq.id] / cumCount[eq.id]).toFixed(2) : 0;
+          point[eq.nom] =
+            cumCount[eq.id] > 0
+              ? +(cumSum[eq.id] / cumCount[eq.id]).toFixed(2)
+              : 0;
         }
       });
       return point;
     });
   }, [data, equipeIds, filters]);
 
-  const equipeLabels = data.equipes.filter((eq) => equipeIds.includes(eq.id)).map((eq) => eq.nom);
+  const equipeLabels = data.equipes
+    .filter((eq) => equipeIds.includes(eq.id))
+    .map((eq) => eq.nom);
 
   // ── Tooltips ──
   const DefTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-[200px] overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-[200px] overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="p-3 text-xs space-y-2">
           <p className="font-black text-sm pb-2 border-b">{d.equipe}</p>
           <div className="grid grid-cols-2 gap-1.5">
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-              <p className="font-black text-sm text-indigo-500">{d.totalArrets}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Arrêts</p>
+              <p className="font-black text-sm text-indigo-500">
+                {d.totalArrets}
+              </p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Arrêts
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center">
-              <p className="font-black text-sm text-red-400">{d.butsEncaisses}</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Buts enc.</p>
+              <p className="font-black text-sm text-red-400">
+                {d.butsEncaisses}
+              </p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                Buts enc.
+              </p>
             </div>
             <div className="bg-muted/50 rounded-xl px-2 py-1.5 text-center col-span-2">
-              <p className="font-black text-sm" style={{ color: arretsColor(d.pctArrets) }}>{d.pctArrets}%</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">% Arrêts</p>
+              <p
+                className="font-black text-sm"
+                style={{ color: arretsColor(d.pctArrets) }}
+              >
+                {d.pctArrets}%
+              </p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                % Arrêts
+              </p>
             </div>
           </div>
           <p className="text-[10px] text-muted-foreground text-center border-t pt-2">
@@ -3122,7 +5550,10 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
   const ArretTimelineTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="bg-background border-2 rounded-2xl shadow-xl min-w-40 overflow-hidden" style={{ zIndex: 9999 }}>
+      <div
+        className="bg-background border-2 rounded-2xl shadow-xl min-w-40 overflow-hidden"
+        style={{ zIndex: 9999 }}
+      >
         <div className="p-3 text-xs space-y-1.5">
           <p className="font-black pb-1 border-b">{label}</p>
           {equipeLabels.map((nom, i) => {
@@ -3130,14 +5561,22 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
             if (!entry) return null;
             const d = entry.payload;
             return (
-              <div key={nom} className="flex items-center justify-between gap-3">
+              <div
+                key={nom}
+                className="flex items-center justify-between gap-3"
+              >
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: PALETTE[i % PALETTE.length] }}
+                  />
                   <span>{nom}</span>
                 </div>
                 <div className="text-right">
                   <span className="font-black">{entry.value}%</span>
-                  <span className="text-muted-foreground ml-1">({d[`${nom}_arr`]}A / {d[`${nom}_enc`]}E)</span>
+                  <span className="text-muted-foreground ml-1">
+                    ({d[`${nom}_arr`]}A / {d[`${nom}_enc`]}E)
+                  </span>
                 </div>
               </div>
             );
@@ -3149,12 +5588,17 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
 
   return (
     <div className="space-y-6">
-
       {/* Metric cards */}
       {parEquipe.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {parEquipe.map((eq) => (
-            <MetricCard key={eq.equipe} label={`Moy. Enc. — ${eq.equipe}`} value={eq.moyButsEncaisses} color="text-red-500" sub={`${eq.matchs} matchs`} />
+            <MetricCard
+              key={eq.equipe}
+              label={`Moy. Enc. — ${eq.equipe}`}
+              value={eq.moyButsEncaisses}
+              color="text-red-500"
+              sub={`${eq.matchs} matchs`}
+            />
           ))}
         </div>
       )}
@@ -3163,12 +5607,22 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
       {parEquipe.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {parEquipe.map((eq, i) => (
-            <Card key={eq.equipe} className="rounded-3xl border-2 overflow-hidden">
+            <Card
+              key={eq.equipe}
+              className="rounded-3xl border-2 overflow-hidden"
+            >
               <div className="bg-muted/50 border-b px-5 py-3">
-                <p className="text-[11px] font-black uppercase tracking-wide text-indigo-600">% Arrêts — {eq.equipe}</p>
+                <p className="text-[11px] font-black uppercase tracking-wide text-indigo-600">
+                  % Arrêts — {eq.equipe}
+                </p>
               </div>
               <div className="flex flex-col items-center px-4 py-2">
-                <GaugeArc value={eq.pctArrets} label={`${eq.totalArrets} arrêts · ${eq.matchsAvecArrets} matchs`} gradId={`gauge-arr-${i}`} colorScheme="arrets" />
+                <GaugeArc
+                  value={eq.pctArrets}
+                  label={`${eq.totalArrets} arrêts · ${eq.matchsAvecArrets} matchs`}
+                  gradId={`gauge-arr-${i}`}
+                  colorScheme="arrets"
+                />
               </div>
             </Card>
           ))}
@@ -3177,17 +5631,62 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
 
       {/* Arrêts & % arrêts par équipe */}
       <ChartCard title="Arrêts & % Arrêts par équipe">
-        <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+        <ResponsiveContainer
+          width="100%"
+          height={280}
+          style={{ overflow: "visible" }}
+        >
           <ComposedChart data={parEquipe}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
             <XAxis dataKey="equipe" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-            <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-            <Tooltip content={<DefTooltip />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tickFormatter={(v) => `${v}%`}
+              tick={{ fontSize: 11 }}
+            />
+            <Tooltip
+              content={<DefTooltip />}
+              wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+            />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar yAxisId="left" dataKey="totalArrets" name="Arrêts" fill="#6366f1" radius={[4,4,0,0]} />
-            <Bar yAxisId="left" dataKey="butsEncaisses" name="Buts enc." fill={COL_LOSS} radius={[4,4,0,0]} opacity={0.7} />
-            <Line yAxisId="right" type="monotone" dataKey="pctArrets" name="% Arrêts" stroke={arretsColor(parEquipe.reduce((s: number, e) => s + e.pctArrets, 0) / Math.max(1, parEquipe.length))} strokeWidth={2.5} dot={(p: any) => <circle key={`def-dot-${p.cx}`} cx={p.cx} cy={p.cy} r={5} fill={arretsColor(p.payload.pctArrets)} />} />
+            <Bar
+              yAxisId="left"
+              dataKey="totalArrets"
+              name="Arrêts"
+              fill="#6366f1"
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar
+              yAxisId="left"
+              dataKey="butsEncaisses"
+              name="Buts enc."
+              fill={COL_LOSS}
+              radius={[4, 4, 0, 0]}
+              opacity={0.7}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="pctArrets"
+              name="% Arrêts"
+              stroke={arretsColor(
+                parEquipe.reduce((s: number, e) => s + e.pctArrets, 0) /
+                  Math.max(1, parEquipe.length),
+              )}
+              strokeWidth={2.5}
+              dot={(p: any) => (
+                <circle
+                  key={`def-dot-${p.cx}`}
+                  cx={p.cx}
+                  cy={p.cy}
+                  r={5}
+                  fill={arretsColor(p.payload.pctArrets)}
+                />
+              )}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -3195,24 +5694,61 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
       {/* Stats individuelles gardiens */}
       {statsGardiens.length > 0 && (
         <ChartCard title="Statistiques individuelles — Gardiens">
+          {/* Boutons de tri */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <span className="text-[10px] font-black uppercase text-muted-foreground">
+              Trier par
+            </span>
+            {(
+              [
+                { key: "totalArrets", label: "Total Arrêts" },
+                { key: "moyArrets", label: "Moy. Arrêts" },
+                { key: "pctArrets", label: "% Arrêts" },
+              ] as const
+            ).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setGardienSort(key)}
+                className={`text-[10px] font-bold px-3 py-1 rounded-full border transition-colors ${
+                  gardienSort === key
+                    ? "bg-primary text-white border-primary"
+                    : "bg-muted/40 text-muted-foreground border-transparent hover:border-primary/40 hover:text-primary"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-1">
-            {statsGardiens.map((g) => {
+            {sortedGardiens.map((g) => {
               const color = arretsColor(g.pctArrets);
               return (
-                <div key={g.nom + g.equipe} className="rounded-2xl border bg-muted/30 p-3 space-y-2">
+                <div
+                  key={g.nom + g.equipe}
+                  className="rounded-2xl border bg-muted/30 p-3 space-y-2"
+                >
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-black text-sm">{g.nom}</p>
-                      <p className="text-[10px] text-muted-foreground">{g.equipe}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {g.equipe}
+                      </p>
                     </div>
-                    <span className="text-xl font-black" style={{ color }}>{g.pctArrets}%</span>
+                    <span className="text-xl font-black" style={{ color }}>
+                      {g.pctArrets}%
+                    </span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${g.pctArrets}%`, background: color }} />
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${g.pctArrets}%`, background: color }}
+                    />
                   </div>
                   <div className="grid grid-cols-3 gap-1 text-center text-[10px]">
                     <div className="bg-background rounded-lg py-1">
-                      <p className="font-black text-indigo-500">{g.totalArrets}</p>
+                      <p className="font-black text-indigo-500">
+                        {g.totalArrets}
+                      </p>
                       <p className="text-muted-foreground">Arrêts</p>
                     </div>
                     <div className="bg-background rounded-lg py-1">
@@ -3234,15 +5770,39 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
       {/* Timeline % arrêts par match */}
       {arretTimeline.length > 1 && (
         <ChartCard title="Évolution % Arrêts par match (matchs avec ≥ 2 arrêts enregistrés)">
-          <ResponsiveContainer width="100%" height={260} style={{ overflow: "visible" }}>
+          <ResponsiveContainer
+            width="100%"
+            height={260}
+            style={{ overflow: "visible" }}
+          >
             <LineChart data={arretTimeline}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-              <Tooltip content={<ArretTimelineTooltip />} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 10 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+                tick={{ fontSize: 11 }}
+              />
+              <Tooltip
+                content={<ArretTimelineTooltip />}
+                wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+              />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {equipeLabels.map((nom, i) => (
-                <Line key={nom} type="monotone" dataKey={nom} name={nom} stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line
+                  key={nom}
+                  type="monotone"
+                  dataKey={nom}
+                  name={nom}
+                  stroke={PALETTE[i % PALETTE.length]}
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  connectNulls
+                />
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -3252,38 +5812,85 @@ function StatsDefensives({ data, filters }: { data: StatsData; filters: Filters 
       {/* Exclusions 2 min */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ChartCard title="Exclusions 2 min totales par équipe">
-          <ResponsiveContainer width="100%" height={240} style={{ overflow: "visible" }}>
+          <ResponsiveContainer
+            width="100%"
+            height={240}
+            style={{ overflow: "visible" }}
+          >
             <ComposedChart data={parEquipe}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey="equipe" tick={{ fontSize: 11 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => v.toFixed(1)} tick={{ fontSize: 11 }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickFormatter={(v) => v.toFixed(1)}
+                tick={{ fontSize: 11 }}
+              />
               <Tooltip wrapperStyle={{ zIndex: 9999 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar yAxisId="left" dataKey="exclusions2min" name="Exclusions 2 min" fill="#8b5cf6" radius={[4,4,0,0]} />
-              <Line yAxisId="right" type="monotone" dataKey="moyExcl" name="Moy. / match" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 5, fill: "#f59e0b" }} />
+              <Bar
+                yAxisId="left"
+                dataKey="exclusions2min"
+                name="Exclusions 2 min"
+                fill="#8b5cf6"
+                radius={[4, 4, 0, 0]}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="moyExcl"
+                name="Moy. / match"
+                stroke="#f59e0b"
+                strokeWidth={2.5}
+                dot={{ r: 5, fill: "#f59e0b" }}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
 
         {excl2minTimeline.length > 1 && (
           <ChartCard title="Moyenne cumulée exclusions 2 min — par match">
-            <ResponsiveContainer width="100%" height={240} style={{ overflow: "visible" }}>
+            <ResponsiveContainer
+              width="100%"
+              height={240}
+              style={{ overflow: "visible" }}
+            >
               <LineChart data={excl2minTimeline}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-                <YAxis tickFormatter={(v) => v.toFixed(1)} tick={{ fontSize: 11 }} />
-                <Tooltip wrapperStyle={{ zIndex: 9999 }} formatter={(v: any) => typeof v === "number" ? v.toFixed(2) : "-"} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tickFormatter={(v) => v.toFixed(1)}
+                  tick={{ fontSize: 11 }}
+                />
+                <Tooltip
+                  wrapperStyle={{ zIndex: 9999 }}
+                  formatter={(v: any) =>
+                    typeof v === "number" ? v.toFixed(2) : "-"
+                  }
+                />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 {equipeLabels.map((nom, i) => (
-                  <Line key={nom} type="monotone" dataKey={nom} name={nom} stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} connectNulls />
+                  <Line
+                    key={nom}
+                    type="monotone"
+                    dataKey={nom}
+                    name={nom}
+                    stroke={PALETTE[i % PALETTE.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                  />
                 ))}
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
       </div>
-
     </div>
   );
 }
@@ -3322,26 +5929,56 @@ type PlayerEvol = {
 };
 
 function TopTooltipRow({
-  label, cur, refVal, delta, unit = "", colorFn,
+  label,
+  cur,
+  refVal,
+  delta,
+  unit = "",
+  colorFn,
 }: {
-  label: string; cur: number; refVal: number; delta: number; unit?: string; colorFn?: (v: number) => string;
+  label: string;
+  cur: number;
+  refVal: number;
+  delta: number;
+  unit?: string;
+  colorFn?: (v: number) => string;
 }) {
-  const col = colorFn ? colorFn(cur) : delta > 0 ? "#10b981" : delta < 0 ? "#ef4444" : "#94a3b8";
+  const col = colorFn
+    ? colorFn(cur)
+    : delta > 0
+      ? "#10b981"
+      : delta < 0
+        ? "#ef4444"
+        : "#94a3b8";
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
       <div className="flex items-center gap-1 text-[10px]">
-        <span className="text-muted-foreground/60">{refVal}{unit}</span>
+        <span className="text-muted-foreground/60">
+          {refVal}
+          {unit}
+        </span>
         <span className="text-muted-foreground/50">→</span>
-        <span className="font-bold" style={{ color: col }}>{cur}{unit}</span>
-        <span className="font-black" style={{ color: col }}>({delta > 0 ? "+" : ""}{delta}{unit})</span>
+        <span className="font-bold" style={{ color: col }}>
+          {cur}
+          {unit}
+        </span>
+        <span className="font-black" style={{ color: col }}>
+          ({delta > 0 ? "+" : ""}
+          {delta}
+          {unit})
+        </span>
       </div>
     </div>
   );
 }
 
 function TopRankCard({
-  title, entries, deltaKey, unit, colorFn,
+  title,
+  entries,
+  deltaKey,
+  unit,
+  colorFn,
 }: {
   title: string;
   entries: PlayerEvol[];
@@ -3355,7 +5992,9 @@ function TopRankCard({
     return (
       <Card className="rounded-3xl border-2 overflow-hidden opacity-60">
         <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
-          <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">{title}</CardTitle>
+          <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+            {title}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-4 text-center text-xs text-muted-foreground italic">
           Données insuffisantes (min. 3 matchs requis)
@@ -3367,7 +6006,9 @@ function TopRankCard({
   return (
     <Card className="rounded-3xl border-2 overflow-visible">
       <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5 rounded-t-3xl">
-        <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+          {title}
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {entries.map((e, i) => {
@@ -3380,13 +6021,28 @@ function TopRankCard({
               onMouseEnter={() => setHovId(e.joueur.id)}
               onMouseLeave={() => setHovId(null)}
             >
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"
-              }`}>{i + 1}</span>
+              <span
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                  i === 0
+                    ? "bg-amber-400 text-white"
+                    : i === 1
+                      ? "bg-slate-300 text-slate-700"
+                      : i === 2
+                        ? "bg-amber-600/80 text-white"
+                        : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {i + 1}
+              </span>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-xs truncate">{e.joueur.nom_prenom}</p>
+                <p className="font-bold text-xs truncate">
+                  {formatNomPrenom(e.joueur.nom_prenom)}
+                </p>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: e.equipeColor }} />
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: e.equipeColor }}
+                  />
                   <p className="text-[10px] text-muted-foreground truncate">
                     {e.joueur.poste_principal ?? "—"} · {e.equipeNom}
                   </p>
@@ -3395,32 +6051,73 @@ function TopRankCard({
               <div className="text-right shrink-0">
                 <span
                   className="font-sport italic font-black text-base"
-                  style={{ color: deltaVal > 0 ? "#10b981" : deltaVal < 0 ? "#ef4444" : "#94a3b8" }}
+                  style={{
+                    color:
+                      deltaVal > 0
+                        ? "#10b981"
+                        : deltaVal < 0
+                          ? "#ef4444"
+                          : "#94a3b8",
+                  }}
                 >
-                  {deltaVal > 0 ? "+" : ""}{deltaVal}{unit}
+                  {deltaVal > 0 ? "+" : ""}
+                  {deltaVal}
+                  {unit}
                 </span>
-                <p className="text-[9px] text-muted-foreground">{e.nCurrent} matchs</p>
+                <p className="text-[9px] text-muted-foreground">
+                  {e.nCurrent} matchs
+                </p>
               </div>
 
               {/* Tooltip — toutes les évolutions */}
               {isHov && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 z-100 mb-2 w-60 bg-popover border rounded-2xl shadow-xl p-3 pointer-events-none">
-                  <p className="font-black uppercase text-[10px] text-muted-foreground mb-2 truncate">{e.joueur.nom_prenom}</p>
+                  <p className="font-black uppercase text-[10px] text-muted-foreground mb-2 truncate">
+                    {formatNomPrenom(e.joueur.nom_prenom)}
+                  </p>
                   <div className="space-y-1.5 text-[11px]">
                     {e.delta_moy_buts !== null && (
-                      <TopTooltipRow label="Moy. Buts" cur={e.cur_moy_buts} refVal={e.ref_moy_buts} delta={e.delta_moy_buts} />
+                      <TopTooltipRow
+                        label="Moy. Buts"
+                        cur={e.cur_moy_buts}
+                        refVal={e.ref_moy_buts}
+                        delta={e.delta_moy_buts}
+                      />
                     )}
                     {e.delta_moy_tirs !== null && (
-                      <TopTooltipRow label="Moy. Tirs" cur={e.cur_moy_tirs} refVal={e.ref_moy_tirs} delta={e.delta_moy_tirs} />
+                      <TopTooltipRow
+                        label="Moy. Tirs"
+                        cur={e.cur_moy_tirs}
+                        refVal={e.ref_moy_tirs}
+                        delta={e.delta_moy_tirs}
+                      />
                     )}
                     {e.delta_pct_tir !== null && (
-                      <TopTooltipRow label="% Efficacité" cur={e.cur_pct_tir} refVal={e.ref_pct_tir} delta={e.delta_pct_tir} unit="%" />
+                      <TopTooltipRow
+                        label="% Efficacité"
+                        cur={e.cur_pct_tir}
+                        refVal={e.ref_pct_tir}
+                        delta={e.delta_pct_tir}
+                        unit="%"
+                      />
                     )}
                     {e.delta_pct_arrets !== null && (
-                      <TopTooltipRow label="% Arrêts" cur={e.cur_pct_arrets ?? 0} refVal={e.ref_pct_arrets ?? 0} delta={e.delta_pct_arrets} unit="%" colorFn={arretsColor} />
+                      <TopTooltipRow
+                        label="% Arrêts"
+                        cur={e.cur_pct_arrets ?? 0}
+                        refVal={e.ref_pct_arrets ?? 0}
+                        delta={e.delta_pct_arrets}
+                        unit="%"
+                        colorFn={arretsColor}
+                      />
                     )}
                     {e.delta_moy_arrets !== null && (
-                      <TopTooltipRow label="Moy. Arrêts" cur={e.cur_moy_arrets ?? 0} refVal={e.ref_moy_arrets ?? 0} delta={e.delta_moy_arrets} />
+                      <TopTooltipRow
+                        label="Moy. Arrêts"
+                        cur={e.cur_moy_arrets ?? 0}
+                        refVal={e.ref_moy_arrets ?? 0}
+                        delta={e.delta_moy_arrets}
+                      />
                     )}
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-2 pt-1.5 border-t">
@@ -3437,7 +6134,9 @@ function TopRankCard({
 }
 
 function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
-  const [compareMode, setCompareMode] = useState<"5M" | "5S" | "10M" | "10S" | "SAISON" | "TOTAL">("5M");
+  const [compareMode, setCompareMode] = useState<
+    "5M" | "5S" | "10M" | "10S" | "SAISON" | "TOTAL"
+  >("5M");
   const [refSaison, setRefSaison] = useState<string | null>(null);
   const [sortCol, setSortCol] = useState<string>("nom");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -3453,7 +6152,9 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
 
   const equipeColorMap = useMemo(() => {
     const m: Record<number, string> = {};
-    data.equipes.forEach((eq, i) => { m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length]; });
+    data.equipes.forEach((eq, i) => {
+      m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length];
+    });
     return m;
   }, [data.equipes]);
 
@@ -3466,24 +6167,35 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
         if (!joueurEquipeId) return [];
 
         const equipeColor = equipeColorMap[joueurEquipeId] ?? TEAM_PALETTE[0];
-        const equipeNom = data.equipes.find((e) => e.id === joueurEquipeId)?.nom ?? "";
+        const equipeNom =
+          data.equipes.find((e) => e.id === joueurEquipeId)?.nom ?? "";
 
         const statsJoueur = data.statsJoueurs
           .filter((s) => {
             if (s.id_joueur !== joueurId || !s.id_match) return false;
             const match = data.matchs.find((m) => m.id === s.id_match);
-            return match ? applyMatchFilter(match, filters, [joueurEquipeId], data.competitions) : false;
+            return match
+              ? applyMatchFilter(
+                  match,
+                  filters,
+                  [joueurEquipeId],
+                  data.competitions,
+                )
+              : false;
           })
           .map((s) => {
             const match = data.matchs.find((m) => m.id === s.id_match)!;
             return { ...s, date_match: match.date_match ?? null, match };
           })
-          .sort((a, b) => (a.date_match ?? "").localeCompare(b.date_match ?? ""));
+          .sort((a, b) =>
+            (a.date_match ?? "").localeCompare(b.date_match ?? ""),
+          );
 
         if (!statsJoueur.length) return [];
 
         const last = statsJoueur[statsJoueur.length - 1];
-        const currentSaison = filters.saisonFilter || getMatchSaison(last.match, data.competitions);
+        const currentSaison =
+          filters.saisonFilter || getMatchSaison(last.match, data.competitions);
 
         const allForSaison = (saison: string | null): typeof statsJoueur => {
           if (!saison) return [];
@@ -3492,8 +6204,13 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
             .map((s) => {
               const match = data.matchs.find((m) => m.id === s.id_match);
               if (!match) return null;
-              if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return null;
-              if (getMatchSaison(match, data.competitions) !== saison) return null;
+              if (
+                match.equipe_recevant_id !== joueurEquipeId &&
+                match.equipe_exterieur_id !== joueurEquipeId
+              )
+                return null;
+              if (getMatchSaison(match, data.competitions) !== saison)
+                return null;
               return { ...s, date_match: match.date_match ?? null, match };
             })
             .filter(Boolean) as typeof statsJoueur;
@@ -3505,19 +6222,34 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
             .map((s) => {
               const match = data.matchs.find((m) => m.id === s.id_match);
               if (!match) return null;
-              if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return null;
+              if (
+                match.equipe_recevant_id !== joueurEquipeId &&
+                match.equipe_exterieur_id !== joueurEquipeId
+              )
+                return null;
               return { ...s, date_match: match.date_match ?? null, match };
             })
             .filter(Boolean) as typeof statsJoueur;
 
         let cur: typeof statsJoueur = [];
         let ref: typeof statsJoueur = [];
-        if (compareMode === "5M")  { cur = statsJoueur.slice(-5);  ref = statsJoueur.slice(-10, -5); }
-        else if (compareMode === "5S")  { cur = statsJoueur.slice(-5);  ref = allForSaison(currentSaison); }
-        else if (compareMode === "10M") { cur = statsJoueur.slice(-10); ref = statsJoueur.slice(-20, -10); }
-        else if (compareMode === "10S") { cur = statsJoueur.slice(-10); ref = allForSaison(currentSaison); }
-        else if (compareMode === "TOTAL") { cur = allForSaison(currentSaison); ref = allTotal(); }
-        else { // SAISON
+        if (compareMode === "5M") {
+          cur = statsJoueur.slice(-5);
+          ref = statsJoueur.slice(-10, -5);
+        } else if (compareMode === "5S") {
+          cur = statsJoueur.slice(-5);
+          ref = allForSaison(currentSaison);
+        } else if (compareMode === "10M") {
+          cur = statsJoueur.slice(-10);
+          ref = statsJoueur.slice(-20, -10);
+        } else if (compareMode === "10S") {
+          cur = statsJoueur.slice(-10);
+          ref = allForSaison(currentSaison);
+        } else if (compareMode === "TOTAL") {
+          cur = allForSaison(currentSaison);
+          ref = allTotal();
+        } else {
+          // SAISON
           cur = statsJoueur;
           if (refSaison) {
             ref = data.statsJoueurs
@@ -3525,10 +6257,17 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
                 if (s.id_joueur !== joueurId || !s.id_match) return false;
                 const match = data.matchs.find((m) => m.id === s.id_match);
                 if (!match) return false;
-                if (match.equipe_recevant_id !== joueurEquipeId && match.equipe_exterieur_id !== joueurEquipeId) return false;
+                if (
+                  match.equipe_recevant_id !== joueurEquipeId &&
+                  match.equipe_exterieur_id !== joueurEquipeId
+                )
+                  return false;
                 return getMatchSaison(match, data.competitions) === refSaison;
               })
-              .map((s) => { const match = data.matchs.find((m) => m.id === s.id_match)!; return { ...s, date_match: match.date_match ?? null, match }; });
+              .map((s) => {
+                const match = data.matchs.find((m) => m.id === s.id_match)!;
+                return { ...s, date_match: match.date_match ?? null, match };
+              });
           }
         }
 
@@ -3540,14 +6279,22 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
           const tb = arr.reduce((a, s) => a + (s.buts ?? 0), 0);
           const tt = arr.reduce((a, s) => a + (s.tirs ?? 0), 0);
           const n = arr.length;
-          return { moy_buts: +(tb / n).toFixed(2), moy_tirs: +(tt / n).toFixed(2), pct_tir: pct(tb, tt) };
+          return {
+            moy_buts: +(tb / n).toFixed(2),
+            moy_tirs: +(tt / n).toFixed(2),
+            pct_tir: pct(tb, tt),
+          };
         };
         const cp = perfOf(cur);
         const rp = perfOf(ref);
 
         const pp = (joueur.poste_principal ?? "").toLowerCase();
-        const ps = (joueur.postes_secondaires ?? []).map((p: string) => p.toLowerCase());
-        const isGardien = pp.includes("gardien") || ps.some((p: string) => p.includes("gardien"));
+        const ps = (joueur.postes_secondaires ?? []).map((p: string) =>
+          p.toLowerCase(),
+        );
+        const isGardien =
+          pp.includes("gardien") ||
+          ps.some((p: string) => p.includes("gardien"));
 
         let cgp: { moy_arrets: number; pct_arrets: number } | null = null;
         let rgp: { moy_arrets: number; pct_arrets: number } | null = null;
@@ -3559,34 +6306,49 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
             const te = g.reduce((acc, s) => {
               if (!s.match.score_final) return acc;
               const [a, b] = s.match.score_final.split("-").map(Number);
-              return acc + (s.match.equipe_recevant_id === joueurEquipeId ? b : a);
+              return (
+                acc + (s.match.equipe_recevant_id === joueurEquipeId ? b : a)
+              );
             }, 0);
             const n = g.length;
-            return { moy_arrets: +(ta / n).toFixed(2), pct_arrets: pct(ta, ta + te) };
+            return {
+              moy_arrets: +(ta / n).toFixed(2),
+              pct_arrets: pct(ta, ta + te),
+            };
           };
           cgp = garPerfOf(cur);
           rgp = garPerfOf(ref);
         }
 
-        return [{
-          joueur, equipeColor, equipeNom, isGardien,
-          nCurrent: cur.length, nRef: ref.length,
-          delta_moy_buts:   cp && rp ? +(cp.moy_buts  - rp.moy_buts).toFixed(2)  : null,
-          delta_moy_tirs:   cp && rp ? +(cp.moy_tirs  - rp.moy_tirs).toFixed(2)  : null,
-          delta_pct_tir:    cp && rp ? cp.pct_tir - rp.pct_tir                    : null,
-          cur_moy_buts:  cp?.moy_buts  ?? 0,
-          cur_moy_tirs:  cp?.moy_tirs  ?? 0,
-          cur_pct_tir:   cp?.pct_tir   ?? 0,
-          ref_moy_buts:  rp?.moy_buts  ?? 0,
-          ref_moy_tirs:  rp?.moy_tirs  ?? 0,
-          ref_pct_tir:   rp?.pct_tir   ?? 0,
-          delta_pct_arrets:  cgp && rgp ? cgp.pct_arrets - rgp.pct_arrets                   : null,
-          delta_moy_arrets:  cgp && rgp ? +(cgp.moy_arrets - rgp.moy_arrets).toFixed(2)     : null,
-          cur_pct_arrets:  cgp?.pct_arrets  ?? null,
-          cur_moy_arrets:  cgp?.moy_arrets  ?? null,
-          ref_pct_arrets:  rgp?.pct_arrets  ?? null,
-          ref_moy_arrets:  rgp?.moy_arrets  ?? null,
-        }];
+        return [
+          {
+            joueur,
+            equipeColor,
+            equipeNom,
+            isGardien,
+            nCurrent: cur.length,
+            nRef: ref.length,
+            delta_moy_buts:
+              cp && rp ? +(cp.moy_buts - rp.moy_buts).toFixed(2) : null,
+            delta_moy_tirs:
+              cp && rp ? +(cp.moy_tirs - rp.moy_tirs).toFixed(2) : null,
+            delta_pct_tir: cp && rp ? cp.pct_tir - rp.pct_tir : null,
+            cur_moy_buts: cp?.moy_buts ?? 0,
+            cur_moy_tirs: cp?.moy_tirs ?? 0,
+            cur_pct_tir: cp?.pct_tir ?? 0,
+            ref_moy_buts: rp?.moy_buts ?? 0,
+            ref_moy_tirs: rp?.moy_tirs ?? 0,
+            ref_pct_tir: rp?.pct_tir ?? 0,
+            delta_pct_arrets:
+              cgp && rgp ? cgp.pct_arrets - rgp.pct_arrets : null,
+            delta_moy_arrets:
+              cgp && rgp ? +(cgp.moy_arrets - rgp.moy_arrets).toFixed(2) : null,
+            cur_pct_arrets: cgp?.pct_arrets ?? null,
+            cur_moy_arrets: cgp?.moy_arrets ?? null,
+            ref_pct_arrets: rgp?.pct_arrets ?? null,
+            ref_moy_arrets: rgp?.moy_arrets ?? null,
+          },
+        ];
       });
   }, [data, filters, compareMode, refSaison, equipeColorMap]);
 
@@ -3596,93 +6358,194 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
         .filter((e) => {
           const v = e[deltaKey];
           if (v === null || v === undefined) return false;
-          if (gardienOnly === true  && !e.isGardien) return false;
-          if (gardienOnly === false &&  e.isGardien) return false;
+          if (gardienOnly === true && !e.isGardien) return false;
+          if (gardienOnly === false && e.isGardien) return false;
           return true;
         })
         .sort((a, b) => (b[deltaKey] as number) - (a[deltaKey] as number))
         .slice(0, n);
     return {
-      pct_arrets:  topN("delta_pct_arrets",  5, true),
-      moy_arrets:  topN("delta_moy_arrets",  5, true),
-      moy_buts:    topN("delta_moy_buts",    5, false),
-      moy_tirs:    topN("delta_moy_tirs",    5, false),
-      pct_tir:     topN("delta_pct_tir",     5, false),
+      pct_arrets: topN("delta_pct_arrets", 5, true),
+      moy_arrets: topN("delta_moy_arrets", 5, true),
+      moy_buts: topN("delta_moy_buts", 5, false),
+      moy_tirs: topN("delta_moy_tirs", 5, false),
+      pct_tir: topN("delta_pct_tir", 5, false),
     };
   }, [allEvolutions]);
 
   const handleSort = (key: string) => {
     if (sortCol === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortCol(key); setSortDir("desc"); }
+    else {
+      setSortCol(key);
+      setSortDir("desc");
+    }
   };
 
   type TCol = {
-    key: string; label: string; sub?: string; isEvol?: boolean;
+    key: string;
+    label: string;
+    sub?: string;
+    isEvol?: boolean;
     getValue: (e: PlayerEvol) => number | string | null;
     fmt?: (v: number) => string;
   };
   const TCOLS: TCol[] = [
-    { key: "nom",             label: "Joueur",       getValue: (e) => e.joueur.nom_prenom },
-    { key: "equipeNom",       label: "Équipe",       getValue: (e) => e.equipeNom },
-    { key: "poste",           label: "Poste",        getValue: (e) => e.joueur.poste_principal ?? "—" },
-    { key: "nCurrent",        label: "Matchs",       getValue: (e) => e.nCurrent },
-    { key: "cur_moy_buts",    label: "Moy. Buts",    getValue: (e) => e.cur_moy_buts },
-    { key: "evol_moy_buts",   label: "Évol.", sub: "Δ Buts",    isEvol: true, getValue: (e) => evolPct(e.cur_moy_buts, e.ref_moy_buts),       fmt: (v) => `${v > 0 ? "+" : ""}${v}` },
-    { key: "cur_moy_tirs",    label: "Moy. Tirs",    getValue: (e) => e.cur_moy_tirs },
-    { key: "evol_moy_tirs",   label: "Évol.", sub: "Δ Tirs",    isEvol: true, getValue: (e) => evolPct(e.cur_moy_tirs, e.ref_moy_tirs),       fmt: (v) => `${v > 0 ? "+" : ""}${v}` },
-    { key: "cur_pct_tir",     label: "% Tir",        getValue: (e) => e.cur_pct_tir,          fmt: (v) => `${v}%` },
-    { key: "evol_pct_tir",    label: "Évol.", sub: "Δ % Tir",   isEvol: true, getValue: (e) => evolPct(e.cur_pct_tir, e.ref_pct_tir),          fmt: (v) => `${v > 0 ? "+" : ""}${v}%` },
-    { key: "cur_pct_arrets",  label: "% Arrêts",     getValue: (e) => e.cur_pct_arrets,       fmt: (v) => `${v}%` },
-    { key: "evol_pct_arrets", label: "Évol.", sub: "Δ % Arr.",  isEvol: true, getValue: (e) => evolPct(e.cur_pct_arrets, e.ref_pct_arrets),    fmt: (v) => `${v > 0 ? "+" : ""}${v}%` },
-    { key: "cur_moy_arrets",  label: "Moy. Arrêts",  getValue: (e) => e.cur_moy_arrets },
-    { key: "evol_moy_arrets", label: "Évol.", sub: "Δ Moy. Arr.", isEvol: true, getValue: (e) => evolPct(e.cur_moy_arrets, e.ref_moy_arrets), fmt: (v) => `${v > 0 ? "+" : ""}${v}` },
+    {
+      key: "nom",
+      label: "Joueur",
+      getValue: (e) => formatNomPrenom(e.joueur.nom_prenom),
+    },
+    { key: "equipeNom", label: "Équipe", getValue: (e) => e.equipeNom },
+    {
+      key: "poste",
+      label: "Poste",
+      getValue: (e) => e.joueur.poste_principal ?? "—",
+    },
+    { key: "nCurrent", label: "Matchs", getValue: (e) => e.nCurrent },
+    {
+      key: "cur_moy_buts",
+      label: "Moy. Buts",
+      getValue: (e) => e.cur_moy_buts,
+    },
+    {
+      key: "evol_moy_buts",
+      label: "Évol.",
+      sub: "Δ Buts",
+      isEvol: true,
+      getValue: (e) => evolPct(e.cur_moy_buts, e.ref_moy_buts),
+      fmt: (v) => `${v > 0 ? "+" : ""}${v}`,
+    },
+    {
+      key: "cur_moy_tirs",
+      label: "Moy. Tirs",
+      getValue: (e) => e.cur_moy_tirs,
+    },
+    {
+      key: "evol_moy_tirs",
+      label: "Évol.",
+      sub: "Δ Tirs",
+      isEvol: true,
+      getValue: (e) => evolPct(e.cur_moy_tirs, e.ref_moy_tirs),
+      fmt: (v) => `${v > 0 ? "+" : ""}${v}`,
+    },
+    {
+      key: "cur_pct_tir",
+      label: "% Tir",
+      getValue: (e) => e.cur_pct_tir,
+      fmt: (v) => `${v}%`,
+    },
+    {
+      key: "evol_pct_tir",
+      label: "Évol.",
+      sub: "Δ % Tir",
+      isEvol: true,
+      getValue: (e) => evolPct(e.cur_pct_tir, e.ref_pct_tir),
+      fmt: (v) => `${v > 0 ? "+" : ""}${v}%`,
+    },
+    {
+      key: "cur_pct_arrets",
+      label: "% Arrêts",
+      getValue: (e) => e.cur_pct_arrets,
+      fmt: (v) => `${v}%`,
+    },
+    {
+      key: "evol_pct_arrets",
+      label: "Évol.",
+      sub: "Δ % Arr.",
+      isEvol: true,
+      getValue: (e) => evolPct(e.cur_pct_arrets, e.ref_pct_arrets),
+      fmt: (v) => `${v > 0 ? "+" : ""}${v}%`,
+    },
+    {
+      key: "cur_moy_arrets",
+      label: "Moy. Arrêts",
+      getValue: (e) => e.cur_moy_arrets,
+    },
+    {
+      key: "evol_moy_arrets",
+      label: "Évol.",
+      sub: "Δ Moy. Arr.",
+      isEvol: true,
+      getValue: (e) => evolPct(e.cur_moy_arrets, e.ref_moy_arrets),
+      fmt: (v) => `${v > 0 ? "+" : ""}${v}`,
+    },
   ];
 
   const sortedRows = useMemo(() => {
     const getVal = (e: PlayerEvol): number | string | null => {
       switch (sortCol) {
-        case "nom":             return e.joueur.nom_prenom;
-        case "equipeNom":       return e.equipeNom;
-        case "poste":           return e.joueur.poste_principal ?? "—";
-        case "nCurrent":        return e.nCurrent;
-        case "cur_moy_buts":    return e.cur_moy_buts;
-        case "evol_moy_buts":   return evolPct(e.cur_moy_buts, e.ref_moy_buts);
-        case "cur_moy_tirs":    return e.cur_moy_tirs;
-        case "evol_moy_tirs":   return evolPct(e.cur_moy_tirs, e.ref_moy_tirs);
-        case "cur_pct_tir":     return e.cur_pct_tir;
-        case "evol_pct_tir":    return evolPct(e.cur_pct_tir, e.ref_pct_tir);
-        case "cur_pct_arrets":  return e.cur_pct_arrets;
-        case "evol_pct_arrets": return evolPct(e.cur_pct_arrets, e.ref_pct_arrets);
-        case "cur_moy_arrets":  return e.cur_moy_arrets;
-        case "evol_moy_arrets": return evolPct(e.cur_moy_arrets, e.ref_moy_arrets);
-        default: return 0;
+        case "nom":
+          return e.joueur.nom_prenom;
+        case "equipeNom":
+          return e.equipeNom;
+        case "poste":
+          return e.joueur.poste_principal ?? "—";
+        case "nCurrent":
+          return e.nCurrent;
+        case "cur_moy_buts":
+          return e.cur_moy_buts;
+        case "evol_moy_buts":
+          return evolPct(e.cur_moy_buts, e.ref_moy_buts);
+        case "cur_moy_tirs":
+          return e.cur_moy_tirs;
+        case "evol_moy_tirs":
+          return evolPct(e.cur_moy_tirs, e.ref_moy_tirs);
+        case "cur_pct_tir":
+          return e.cur_pct_tir;
+        case "evol_pct_tir":
+          return evolPct(e.cur_pct_tir, e.ref_pct_tir);
+        case "cur_pct_arrets":
+          return e.cur_pct_arrets;
+        case "evol_pct_arrets":
+          return evolPct(e.cur_pct_arrets, e.ref_pct_arrets);
+        case "cur_moy_arrets":
+          return e.cur_moy_arrets;
+        case "evol_moy_arrets":
+          return evolPct(e.cur_moy_arrets, e.ref_moy_arrets);
+        default:
+          return 0;
       }
     };
     return [...allEvolutions].sort((a, b) => {
-      const va = getVal(a), vb = getVal(b);
+      const va = getVal(a),
+        vb = getVal(b);
       if (va === null && vb === null) return 0;
       if (va === null) return 1;
       if (vb === null) return -1;
       if (typeof va === "string" && typeof vb === "string")
-        return sortDir === "asc" ? va.localeCompare(vb, "fr") : vb.localeCompare(va, "fr");
-      return sortDir === "asc" ? (va as number) - (vb as number) : (vb as number) - (va as number);
+        return sortDir === "asc"
+          ? va.localeCompare(vb, "fr")
+          : vb.localeCompare(va, "fr");
+      return sortDir === "asc"
+        ? (va as number) - (vb as number)
+        : (vb as number) - (va as number);
     });
   }, [allEvolutions, sortCol, sortDir]);
 
   const modeLabels: Record<string, string> = {
-    "5M": "5 vs 5 préc.", "5S": "5 vs saison", "10M": "10 vs 10 préc.",
-    "10S": "10 vs saison", "TOTAL": "Saison vs total", "SAISON": "Saison vs saison",
+    "5M": "5 vs 5 préc.",
+    "5S": "5 vs saison",
+    "10M": "10 vs 10 préc.",
+    "10S": "10 vs saison",
+    TOTAL: "Saison vs total",
+    SAISON: "Saison vs saison",
   };
 
-  const hasGardienData = rankings.pct_arrets.length > 0 || rankings.moy_arrets.length > 0;
-  const hasFieldData   = rankings.moy_buts.length > 0 || rankings.moy_tirs.length > 0 || rankings.pct_tir.length > 0;
+  const hasGardienData =
+    rankings.pct_arrets.length > 0 || rankings.moy_arrets.length > 0;
+  const hasFieldData =
+    rankings.moy_buts.length > 0 ||
+    rankings.moy_tirs.length > 0 ||
+    rankings.pct_tir.length > 0;
 
   return (
     <div className="space-y-6">
       {/* ── Sélecteur de période ── */}
       <Card className="rounded-3xl border-2 p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[10px] font-black uppercase text-muted-foreground mr-1">Période d'analyse</p>
+          <p className="text-[10px] font-black uppercase text-muted-foreground mr-1">
+            Période d'analyse
+          </p>
           {(["5M", "5S", "10M", "10S", "TOTAL", "SAISON"] as const).map((m) => (
             <button
               key={m}
@@ -3704,13 +6567,16 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
             >
               <option value="">— Saison de référence</option>
               {availableSaisons.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           )}
         </div>
         <p className="text-[10px] text-muted-foreground mt-2">
-          Min. 3 matchs dans la période actuelle requis · Survolez un joueur pour afficher toutes ses évolutions
+          Min. 3 matchs dans la période actuelle requis · Survolez un joueur
+          pour afficher toutes ses évolutions
         </p>
       </Card>
 
@@ -3770,7 +6636,8 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
       {!hasGardienData && !hasFieldData && (
         <Card className="rounded-3xl border-2 p-8 text-center">
           <p className="text-muted-foreground italic text-sm">
-            Aucun joueur avec suffisamment de matchs dans les deux périodes pour cette configuration.
+            Aucun joueur avec suffisamment de matchs dans les deux périodes pour
+            cette configuration.
           </p>
           <p className="text-[11px] text-muted-foreground/60 mt-1">
             Essayez un autre mode ou vérifiez les filtres appliqués.
@@ -3796,18 +6663,24 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
                         key={col.key}
                         onClick={() => handleSort(col.key)}
                         className={`px-3 py-2.5 text-left cursor-pointer select-none whitespace-nowrap font-black uppercase text-[10px] hover:bg-muted/80 transition-colors ${
-                          col.isEvol ? "bg-muted/30 text-center" : "text-muted-foreground"
+                          col.isEvol
+                            ? "bg-muted/30 text-center"
+                            : "text-muted-foreground"
                         } ${ci === 0 ? "sticky left-0 bg-muted/50 z-20" : ""}`}
                       >
                         <span className="inline-flex flex-col">
                           <span>
                             {col.label}
                             {sortCol === col.key && (
-                              <span className="ml-1 text-primary">{sortDir === "asc" ? "↑" : "↓"}</span>
+                              <span className="ml-1 text-primary">
+                                {sortDir === "asc" ? "↑" : "↓"}
+                              </span>
                             )}
                           </span>
                           {col.sub && (
-                            <span className="text-[8px] font-normal normal-case opacity-60">{col.sub}</span>
+                            <span className="text-[8px] font-normal normal-case opacity-60">
+                              {col.sub}
+                            </span>
                           )}
                         </span>
                       </th>
@@ -3816,7 +6689,10 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
                 </thead>
                 <tbody>
                   {sortedRows.map((e) => (
-                    <tr key={e.joueur.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                    <tr
+                      key={e.joueur.id}
+                      className="border-b last:border-0 hover:bg-muted/20 transition-colors"
+                    >
                       {TCOLS.map((col, ci) => {
                         const raw = col.getValue(e);
                         const isNull = raw === null;
@@ -3825,29 +6701,41 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
                           ? "—"
                           : col.fmt && numVal !== null
                             ? col.fmt(numVal)
-                            : typeof raw === "string" ? raw : String(raw);
+                            : typeof raw === "string"
+                              ? raw
+                              : String(raw);
                         const evolColor =
                           col.isEvol && numVal !== null
-                            ? numVal > 0 ? "#10b981" : numVal < 0 ? "#ef4444" : "#94a3b8"
+                            ? numVal > 0
+                              ? "#10b981"
+                              : numVal < 0
+                                ? "#ef4444"
+                                : "#94a3b8"
                             : undefined;
                         return (
                           <td
                             key={col.key}
                             className={`px-3 py-2 whitespace-nowrap ${
-                              ci === 0 ? "sticky left-0 bg-background font-bold z-10" : ""
-                            } ${
-                              col.isEvol ? "text-center font-black" : ""
-                            } ${
+                              ci === 0
+                                ? "sticky left-0 bg-background font-bold z-10"
+                                : ""
+                            } ${col.isEvol ? "text-center font-black" : ""} ${
                               isNull ? "text-muted-foreground/40" : ""
                             }`}
                             style={{
-                              ...(ci === 0 ? { borderLeft: `3px solid ${e.equipeColor}` } : {}),
+                              ...(ci === 0
+                                ? { borderLeft: `3px solid ${e.equipeColor}` }
+                                : {}),
                               ...(evolColor ? { color: evolColor } : {}),
                             }}
                           >
                             {ci === 0 ? (
-                              <span className="block truncate max-w-[140px]">{display}</span>
-                            ) : display}
+                              <span className="block truncate max-w-[140px]">
+                                {display}
+                              </span>
+                            ) : (
+                              display
+                            )}
                           </td>
                         );
                       })}
@@ -3869,10 +6757,10 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
 
 // ── Types internes ─────────────────────────────────────────────────
 type VersusEntity =
-  | { type: "joueur";  id: number }
-  | { type: "equipe";  id: number }
+  | { type: "joueur"; id: number }
+  | { type: "equipe"; id: number }
   | { type: "club" }
-  | { type: "poste";   poste: string };
+  | { type: "poste"; poste: string };
 
 type VersusStats = {
   label: string;
@@ -3913,7 +6801,11 @@ type VersusStats = {
 
 // ── Mini filtre latéral pour le panel Versus ───────────────────────
 function VersusFilterPanel({
-  data, filters, setFilters, label, color,
+  data,
+  filters,
+  setFilters,
+  label,
+  color,
 }: {
   data: StatsData;
   filters: Filters;
@@ -3921,7 +6813,9 @@ function VersusFilterPanel({
   label: string;
   color: string;
 }) {
-  const saisons = [...new Set(data.competitions.map((c) => c.saison))].sort().reverse();
+  const saisons = [...new Set(data.competitions.map((c) => c.saison))]
+    .sort()
+    .reverse();
   const compOptions = data.competitions
     .filter((c) => !filters.saisonFilter || c.saison === filters.saisonFilter)
     .map((c) => ({ id: c.id, label: c.nom }));
@@ -3929,22 +6823,46 @@ function VersusFilterPanel({
 
   return (
     <div className="space-y-2">
-      <p className="text-[9px] font-black uppercase tracking-widest" style={{ color }}>{label} — Filtres</p>
+      <p
+        className="text-[9px] font-black uppercase tracking-widest"
+        style={{ color }}
+      >
+        {label} — Filtres
+      </p>
       {/* Saison */}
       <select
         className="w-full text-xs font-bold rounded-xl border px-3 py-1.5 bg-background"
         value={filters.saisonFilter}
-        onChange={(e) => setFilters({ ...filters, saisonFilter: e.target.value, competitionIds: [] })}
+        onChange={(e) =>
+          setFilters({
+            ...filters,
+            saisonFilter: e.target.value,
+            competitionIds: [],
+          })
+        }
       >
         <option value="">Toutes saisons</option>
-        {saisons.map((s) => <option key={s} value={s}>{s}</option>)}
+        {saisons.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
       </select>
       {/* Équipes */}
       <MultiSelectDropdown
         label="Équipes"
         options={equipeOptions}
-        selected={filters.equipeIds.length === data.equipes.length ? [] : filters.equipeIds}
-        onChange={(ids) => setFilters({ ...filters, equipeIds: ids.length === 0 ? data.equipes.map((e) => e.id) : ids })}
+        selected={
+          filters.equipeIds.length === data.equipes.length
+            ? []
+            : filters.equipeIds
+        }
+        onChange={(ids) =>
+          setFilters({
+            ...filters,
+            equipeIds: ids.length === 0 ? data.equipes.map((e) => e.id) : ids,
+          })
+        }
         allLabel="Toutes les équipes"
       />
       {/* Compétitions */}
@@ -3959,7 +6877,12 @@ function VersusFilterPanel({
       <select
         className="w-full text-xs font-bold rounded-xl border px-3 py-1.5 bg-background"
         value={filters.localisation}
-        onChange={(e) => setFilters({ ...filters, localisation: e.target.value as Filters["localisation"] })}
+        onChange={(e) =>
+          setFilters({
+            ...filters,
+            localisation: e.target.value as Filters["localisation"],
+          })
+        }
       >
         <option value="tous">Dom. + Ext.</option>
         <option value="domicile">Domicile</option>
@@ -3970,7 +6893,9 @@ function VersusFilterPanel({
         label="Difficulté"
         options={ALL_DIFFICULTES}
         selected={filters.difficultes as string[]}
-        onChange={(vals) => setFilters({ ...filters, difficultes: vals as Difficulte[] })}
+        onChange={(vals) =>
+          setFilters({ ...filters, difficultes: vals as Difficulte[] })
+        }
         allLabel="Toutes difficultés"
       />
       {/* Dates */}
@@ -3979,7 +6904,9 @@ function VersusFilterPanel({
           type="date"
           placeholder="Du"
           value={filters.dateDebut}
-          onChange={(e) => setFilters({ ...filters, dateDebut: e.target.value })}
+          onChange={(e) =>
+            setFilters({ ...filters, dateDebut: e.target.value })
+          }
           className="w-full text-xs rounded-xl border px-2 py-1.5 bg-background"
         />
         <input
@@ -4021,54 +6948,106 @@ function computeVersusStats(
   }
 
   // Intersection avec le filtre équipes
-  const equipeIds = entity.type === "club" || entity.type === "poste"
-    ? filters.equipeIds
-    : entityEquipeIds.filter((id) => filters.equipeIds.includes(id));
+  const equipeIds =
+    entity.type === "club" || entity.type === "poste"
+      ? filters.equipeIds
+      : entityEquipeIds.filter((id) => filters.equipeIds.includes(id));
 
   if (equipeIds.length === 0) {
-    return { label, color, matchs: 0, victoires: 0, nuls: 0, defaites: 0, pctVictoire: 0, totalButs: 0, totalTirs: 0, moyButs: 0, moyTirs: 0, pctTir: 0, totalArrets: 0, moyArrets: 0, pctArrets: 0, totalExcl: 0, moyExcl: 0, total7m: 0, moy7m: 0, butsParVictoire: 0, butsParDefaite: 0, butsEncParVictoire: 0, butsEncParDefaite: 0, isGardienEntity: false, recordButs: 0, q1Buts: 0, medianButs: 0, q3Buts: 0, recordArrets: 0, q1Arrets: 0, medianArrets: 0, q3Arrets: 0 };
+    return {
+      label,
+      color,
+      matchs: 0,
+      victoires: 0,
+      nuls: 0,
+      defaites: 0,
+      pctVictoire: 0,
+      totalButs: 0,
+      totalTirs: 0,
+      moyButs: 0,
+      moyTirs: 0,
+      pctTir: 0,
+      totalArrets: 0,
+      moyArrets: 0,
+      pctArrets: 0,
+      totalExcl: 0,
+      moyExcl: 0,
+      total7m: 0,
+      moy7m: 0,
+      butsParVictoire: 0,
+      butsParDefaite: 0,
+      butsEncParVictoire: 0,
+      butsEncParDefaite: 0,
+      isGardienEntity: false,
+      recordButs: 0,
+      q1Buts: 0,
+      medianButs: 0,
+      q3Buts: 0,
+      recordArrets: 0,
+      q1Arrets: 0,
+      medianArrets: 0,
+      q3Arrets: 0,
+    };
   }
 
   // Matchs filtrés
   const matchsFiltres = data.matchs.filter((m) =>
-    applyMatchFilter(m, filters, equipeIds, data.competitions)
+    applyMatchFilter(m, filters, equipeIds, data.competitions),
   );
 
   const matchIds = new Set(matchsFiltres.map((m) => m.id));
 
   // Stats joueurs filtrées selon entité
-  let statsRows = data.statsJoueurs.filter((s) => s.id_match != null && matchIds.has(s.id_match!));
+  let statsRows = data.statsJoueurs.filter(
+    (s) => s.id_match != null && matchIds.has(s.id_match!),
+  );
 
   if (entity.type === "joueur" && joueurId != null) {
     statsRows = statsRows.filter((s) => s.id_joueur === joueurId);
   } else if (entity.type === "equipe") {
     const joueursDansEquipe = new Set(
-      data.joueurs.filter((j) => j.id_equipe === entity.id).map((j) => j.id)
+      data.joueurs.filter((j) => j.id_equipe === entity.id).map((j) => j.id),
     );
-    statsRows = statsRows.filter((s) => s.id_joueur != null && joueursDansEquipe.has(s.id_joueur!));
+    statsRows = statsRows.filter(
+      (s) => s.id_joueur != null && joueursDansEquipe.has(s.id_joueur!),
+    );
   } else if (entity.type === "poste") {
     const joueursDuPoste = new Set(
-      data.joueurs.filter((j) => {
-        const pp = (j.poste_principal ?? "").toLowerCase();
-        const ps = (j.postes_secondaires ?? []).map((p) => p.toLowerCase());
-        return pp === entity.poste.toLowerCase() || ps.includes(entity.poste.toLowerCase());
-      }).map((j) => j.id)
+      data.joueurs
+        .filter((j) => {
+          const pp = (j.poste_principal ?? "").toLowerCase();
+          const ps = (j.postes_secondaires ?? []).map((p) => p.toLowerCase());
+          return (
+            pp === entity.poste.toLowerCase() ||
+            ps.includes(entity.poste.toLowerCase())
+          );
+        })
+        .map((j) => j.id),
     );
-    statsRows = statsRows.filter((s) => s.id_joueur != null && joueursDuPoste.has(s.id_joueur!));
+    statsRows = statsRows.filter(
+      (s) => s.id_joueur != null && joueursDuPoste.has(s.id_joueur!),
+    );
   } else if (entity.type === "club") {
     const joueursDuClub = new Set(
-      data.joueurs.filter((j) => j.id_equipe != null && equipeIds.includes(j.id_equipe)).map((j) => j.id)
+      data.joueurs
+        .filter((j) => j.id_equipe != null && equipeIds.includes(j.id_equipe))
+        .map((j) => j.id),
     );
-    statsRows = statsRows.filter((s) => s.id_joueur != null && joueursDuClub.has(s.id_joueur!));
+    statsRows = statsRows.filter(
+      (s) => s.id_joueur != null && joueursDuClub.has(s.id_joueur!),
+    );
   }
 
   // Résultats (par match, pour le type équipe/club/poste on compte au niveau match)
   // Pour un joueur, on se base uniquement sur les matchs où il a des stats
-  const matchsEffectifs = entity.type === "joueur"
-    ? matchsFiltres.filter((m) => statsRows.some((s) => s.id_match === m.id))
-    : matchsFiltres;
+  const matchsEffectifs =
+    entity.type === "joueur"
+      ? matchsFiltres.filter((m) => statsRows.some((s) => s.id_match === m.id))
+      : matchsFiltres;
 
-  let victoires = 0, nuls = 0, defaites = 0;
+  let victoires = 0,
+    nuls = 0,
+    defaites = 0;
   matchsEffectifs.forEach((m) => {
     const r = getResult(m, equipeIds);
     if (r === "win") victoires++;
@@ -4079,21 +7058,31 @@ function computeVersusStats(
 
   const totalButs = statsRows.reduce((a, s) => a + (s.buts ?? 0), 0);
   const totalTirs = statsRows.reduce((a, s) => a + (s.tirs ?? 0), 0);
-  const totalExcl  = statsRows.reduce((a, s) => a + (s.exclusions_2min ?? 0), 0);
-  const total7m    = statsRows.reduce((a, s) => a + (s.sept_metres ?? 0), 0);
+  const totalExcl = statsRows.reduce((a, s) => a + (s.exclusions_2min ?? 0), 0);
+  const total7m = statsRows.reduce((a, s) => a + (s.sept_metres ?? 0), 0);
 
   // Arrêts gardiens uniquement
   const gardiensIds = new Set(
-    data.joueurs.filter((j) => {
-      const pp = (j.poste_principal ?? "").toLowerCase();
-      const ps = (j.postes_secondaires ?? []).map((p) => p.toLowerCase());
-      return (pp.includes("gardien") || ps.some((p) => p.includes("gardien"))) &&
-        (j.id_equipe != null && equipeIds.includes(j.id_equipe));
-    }).map((j) => j.id)
+    data.joueurs
+      .filter((j) => {
+        const pp = (j.poste_principal ?? "").toLowerCase();
+        const ps = (j.postes_secondaires ?? []).map((p) => p.toLowerCase());
+        return (
+          (pp.includes("gardien") || ps.some((p) => p.includes("gardien"))) &&
+          j.id_equipe != null &&
+          equipeIds.includes(j.id_equipe)
+        );
+      })
+      .map((j) => j.id),
   );
-  const gardiensStats = entity.type === "joueur"
-    ? (gardiensIds.has(joueurId!) ? statsRows : [])
-    : statsRows.filter((s) => s.id_joueur != null && gardiensIds.has(s.id_joueur!));
+  const gardiensStats =
+    entity.type === "joueur"
+      ? gardiensIds.has(joueurId!)
+        ? statsRows
+        : []
+      : statsRows.filter(
+          (s) => s.id_joueur != null && gardiensIds.has(s.id_joueur!),
+        );
   const totalArrets = gardiensStats.reduce((a, s) => a + (s.arrets ?? 0), 0);
 
   // % arrêts = arrêts / (arrêts + buts encaissés)
@@ -4104,7 +7093,9 @@ function computeVersusStats(
     if (!match?.score_final) return;
     const [a, b] = match.score_final.split("-").map(Number);
     if (isNaN(a) || isNaN(b)) return;
-    const isHome = match.equipe_recevant_id != null && equipeIds.includes(match.equipe_recevant_id);
+    const isHome =
+      match.equipe_recevant_id != null &&
+      equipeIds.includes(match.equipe_recevant_id);
     totalButsEncaisses += isHome ? b : a;
   });
 
@@ -4112,10 +7103,18 @@ function computeVersusStats(
   const garN = gardiensStats.filter((s) => (s.arrets ?? 0) >= 2).length || 1;
   const garNReal = gardiensStats.filter((s) => (s.arrets ?? 0) >= 2).length;
 
-  const butsVicMatchs = matchsEffectifs.filter((m) => getResult(m, equipeIds) === "win");
-  const butsDefMatchs = matchsEffectifs.filter((m) => getResult(m, equipeIds) === "loss");
-  const statsByMatchVic = statsRows.filter((s) => s.id_match && butsVicMatchs.some((m) => m.id === s.id_match));
-  const statsByMatchDef = statsRows.filter((s) => s.id_match && butsDefMatchs.some((m) => m.id === s.id_match));
+  const butsVicMatchs = matchsEffectifs.filter(
+    (m) => getResult(m, equipeIds) === "win",
+  );
+  const butsDefMatchs = matchsEffectifs.filter(
+    (m) => getResult(m, equipeIds) === "loss",
+  );
+  const statsByMatchVic = statsRows.filter(
+    (s) => s.id_match && butsVicMatchs.some((m) => m.id === s.id_match),
+  );
+  const statsByMatchDef = statsRows.filter(
+    (s) => s.id_match && butsDefMatchs.some((m) => m.id === s.id_match),
+  );
 
   // Buts encaissés par match (depuis score_final, côté adverse)
   const encaisseParMatch = (matchList: typeof matchsFiltres): number => {
@@ -4124,7 +7123,9 @@ function computeVersusStats(
       if (!m.score_final) return;
       const [a, b] = m.score_final.split("-").map(Number);
       if (isNaN(a) || isNaN(b)) return;
-      const isHome = m.equipe_recevant_id != null && equipeIds.includes(m.equipe_recevant_id);
+      const isHome =
+        m.equipe_recevant_id != null &&
+        equipeIds.includes(m.equipe_recevant_id);
       total += isHome ? b : a;
     });
     return total;
@@ -4133,24 +7134,35 @@ function computeVersusStats(
   const butsEncDef = encaisseParMatch(butsDefMatchs);
 
   // Détecte si l'entité est un gardien individuel
-  const isGardienEntity = entity.type === "joueur"
-    ? gardiensIds.has(joueurId!)
-    : false;
+  const isGardienEntity =
+    entity.type === "joueur" ? gardiensIds.has(joueurId!) : false;
 
   // Distributions par match (pic & constance)
   const butsParMatch = matchsEffectifs
-    .map((m) => statsRows.filter((s) => s.id_match === m.id).reduce((sum, s) => sum + (s.buts ?? 0), 0))
+    .map((m) =>
+      statsRows
+        .filter((s) => s.id_match === m.id)
+        .reduce((sum, s) => sum + (s.buts ?? 0), 0),
+    )
     .sort((a, b) => a - b);
   const arretsParMatch = matchsEffectifs
-    .map((m) => gardiensStats.filter((s) => s.id_match === m.id).reduce((sum, s) => sum + (s.arrets ?? 0), 0))
+    .map((m) =>
+      gardiensStats
+        .filter((s) => s.id_match === m.id)
+        .reduce((sum, s) => sum + (s.arrets ?? 0), 0),
+    )
     .sort((a, b) => a - b);
 
   return {
-    label, color,
+    label,
+    color,
     matchs,
-    victoires, nuls, defaites,
+    victoires,
+    nuls,
+    defaites,
     pctVictoire: pct(victoires, matchs),
-    totalButs, totalTirs,
+    totalButs,
+    totalTirs,
     moyButs: matchs ? +(totalButs / matchs).toFixed(2) : 0,
     moyTirs: matchs ? +(totalTirs / matchs).toFixed(2) : 0,
     pctTir: pct(totalButs, totalTirs),
@@ -4161,51 +7173,125 @@ function computeVersusStats(
     moyExcl: matchs ? +(totalExcl / matchs).toFixed(2) : 0,
     total7m,
     moy7m: matchs ? +(total7m / matchs).toFixed(2) : 0,
-    butsParVictoire: butsVicMatchs.length ? +(statsByMatchVic.reduce((a, s) => a + (s.buts ?? 0), 0) / butsVicMatchs.length).toFixed(2) : 0,
-    butsParDefaite:  butsDefMatchs.length ? +(statsByMatchDef.reduce((a, s) => a + (s.buts ?? 0), 0) / butsDefMatchs.length).toFixed(2) : 0,
-    butsEncParVictoire: butsVicMatchs.length ? +(butsEncVic / butsVicMatchs.length).toFixed(2) : 0,
-    butsEncParDefaite:  butsDefMatchs.length ? +(butsEncDef / butsDefMatchs.length).toFixed(2) : 0,
+    butsParVictoire: butsVicMatchs.length
+      ? +(
+          statsByMatchVic.reduce((a, s) => a + (s.buts ?? 0), 0) /
+          butsVicMatchs.length
+        ).toFixed(2)
+      : 0,
+    butsParDefaite: butsDefMatchs.length
+      ? +(
+          statsByMatchDef.reduce((a, s) => a + (s.buts ?? 0), 0) /
+          butsDefMatchs.length
+        ).toFixed(2)
+      : 0,
+    butsEncParVictoire: butsVicMatchs.length
+      ? +(butsEncVic / butsVicMatchs.length).toFixed(2)
+      : 0,
+    butsEncParDefaite: butsDefMatchs.length
+      ? +(butsEncDef / butsDefMatchs.length).toFixed(2)
+      : 0,
     isGardienEntity,
-    recordButs:   butsParMatch.length ? butsParMatch[butsParMatch.length - 1] : 0,
-    q1Buts:       quartile(butsParMatch, 0.25),
-    medianButs:   quartile(butsParMatch, 0.5),
-    q3Buts:       quartile(butsParMatch, 0.75),
-    recordArrets: arretsParMatch.length ? arretsParMatch[arretsParMatch.length - 1] : 0,
-    q1Arrets:     quartile(arretsParMatch, 0.25),
+    recordButs: butsParMatch.length ? butsParMatch[butsParMatch.length - 1] : 0,
+    q1Buts: quartile(butsParMatch, 0.25),
+    medianButs: quartile(butsParMatch, 0.5),
+    q3Buts: quartile(butsParMatch, 0.75),
+    recordArrets: arretsParMatch.length
+      ? arretsParMatch[arretsParMatch.length - 1]
+      : 0,
+    q1Arrets: quartile(arretsParMatch, 0.25),
     medianArrets: quartile(arretsParMatch, 0.5),
-    q3Arrets:     quartile(arretsParMatch, 0.75),
+    q3Arrets: quartile(arretsParMatch, 0.75),
   };
 }
 
 // ── Ligne de comparaison ───────────────────────────────────────────
 function VersusBoxPlotRow({
   label,
-  aQ1, aMedian, aQ3, aRecord,
-  bQ1, bMedian, bQ3, bRecord,
-  colorA, colorB,
+  aQ1,
+  aMedian,
+  aQ3,
+  aRecord,
+  bQ1,
+  bMedian,
+  bQ3,
+  bRecord,
+  colorA,
+  colorB,
 }: {
   label: string;
-  aQ1: number; aMedian: number; aQ3: number; aRecord: number;
-  bQ1: number; bMedian: number; bQ3: number; bRecord: number;
-  colorA: string; colorB: string;
+  aQ1: number;
+  aMedian: number;
+  aQ3: number;
+  aRecord: number;
+  bQ1: number;
+  bMedian: number;
+  bQ3: number;
+  bRecord: number;
+  colorA: string;
+  colorB: string;
 }) {
   const maxVal = Math.max(aRecord, bRecord, 0.01);
   const aWins = aMedian > bMedian;
   const tie = aMedian === bMedian;
 
-  function boxPlot(q1: number, med: number, q3: number, rec: number, color: string) {
-    const W = 96, H = 26;
-    const s = (v: number) => Math.max(0, Math.min(W, Math.round((v / maxVal) * W)));
-    const q1x = s(q1), medx = s(med), q3x = s(q3), recx = s(rec);
+  function boxPlot(
+    q1: number,
+    med: number,
+    q3: number,
+    rec: number,
+    color: string,
+  ) {
+    const W = 96,
+      H = 26;
+    const s = (v: number) =>
+      Math.max(0, Math.min(W, Math.round((v / maxVal) * W)));
+    const q1x = s(q1),
+      medx = s(med),
+      q3x = s(q3),
+      recx = s(rec);
     return (
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <rect x={0} y={H / 2 - 1} width={W} height={2} rx={1} fill="currentColor" fillOpacity={0.07} />
-        <rect x={q1x} y={H / 2 - 5} width={Math.max(q3x - q1x, 2)} height={10} rx={2}
-          fill={color} fillOpacity={0.18} stroke={color} strokeOpacity={0.4} strokeWidth={1} />
-        <rect x={medx - 1} y={H / 2 - 7} width={2} height={14} rx={1} fill={color} />
+        <rect
+          x={0}
+          y={H / 2 - 1}
+          width={W}
+          height={2}
+          rx={1}
+          fill="currentColor"
+          fillOpacity={0.07}
+        />
+        <rect
+          x={q1x}
+          y={H / 2 - 5}
+          width={Math.max(q3x - q1x, 2)}
+          height={10}
+          rx={2}
+          fill={color}
+          fillOpacity={0.18}
+          stroke={color}
+          strokeOpacity={0.4}
+          strokeWidth={1}
+        />
+        <rect
+          x={medx - 1}
+          y={H / 2 - 7}
+          width={2}
+          height={14}
+          rx={1}
+          fill={color}
+        />
         {rec > q3 && (
-          <line x1={q3x} y1={H / 2} x2={recx} y2={H / 2}
-            stroke={color} strokeOpacity={0.35} strokeWidth={1} strokeDasharray="2 2" />
+          <line
+            x1={q3x}
+            y1={H / 2}
+            x2={recx}
+            y2={H / 2}
+            stroke={color}
+            strokeOpacity={0.35}
+            strokeWidth={1}
+            strokeDasharray="2 2"
+          />
         )}
         <circle cx={recx} cy={H / 2} r={3.5} fill={color} fillOpacity={0.85} />
       </svg>
@@ -4218,37 +7304,57 @@ function VersusBoxPlotRow({
       <div className="flex flex-col items-end gap-1">
         {boxPlot(aQ1, aMedian, aQ3, aRecord, colorA)}
         <div className="flex gap-1.5 text-[8.5px] text-muted-foreground">
-          <span>Q1 <b style={{ color: colorA }}>{aQ1}</b></span>
+          <span>
+            Q1 <b style={{ color: colorA }}>{aQ1}</b>
+          </span>
           <span className="opacity-30">·</span>
-          <span>Méd <b style={{ color: colorA }}>{aMedian}</b></span>
+          <span>
+            Méd <b style={{ color: colorA }}>{aMedian}</b>
+          </span>
           <span className="opacity-30">·</span>
-          <span>Q3 <b style={{ color: colorA }}>{aQ3}</b></span>
+          <span>
+            Q3 <b style={{ color: colorA }}>{aQ3}</b>
+          </span>
           <span className="opacity-30">·</span>
-          <span className="font-black" style={{ color: colorA }}>↑{aRecord}</span>
+          <span className="font-black" style={{ color: colorA }}>
+            ↑{aRecord}
+          </span>
         </div>
       </div>
       {/* Label central */}
       <div className="text-center min-w-0 w-16 sm:w-auto sm:min-w-[90px] px-0.5 sm:px-1">
-        <p className="text-[9px] font-black uppercase text-muted-foreground">{label}</p>
+        <p className="text-[9px] font-black uppercase text-muted-foreground">
+          {label}
+        </p>
         {!tie ? (
           <p className="text-[9px] text-muted-foreground/60 mt-0.5">
             méd +{Math.abs(aMedian - bMedian).toFixed(2)} {aWins ? "A" : "B"}
           </p>
         ) : (
-          <p className="text-[9px] text-muted-foreground/60 italic">Méd. égale</p>
+          <p className="text-[9px] text-muted-foreground/60 italic">
+            Méd. égale
+          </p>
         )}
       </div>
       {/* Côté B */}
       <div className="flex flex-col items-start gap-1">
         {boxPlot(bQ1, bMedian, bQ3, bRecord, colorB)}
         <div className="flex gap-1.5 text-[8.5px] text-muted-foreground">
-          <span>Q1 <b style={{ color: colorB }}>{bQ1}</b></span>
+          <span>
+            Q1 <b style={{ color: colorB }}>{bQ1}</b>
+          </span>
           <span className="opacity-30">·</span>
-          <span>Méd <b style={{ color: colorB }}>{bMedian}</b></span>
+          <span>
+            Méd <b style={{ color: colorB }}>{bMedian}</b>
+          </span>
           <span className="opacity-30">·</span>
-          <span>Q3 <b style={{ color: colorB }}>{bQ3}</b></span>
+          <span>
+            Q3 <b style={{ color: colorB }}>{bQ3}</b>
+          </span>
           <span className="opacity-30">·</span>
-          <span className="font-black" style={{ color: colorB }}>↑{bRecord}</span>
+          <span className="font-black" style={{ color: colorB }}>
+            ↑{bRecord}
+          </span>
         </div>
       </div>
     </div>
@@ -4256,7 +7362,12 @@ function VersusBoxPlotRow({
 }
 
 function VersusRow({
-  label, vA, vB, unit = "", higherIsBetter = true, formatVal,
+  label,
+  vA,
+  vB,
+  unit = "",
+  higherIsBetter = true,
+  formatVal,
 }: {
   label: string;
   vA: number;
@@ -4278,7 +7389,9 @@ function VersusRow({
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2 py-1.5 sm:py-2 border-b last:border-0">
       {/* Côté A */}
       <div className="flex items-center justify-end gap-1 sm:gap-2">
-        <span className={`font-sport italic font-black text-sm sm:text-lg transition-all ${aWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
+        <span
+          className={`font-sport italic font-black text-sm sm:text-lg transition-all ${aWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}
+        >
           {fmt(vA)}
         </span>
         <div className="w-12 sm:w-24 h-2 rounded-full bg-muted overflow-hidden flex justify-end">
@@ -4294,13 +7407,17 @@ function VersusRow({
 
       {/* Label + écart */}
       <div className="text-center min-w-0 w-[72px] sm:w-auto sm:min-w-[110px] px-1">
-        <p className="text-[8px] sm:text-[9px] font-black uppercase text-muted-foreground">{label}</p>
+        <p className="text-[8px] sm:text-[9px] font-black uppercase text-muted-foreground">
+          {label}
+        </p>
         {!tie && (
           <p className="text-[10px] font-black text-muted-foreground/60 mt-0.5">
             écart {fmt(delta)}
           </p>
         )}
-        {tie && <p className="text-[9px] text-muted-foreground italic">Égalité</p>}
+        {tie && (
+          <p className="text-[9px] text-muted-foreground italic">Égalité</p>
+        )}
       </div>
 
       {/* Côté B */}
@@ -4314,7 +7431,9 @@ function VersusRow({
             }}
           />
         </div>
-        <span className={`font-sport italic font-black text-sm sm:text-lg transition-all ${bWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
+        <span
+          className={`font-sport italic font-black text-sm sm:text-lg transition-all ${bWins ? "text-emerald-500 scale-110" : tie ? "text-muted-foreground" : "text-muted-foreground/60"}`}
+        >
           {fmt(vB)}
         </span>
       </div>
@@ -4324,7 +7443,11 @@ function VersusRow({
 
 // ── Sélecteur d'entité ─────────────────────────────────────────────
 function EntitySelector({
-  data, value, onChange, label, color,
+  data,
+  value,
+  onChange,
+  label,
+  color,
 }: {
   data: StatsData;
   value: VersusEntity | null;
@@ -4335,19 +7458,26 @@ function EntitySelector({
   const [type, setType] = useState<VersusEntity["type"]>("joueur");
   const [joueurDropdownOpen, setJoueurDropdownOpen] = useState(false);
   const [joueurSearch, setJoueurSearch] = useState("");
-  const [selectedJoueurLabel, setSelectedJoueurLabel] = useState<string | null>(null);
+  const [selectedJoueurLabel, setSelectedJoueurLabel] = useState<string | null>(
+    null,
+  );
 
   const joueurEquipeColorMap = useMemo(() => {
     const m: Record<number, string> = {};
-    data.equipes.forEach((eq, i) => { m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length]; });
+    data.equipes.forEach((eq, i) => {
+      m[eq.id] = TEAM_PALETTE[i % TEAM_PALETTE.length];
+    });
     return m;
   }, [data.equipes]);
 
-  const filteredJoueurs = useMemo(() =>
-    joueurSearch.trim()
-      ? data.joueurs.filter((j) => j.nom_prenom.toLowerCase().includes(joueurSearch.toLowerCase()))
-      : data.joueurs,
-    [data.joueurs, joueurSearch]
+  const filteredJoueurs = useMemo(
+    () =>
+      joueurSearch.trim()
+        ? data.joueurs.filter((j) =>
+            j.nom_prenom.toLowerCase().includes(joueurSearch.toLowerCase()),
+          )
+        : data.joueurs,
+    [data.joueurs, joueurSearch],
   );
   const allPostes = useMemo(() => {
     const s = new Set<string>();
@@ -4358,7 +7488,11 @@ function EntitySelector({
     return [...s].sort();
   }, [data.joueurs]);
 
-  function handleChange(newType: VersusEntity["type"], id?: number, poste?: string) {
+  function handleChange(
+    newType: VersusEntity["type"],
+    id?: number,
+    poste?: string,
+  ) {
     if (newType === "joueur" && id) onChange({ type: "joueur", id });
     else if (newType === "equipe" && id) onChange({ type: "equipe", id });
     else if (newType === "club") onChange({ type: "club" });
@@ -4367,13 +7501,25 @@ function EntitySelector({
 
   return (
     <div className="space-y-2">
-      <p className="text-[9px] font-black uppercase tracking-widest" style={{ color }}>{label}</p>
+      <p
+        className="text-[9px] font-black uppercase tracking-widest"
+        style={{ color }}
+      >
+        {label}
+      </p>
       {/* Type */}
       <div className="flex gap-1 flex-wrap">
         {(["joueur", "equipe", "club", "poste"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => { setType(t); handleChange(t, undefined, t === "poste" && allPostes[0] ? allPostes[0] : undefined); }}
+            onClick={() => {
+              setType(t);
+              handleChange(
+                t,
+                undefined,
+                t === "poste" && allPostes[0] ? allPostes[0] : undefined,
+              );
+            }}
             className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border transition-colors ${type === t ? "border-current text-white" : "border-muted-foreground/30 text-muted-foreground hover:bg-muted"}`}
             style={type === t ? { background: color, borderColor: color } : {}}
           >
@@ -4392,17 +7538,33 @@ function EntitySelector({
               {selectedJoueurLabel ? (
                 <>
                   {(() => {
-                    const j = data.joueurs.find((jj) => jj.nom_prenom === selectedJoueurLabel);
-                    const c = j?.id_equipe ? (joueurEquipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0]) : TEAM_PALETTE[0];
-                    return <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c }} />;
+                    const j = data.joueurs.find(
+                      (jj) => jj.nom_prenom === selectedJoueurLabel,
+                    );
+                    const c = j?.id_equipe
+                      ? (joueurEquipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0])
+                      : TEAM_PALETTE[0];
+                    return (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: c }}
+                      />
+                    );
                   })()}
-                  <span className="truncate">{selectedJoueurLabel}</span>
+                  <span className="truncate">
+                    {formatNomPrenom(selectedJoueurLabel)}
+                  </span>
                 </>
               ) : (
-                <span className="text-muted-foreground">Choisir un joueur…</span>
+                <span className="text-muted-foreground">
+                  Choisir un joueur…
+                </span>
               )}
             </div>
-            <ChevronDown size={12} className={`shrink-0 transition-transform ${joueurDropdownOpen ? "rotate-180" : ""}`} />
+            <ChevronDown
+              size={12}
+              className={`shrink-0 transition-transform ${joueurDropdownOpen ? "rotate-180" : ""}`}
+            />
           </button>
           {joueurDropdownOpen && (
             <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden">
@@ -4418,8 +7580,11 @@ function EntitySelector({
               </div>
               <div className="max-h-48 overflow-y-auto">
                 {filteredJoueurs.map((j) => {
-                  const c = j.id_equipe ? (joueurEquipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0]) : TEAM_PALETTE[0];
-                  const equipeNom = data.equipes.find((e) => e.id === j.id_equipe)?.nom ?? "";
+                  const c = j.id_equipe
+                    ? (joueurEquipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0])
+                    : TEAM_PALETTE[0];
+                  const equipeNom =
+                    data.equipes.find((e) => e.id === j.id_equipe)?.nom ?? "";
                   return (
                     <button
                       key={j.id}
@@ -4431,16 +7596,28 @@ function EntitySelector({
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left hover:bg-muted transition-colors border-b last:border-0"
                     >
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c }} />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: c }}
+                      />
                       <span className="flex-1 min-w-0">
-                        <span className="font-bold truncate block">{j.nom_prenom}</span>
-                        {equipeNom && <span className="text-[10px] text-muted-foreground truncate block">{equipeNom}{j.poste_principal ? ` · ${j.poste_principal}` : ""}</span>}
+                        <span className="font-bold truncate block">
+                          {formatNomPrenom(j.nom_prenom)}
+                        </span>
+                        {equipeNom && (
+                          <span className="text-[10px] text-muted-foreground truncate block">
+                            {equipeNom}
+                            {j.poste_principal ? ` · ${j.poste_principal}` : ""}
+                          </span>
+                        )}
                       </span>
                     </button>
                   );
                 })}
                 {filteredJoueurs.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic px-3 py-2">Aucun joueur trouvé</p>
+                  <p className="text-xs text-muted-foreground italic px-3 py-2">
+                    Aucun joueur trouvé
+                  </p>
                 )}
               </div>
             </div>
@@ -4453,9 +7630,13 @@ function EntitySelector({
           onChange={(e) => handleChange("equipe", Number(e.target.value))}
           defaultValue=""
         >
-          <option value="" disabled>Choisir une équipe…</option>
+          <option value="" disabled>
+            Choisir une équipe…
+          </option>
           {data.equipes.map((eq) => (
-            <option key={eq.id} value={eq.id}>{eq.nom}</option>
+            <option key={eq.id} value={eq.id}>
+              {eq.nom}
+            </option>
           ))}
         </select>
       )}
@@ -4466,12 +7647,16 @@ function EntitySelector({
           defaultValue={allPostes[0] ?? ""}
         >
           {allPostes.map((p) => (
-            <option key={p} value={p}>{p}</option>
+            <option key={p} value={p}>
+              {p}
+            </option>
           ))}
         </select>
       )}
       {type === "club" && (
-        <p className="text-[10px] text-muted-foreground italic">Toutes les équipes du club agrégées</p>
+        <p className="text-[10px] text-muted-foreground italic">
+          Toutes les équipes du club agrégées
+        </p>
       )}
     </div>
   );
@@ -4480,8 +7665,14 @@ function EntitySelector({
 function entityLabel(entity: VersusEntity | null, data: StatsData): string {
   if (!entity) return "—";
   if (entity.type === "club") return "Club";
-  if (entity.type === "equipe") return data.equipes.find((e) => e.id === entity.id)?.nom ?? "Équipe";
-  if (entity.type === "joueur") return data.joueurs.find((j) => j.id === entity.id)?.nom_prenom ?? "Joueur";
+  if (entity.type === "equipe")
+    return data.equipes.find((e) => e.id === entity.id)?.nom ?? "Équipe";
+  if (entity.type === "joueur")
+    return data.joueurs.find((j) => j.id === entity.id)?.nom_prenom
+      ? formatNomPrenom(
+          data.joueurs.find((j) => j.id === entity.id)!.nom_prenom,
+        )
+      : "Joueur";
   if (entity.type === "poste") return entity.poste;
   return "—";
 }
@@ -4512,12 +7703,24 @@ function StatsVersus({ data }: { data: StatsData }) {
 
   const statsA = useMemo(() => {
     if (!entityA) return null;
-    return computeVersusStats(entityA, filtersA, data, entityLabel(entityA, data), COLOR_A);
+    return computeVersusStats(
+      entityA,
+      filtersA,
+      data,
+      entityLabel(entityA, data),
+      COLOR_A,
+    );
   }, [entityA, filtersA, data]);
 
   const statsB = useMemo(() => {
     if (!entityB) return null;
-    return computeVersusStats(entityB, filtersB, data, entityLabel(entityB, data), COLOR_B);
+    return computeVersusStats(
+      entityB,
+      filtersB,
+      data,
+      entityLabel(entityB, data),
+      COLOR_B,
+    );
   }, [entityB, filtersB, data]);
 
   const ready = statsA != null && statsB != null;
@@ -4533,7 +7736,7 @@ function StatsVersus({ data }: { data: StatsData }) {
       [statsA.pctArrets, statsB.pctArrets, true],
       [statsA.moyExcl, statsB.moyExcl, false],
     ];
-    return rows.filter(([a, b, hib]) => hib ? a > b : a < b).length;
+    return rows.filter(([a, b, hib]) => (hib ? a > b : a < b)).length;
   }, [statsA, statsB]);
   const scoreB = useMemo(() => {
     if (!statsA || !statsB) return 0;
@@ -4545,7 +7748,7 @@ function StatsVersus({ data }: { data: StatsData }) {
       [statsA.pctArrets, statsB.pctArrets, true],
       [statsA.moyExcl, statsB.moyExcl, false],
     ];
-    return rows.filter(([a, b, hib]) => hib ? b > a : b < a).length;
+    return rows.filter(([a, b, hib]) => (hib ? b > a : b < a)).length;
   }, [statsA, statsB]);
 
   return (
@@ -4557,30 +7760,77 @@ function StatsVersus({ data }: { data: StatsData }) {
           onClick={() => setShowConfig((v) => !v)}
         >
           <span className="font-sport italic uppercase text-sm font-black flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ background: COLOR_A }} />
-            <span style={{ color: entityA ? COLOR_A : undefined }} className={entityA ? "" : "text-muted-foreground/50"}>
+            <span
+              className="w-3 h-3 rounded-full inline-block shrink-0"
+              style={{ background: COLOR_A }}
+            />
+            <span
+              style={{ color: entityA ? COLOR_A : undefined }}
+              className={entityA ? "" : "text-muted-foreground/50"}
+            >
               {entityA ? entityLabel(entityA, data) : "Entité A"}
             </span>
-            <span className="mx-1 text-[9px] font-black rounded-full px-2 py-0.5 bg-muted text-muted-foreground">VS</span>
-            <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ background: COLOR_B }} />
-            <span style={{ color: entityB ? COLOR_B : undefined }} className={entityB ? "" : "text-muted-foreground/50"}>
+            <span className="mx-1 text-[9px] font-black rounded-full px-2 py-0.5 bg-muted text-muted-foreground">
+              VS
+            </span>
+            <span
+              className="w-3 h-3 rounded-full inline-block shrink-0"
+              style={{ background: COLOR_B }}
+            />
+            <span
+              style={{ color: entityB ? COLOR_B : undefined }}
+              className={entityB ? "" : "text-muted-foreground/50"}
+            >
               {entityB ? entityLabel(entityB, data) : "Entité B"}
             </span>
           </span>
-          <ChevronDown size={14} className={`text-muted-foreground transition-transform ${showConfig ? "" : "rotate-180"}`} />
+          <ChevronDown
+            size={14}
+            className={`text-muted-foreground transition-transform ${showConfig ? "" : "rotate-180"}`}
+          />
         </button>
 
         {showConfig && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x">
             {/* Panel A */}
-            <div className="p-5 space-y-4" style={{ borderTop: `3px solid ${COLOR_A}` }}>
-              <EntitySelector data={data} value={entityA} onChange={setEntityA} label="Entité A" color={COLOR_A} />
-              <VersusFilterPanel data={data} filters={filtersA} setFilters={setFiltersA} label="A" color={COLOR_A} />
+            <div
+              className="p-5 space-y-4"
+              style={{ borderTop: `3px solid ${COLOR_A}` }}
+            >
+              <EntitySelector
+                data={data}
+                value={entityA}
+                onChange={setEntityA}
+                label="Entité A"
+                color={COLOR_A}
+              />
+              <VersusFilterPanel
+                data={data}
+                filters={filtersA}
+                setFilters={setFiltersA}
+                label="A"
+                color={COLOR_A}
+              />
             </div>
             {/* Panel B */}
-            <div className="p-5 space-y-4" style={{ borderTop: `3px solid ${COLOR_B}` }}>
-              <EntitySelector data={data} value={entityB} onChange={setEntityB} label="Entité B" color={COLOR_B} />
-              <VersusFilterPanel data={data} filters={filtersB} setFilters={setFiltersB} label="B" color={COLOR_B} />
+            <div
+              className="p-5 space-y-4"
+              style={{ borderTop: `3px solid ${COLOR_B}` }}
+            >
+              <EntitySelector
+                data={data}
+                value={entityB}
+                onChange={setEntityB}
+                label="Entité B"
+                color={COLOR_B}
+              />
+              <VersusFilterPanel
+                data={data}
+                filters={filtersB}
+                setFilters={setFiltersB}
+                label="B"
+                color={COLOR_B}
+              />
             </div>
           </div>
         )}
@@ -4599,18 +7849,50 @@ function StatsVersus({ data }: { data: StatsData }) {
           {/* Banner score */}
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             {/* Entité A */}
-            <div className="rounded-3xl border-2 p-5 text-center space-y-1 transition-all duration-500"
-              style={{ borderColor: scoreA > scoreB ? COLOR_A : "transparent", background: scoreA > scoreB ? `${COLOR_A}10` : undefined, boxShadow: scoreA > scoreB ? `0 0 30px -4px ${COLOR_A}50` : undefined }}>
-              <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: COLOR_A }}>{statsA.label}</p>
-              <p className="font-sport italic font-black text-5xl" style={{ color: COLOR_A }}>{statsA.matchs}</p>
-              <p className="text-[10px] text-muted-foreground uppercase">matchs analysés</p>
+            <div
+              className="rounded-3xl border-2 p-5 text-center space-y-1 transition-all duration-500"
+              style={{
+                borderColor: scoreA > scoreB ? COLOR_A : "transparent",
+                background: scoreA > scoreB ? `${COLOR_A}10` : undefined,
+                boxShadow:
+                  scoreA > scoreB ? `0 0 30px -4px ${COLOR_A}50` : undefined,
+              }}
+            >
+              <p
+                className="text-[10px] font-black uppercase tracking-widest"
+                style={{ color: COLOR_A }}
+              >
+                {statsA.label}
+              </p>
+              <p
+                className="font-sport italic font-black text-5xl"
+                style={{ color: COLOR_A }}
+              >
+                {statsA.matchs}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase">
+                matchs analysés
+              </p>
               <div className="flex justify-center gap-3 mt-2 text-xs">
-                <span className="text-emerald-500 font-black">{statsA.victoires}V</span>
-                <span className="text-amber-500 font-black">{statsA.nuls}N</span>
-                <span className="text-red-500 font-black">{statsA.defaites}D</span>
+                <span className="text-emerald-500 font-black">
+                  {statsA.victoires}V
+                </span>
+                <span className="text-amber-500 font-black">
+                  {statsA.nuls}N
+                </span>
+                <span className="text-red-500 font-black">
+                  {statsA.defaites}D
+                </span>
               </div>
               {scoreA > scoreB && (
-                <div className="inline-flex items-center gap-1.5 mt-2 text-[10px] font-black uppercase px-3 py-1 rounded-full" style={{ background: COLOR_A, color: "white", boxShadow: `0 4px 14px ${COLOR_A}70` }}>
+                <div
+                  className="inline-flex items-center gap-1.5 mt-2 text-[10px] font-black uppercase px-3 py-1 rounded-full"
+                  style={{
+                    background: COLOR_A,
+                    color: "white",
+                    boxShadow: `0 4px 14px ${COLOR_A}70`,
+                  }}
+                >
                   ★ Avantage
                 </div>
               )}
@@ -4618,28 +7900,88 @@ function StatsVersus({ data }: { data: StatsData }) {
 
             {/* VS central */}
             <div className="text-center space-y-1.5">
-              <div className="text-4xl font-sport italic font-black text-muted-foreground/20 tracking-tight leading-none">VS</div>
-              <div className="flex gap-2 justify-center items-baseline">
-                <span className="font-sport italic font-black text-3xl" style={{ color: COLOR_A, filter: scoreA > scoreB ? `drop-shadow(0 0 8px ${COLOR_A}90)` : undefined }}>{scoreA}</span>
-                <span className="text-muted-foreground/50 font-bold text-xl">—</span>
-                <span className="font-sport italic font-black text-3xl" style={{ color: COLOR_B, filter: scoreB > scoreA ? `drop-shadow(0 0 8px ${COLOR_B}90)` : undefined }}>{scoreB}</span>
+              <div className="text-4xl font-sport italic font-black text-muted-foreground/20 tracking-tight leading-none">
+                VS
               </div>
-              <p className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">critères remportés</p>
+              <div className="flex gap-2 justify-center items-baseline">
+                <span
+                  className="font-sport italic font-black text-3xl"
+                  style={{
+                    color: COLOR_A,
+                    filter:
+                      scoreA > scoreB
+                        ? `drop-shadow(0 0 8px ${COLOR_A}90)`
+                        : undefined,
+                  }}
+                >
+                  {scoreA}
+                </span>
+                <span className="text-muted-foreground/50 font-bold text-xl">
+                  —
+                </span>
+                <span
+                  className="font-sport italic font-black text-3xl"
+                  style={{
+                    color: COLOR_B,
+                    filter:
+                      scoreB > scoreA
+                        ? `drop-shadow(0 0 8px ${COLOR_B}90)`
+                        : undefined,
+                  }}
+                >
+                  {scoreB}
+                </span>
+              </div>
+              <p className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">
+                critères remportés
+              </p>
             </div>
 
             {/* Entité B */}
-            <div className="rounded-3xl border-2 p-5 text-center space-y-1 transition-all duration-500"
-              style={{ borderColor: scoreB > scoreA ? COLOR_B : "transparent", background: scoreB > scoreA ? `${COLOR_B}10` : undefined, boxShadow: scoreB > scoreA ? `0 0 30px -4px ${COLOR_B}50` : undefined }}>
-              <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: COLOR_B }}>{statsB.label}</p>
-              <p className="font-sport italic font-black text-5xl" style={{ color: COLOR_B }}>{statsB.matchs}</p>
-              <p className="text-[10px] text-muted-foreground uppercase">matchs analysés</p>
+            <div
+              className="rounded-3xl border-2 p-5 text-center space-y-1 transition-all duration-500"
+              style={{
+                borderColor: scoreB > scoreA ? COLOR_B : "transparent",
+                background: scoreB > scoreA ? `${COLOR_B}10` : undefined,
+                boxShadow:
+                  scoreB > scoreA ? `0 0 30px -4px ${COLOR_B}50` : undefined,
+              }}
+            >
+              <p
+                className="text-[10px] font-black uppercase tracking-widest"
+                style={{ color: COLOR_B }}
+              >
+                {statsB.label}
+              </p>
+              <p
+                className="font-sport italic font-black text-5xl"
+                style={{ color: COLOR_B }}
+              >
+                {statsB.matchs}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase">
+                matchs analysés
+              </p>
               <div className="flex justify-center gap-3 mt-2 text-xs">
-                <span className="text-emerald-500 font-black">{statsB.victoires}V</span>
-                <span className="text-amber-500 font-black">{statsB.nuls}N</span>
-                <span className="text-red-500 font-black">{statsB.defaites}D</span>
+                <span className="text-emerald-500 font-black">
+                  {statsB.victoires}V
+                </span>
+                <span className="text-amber-500 font-black">
+                  {statsB.nuls}N
+                </span>
+                <span className="text-red-500 font-black">
+                  {statsB.defaites}D
+                </span>
               </div>
               {scoreB > scoreA && (
-                <div className="inline-flex items-center gap-1.5 mt-2 text-[10px] font-black uppercase px-3 py-1 rounded-full" style={{ background: COLOR_B, color: "white", boxShadow: `0 4px 14px ${COLOR_B}70` }}>
+                <div
+                  className="inline-flex items-center gap-1.5 mt-2 text-[10px] font-black uppercase px-3 py-1 rounded-full"
+                  style={{
+                    background: COLOR_B,
+                    color: "white",
+                    boxShadow: `0 4px 14px ${COLOR_B}70`,
+                  }}
+                >
                   ★ Avantage
                 </div>
               )}
@@ -4648,101 +7990,244 @@ function StatsVersus({ data }: { data: StatsData }) {
 
           {/* ── Comparaisons détaillées ── */}
           <Card className="rounded-3xl border-2 overflow-hidden">
-            <div className="h-0.5" style={{ backgroundImage: `linear-gradient(to right, ${COLOR_A}, ${COLOR_B})` }} />
+            <div
+              className="h-0.5"
+              style={{
+                backgroundImage: `linear-gradient(to right, ${COLOR_A}, ${COLOR_B})`,
+              }}
+            />
             <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center">
-                <p className="text-xs font-black uppercase" style={{ color: COLOR_A }}>{statsA.label}</p>
-                <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground text-center">Comparatif détaillé</CardTitle>
-                <p className="text-xs font-black uppercase text-right" style={{ color: COLOR_B }}>{statsB.label}</p>
+                <p
+                  className="text-xs font-black uppercase"
+                  style={{ color: COLOR_A }}
+                >
+                  {statsA.label}
+                </p>
+                <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground text-center">
+                  Comparatif détaillé
+                </CardTitle>
+                <p
+                  className="text-xs font-black uppercase text-right"
+                  style={{ color: COLOR_B }}
+                >
+                  {statsB.label}
+                </p>
               </div>
             </CardHeader>
             <CardContent className="p-5 space-y-0">
               {/* Résultats */}
               <div className="flex items-center gap-2 mt-1 mb-1">
                 <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Résultats</p>
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                  Résultats
+                </p>
               </div>
-              <VersusRow label="% Victoire"     vA={statsA.pctVictoire}    vB={statsB.pctVictoire}    unit="%" />
-              <VersusRow label="Victoires"       vA={statsA.victoires}      vB={statsB.victoires} />
-              <VersusRow label="Nuls"            vA={statsA.nuls}           vB={statsB.nuls} />
-              <VersusRow label="Défaites"        vA={statsA.defaites}       vB={statsB.defaites}       higherIsBetter={false} />
+              <VersusRow
+                label="% Victoire"
+                vA={statsA.pctVictoire}
+                vB={statsB.pctVictoire}
+                unit="%"
+              />
+              <VersusRow
+                label="Victoires"
+                vA={statsA.victoires}
+                vB={statsB.victoires}
+              />
+              <VersusRow label="Nuls" vA={statsA.nuls} vB={statsB.nuls} />
+              <VersusRow
+                label="Défaites"
+                vA={statsA.defaites}
+                vB={statsB.defaites}
+                higherIsBetter={false}
+              />
 
               {/* Attaque */}
               <div className="flex items-center gap-2 mt-4 mb-1">
                 <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Attaque</p>
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                  Attaque
+                </p>
               </div>
-              <VersusRow label="Total Buts"      vA={statsA.totalButs}      vB={statsB.totalButs} />
-              <VersusRow label="Moy. Buts/match" vA={statsA.moyButs}        vB={statsB.moyButs}        formatVal={(v) => `${v}`} />
-              <VersusRow label="Total Tirs"      vA={statsA.totalTirs}      vB={statsB.totalTirs} />
-              <VersusRow label="Moy. Tirs/match" vA={statsA.moyTirs}        vB={statsB.moyTirs}        formatVal={(v) => `${v}`} />
-              <VersusRow label="% Efficacité tir" vA={statsA.pctTir}        vB={statsB.pctTir}         unit="%" />
-              <VersusRow label="Buts (victoires)" vA={statsA.butsParVictoire} vB={statsB.butsParVictoire} formatVal={(v) => `${v}`} />
-              <VersusRow label="Buts (défaites)"  vA={statsA.butsParDefaite}  vB={statsB.butsParDefaite}  formatVal={(v) => `${v}`} />
+              <VersusRow
+                label="Total Buts"
+                vA={statsA.totalButs}
+                vB={statsB.totalButs}
+              />
+              <VersusRow
+                label="Moy. Buts/match"
+                vA={statsA.moyButs}
+                vB={statsB.moyButs}
+                formatVal={(v) => `${v}`}
+              />
+              <VersusRow
+                label="Total Tirs"
+                vA={statsA.totalTirs}
+                vB={statsB.totalTirs}
+              />
+              <VersusRow
+                label="Moy. Tirs/match"
+                vA={statsA.moyTirs}
+                vB={statsB.moyTirs}
+                formatVal={(v) => `${v}`}
+              />
+              <VersusRow
+                label="% Efficacité tir"
+                vA={statsA.pctTir}
+                vB={statsB.pctTir}
+                unit="%"
+              />
+              <VersusRow
+                label="Buts (victoires)"
+                vA={statsA.butsParVictoire}
+                vB={statsB.butsParVictoire}
+                formatVal={(v) => `${v}`}
+              />
+              <VersusRow
+                label="Buts (défaites)"
+                vA={statsA.butsParDefaite}
+                vB={statsB.butsParDefaite}
+                formatVal={(v) => `${v}`}
+              />
 
               {/* Buts encaissés — pertinent pour équipe/club */}
-              {(entityA?.type === "equipe" || entityA?.type === "club" || entityB?.type === "equipe" || entityB?.type === "club") && (
+              {(entityA?.type === "equipe" ||
+                entityA?.type === "club" ||
+                entityB?.type === "equipe" ||
+                entityB?.type === "club") && (
                 <>
                   <div className="flex items-center gap-2 mt-4 mb-1">
                     <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Défense (buts encaissés)</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                      Défense (buts encaissés)
+                    </p>
                   </div>
-                  <VersusRow label="Enc./match (victoires)" vA={statsA.butsEncParVictoire} vB={statsB.butsEncParVictoire} higherIsBetter={false} formatVal={(v) => `${v}`} />
-                  <VersusRow label="Enc./match (défaites)"  vA={statsA.butsEncParDefaite}  vB={statsB.butsEncParDefaite}  higherIsBetter={false} formatVal={(v) => `${v}`} />
+                  <VersusRow
+                    label="Enc./match (victoires)"
+                    vA={statsA.butsEncParVictoire}
+                    vB={statsB.butsEncParVictoire}
+                    higherIsBetter={false}
+                    formatVal={(v) => `${v}`}
+                  />
+                  <VersusRow
+                    label="Enc./match (défaites)"
+                    vA={statsA.butsEncParDefaite}
+                    vB={statsB.butsEncParDefaite}
+                    higherIsBetter={false}
+                    formatVal={(v) => `${v}`}
+                  />
                 </>
               )}
 
               {/* 7m */}
               <div className="flex items-center gap-2 mt-4 mb-1">
                 <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">7 mètres</p>
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                  7 mètres
+                </p>
               </div>
-              <VersusRow label="Total 7m"        vA={statsA.total7m}        vB={statsB.total7m} />
-              <VersusRow label="Moy. 7m/match"   vA={statsA.moy7m}          vB={statsB.moy7m}          formatVal={(v) => `${v}`} />
+              <VersusRow
+                label="Total 7m"
+                vA={statsA.total7m}
+                vB={statsB.total7m}
+              />
+              <VersusRow
+                label="Moy. 7m/match"
+                vA={statsA.moy7m}
+                vB={statsB.moy7m}
+                formatVal={(v) => `${v}`}
+              />
 
               {/* Gardiens */}
               {(statsA.totalArrets > 0 || statsB.totalArrets > 0) && (
                 <>
                   <div className="flex items-center gap-2 mt-4 mb-1">
                     <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Gardiens</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                      Gardiens
+                    </p>
                   </div>
-                  <VersusRow label="Total Arrêts"   vA={statsA.totalArrets}    vB={statsB.totalArrets} />
-                  <VersusRow label="Moy. Arrêts"    vA={statsA.moyArrets}      vB={statsB.moyArrets}      formatVal={(v) => `${v}`} />
-                  <VersusRow label="% Arrêts"       vA={statsA.pctArrets}      vB={statsB.pctArrets}      unit="%" />
+                  <VersusRow
+                    label="Total Arrêts"
+                    vA={statsA.totalArrets}
+                    vB={statsB.totalArrets}
+                  />
+                  <VersusRow
+                    label="Moy. Arrêts"
+                    vA={statsA.moyArrets}
+                    vB={statsB.moyArrets}
+                    formatVal={(v) => `${v}`}
+                  />
+                  <VersusRow
+                    label="% Arrêts"
+                    vA={statsA.pctArrets}
+                    vB={statsB.pctArrets}
+                    unit="%"
+                  />
                 </>
               )}
 
               {/* Discipline */}
               <div className="flex items-center gap-2 mt-4 mb-1">
                 <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Discipline</p>
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                  Discipline
+                </p>
               </div>
-              <VersusRow label="Total Excl. 2min" vA={statsA.totalExcl}      vB={statsB.totalExcl}      higherIsBetter={false} />
-              <VersusRow label="Moy. Excl./match" vA={statsA.moyExcl}        vB={statsB.moyExcl}        higherIsBetter={false} formatVal={(v) => `${v}`} />
+              <VersusRow
+                label="Total Excl. 2min"
+                vA={statsA.totalExcl}
+                vB={statsB.totalExcl}
+                higherIsBetter={false}
+              />
+              <VersusRow
+                label="Moy. Excl./match"
+                vA={statsA.moyExcl}
+                vB={statsB.moyExcl}
+                higherIsBetter={false}
+                formatVal={(v) => `${v}`}
+              />
 
               {/* Pic & Constance */}
               <div className="flex items-center gap-2 mt-4 mb-1">
                 <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Pic &amp; Constance — Buts</p>
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                  Pic &amp; Constance — Buts
+                </p>
               </div>
               <VersusBoxPlotRow
                 label="Buts / match"
-                aQ1={statsA.q1Buts} aMedian={statsA.medianButs} aQ3={statsA.q3Buts} aRecord={statsA.recordButs}
-                bQ1={statsB.q1Buts} bMedian={statsB.medianButs} bQ3={statsB.q3Buts} bRecord={statsB.recordButs}
-                colorA={COLOR_A} colorB={COLOR_B}
+                aQ1={statsA.q1Buts}
+                aMedian={statsA.medianButs}
+                aQ3={statsA.q3Buts}
+                aRecord={statsA.recordButs}
+                bQ1={statsB.q1Buts}
+                bMedian={statsB.medianButs}
+                bQ3={statsB.q3Buts}
+                bRecord={statsB.recordButs}
+                colorA={COLOR_A}
+                colorB={COLOR_B}
               />
               {(statsA.totalArrets > 0 || statsB.totalArrets > 0) && (
                 <>
                   <div className="flex items-center gap-2 mt-4 mb-1">
                     <span className="w-0.5 h-3 rounded-full bg-primary/40 inline-block" />
-                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Pic &amp; Constance — Arrêts</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                      Pic &amp; Constance — Arrêts
+                    </p>
                   </div>
                   <VersusBoxPlotRow
                     label="Arrêts / match"
-                    aQ1={statsA.q1Arrets} aMedian={statsA.medianArrets} aQ3={statsA.q3Arrets} aRecord={statsA.recordArrets}
-                    bQ1={statsB.q1Arrets} bMedian={statsB.medianArrets} bQ3={statsB.q3Arrets} bRecord={statsB.recordArrets}
-                    colorA={COLOR_A} colorB={COLOR_B}
+                    aQ1={statsA.q1Arrets}
+                    aMedian={statsA.medianArrets}
+                    aQ3={statsA.q3Arrets}
+                    aRecord={statsA.recordArrets}
+                    bQ1={statsB.q1Arrets}
+                    bMedian={statsB.medianArrets}
+                    bQ3={statsB.q3Arrets}
+                    bRecord={statsB.recordArrets}
+                    colorA={COLOR_A}
+                    colorB={COLOR_B}
                   />
                 </>
               )}
@@ -4751,78 +8236,237 @@ function StatsVersus({ data }: { data: StatsData }) {
 
           {/* ── Radar visuel ── */}
           <Card className="rounded-3xl border-2 overflow-hidden">
-            <div className="h-0.5" style={{ backgroundImage: `linear-gradient(to right, ${COLOR_B}, ${COLOR_A})` }} />
+            <div
+              className="h-0.5"
+              style={{
+                backgroundImage: `linear-gradient(to right, ${COLOR_B}, ${COLOR_A})`,
+              }}
+            />
             <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
-              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">Profil comparatif — Vue radar</CardTitle>
+              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+                Profil comparatif — Vue radar
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-5">
               {(() => {
-                const bothGardiens = statsA.isGardienEntity && statsB.isGardienEntity;
-                const neitherGardien = !statsA.isGardienEntity && !statsB.isGardienEntity
-                  && entityA?.type === "joueur" && entityB?.type === "joueur";
-                type RMetric = { label: string; a: number; b: number; max: number; invert?: boolean };
-                const exclMax = Math.max(statsA.moyExcl, statsB.moyExcl, 0.5) * 1.2;
-                const metrics: RMetric[] = bothGardiens ? [
-                  { label: "% Arrêts",    a: statsA.pctArrets,   b: statsB.pctArrets,   max: 100 },
-                  { label: "Moy. Arrêts", a: statsA.moyArrets,   b: statsB.moyArrets,   max: Math.max(statsA.moyArrets, statsB.moyArrets, 1) * 1.2 },
-                  { label: "% Victoire",  a: statsA.pctVictoire, b: statsB.pctVictoire, max: 100 },
-                  { label: "Matchs",      a: statsA.matchs,      b: statsB.matchs,      max: Math.max(statsA.matchs, statsB.matchs, 1) * 1.2 },
-                ] : neitherGardien ? [
-                  { label: "% Victoire",  a: statsA.pctVictoire, b: statsB.pctVictoire, max: 100 },
-                  { label: "Moy. Buts",   a: statsA.moyButs,     b: statsB.moyButs,     max: Math.max(statsA.moyButs, statsB.moyButs, 1) * 1.2 },
-                  { label: "% Tir",       a: statsA.pctTir,      b: statsB.pctTir,      max: 100 },
-                  { label: "Moy. Tirs",   a: statsA.moyTirs,     b: statsB.moyTirs,     max: Math.max(statsA.moyTirs, statsB.moyTirs, 1) * 1.2 },
-                  { label: "Moy. 7m",     a: statsA.moy7m,       b: statsB.moy7m,       max: Math.max(statsA.moy7m, statsB.moy7m, 1) * 1.2 },
-                  { label: "Excl. ↓",     a: statsA.moyExcl,     b: statsB.moyExcl,     max: exclMax, invert: true },
-                ] : [
-                  { label: "% Victoire",  a: statsA.pctVictoire, b: statsB.pctVictoire, max: 100 },
-                  { label: "Moy. Buts",   a: statsA.moyButs,     b: statsB.moyButs,     max: Math.max(statsA.moyButs, statsB.moyButs, 1) * 1.2 },
-                  { label: "% Tir",       a: statsA.pctTir,      b: statsB.pctTir,      max: 100 },
-                  { label: "% Arrêts",    a: statsA.pctArrets,   b: statsB.pctArrets,   max: 100 },
-                  { label: "Moy. Tirs",   a: statsA.moyTirs,     b: statsB.moyTirs,     max: Math.max(statsA.moyTirs, statsB.moyTirs, 1) * 1.2 },
-                  { label: "Excl. ↓",     a: statsA.moyExcl,     b: statsB.moyExcl,     max: exclMax, invert: true },
-                ];
+                const bothGardiens =
+                  statsA.isGardienEntity && statsB.isGardienEntity;
+                const neitherGardien =
+                  !statsA.isGardienEntity &&
+                  !statsB.isGardienEntity &&
+                  entityA?.type === "joueur" &&
+                  entityB?.type === "joueur";
+                type RMetric = {
+                  label: string;
+                  a: number;
+                  b: number;
+                  max: number;
+                  invert?: boolean;
+                };
+                const exclMax =
+                  Math.max(statsA.moyExcl, statsB.moyExcl, 0.5) * 1.2;
+                const metrics: RMetric[] = bothGardiens
+                  ? [
+                      {
+                        label: "% Arrêts",
+                        a: statsA.pctArrets,
+                        b: statsB.pctArrets,
+                        max: 100,
+                      },
+                      {
+                        label: "Moy. Arrêts",
+                        a: statsA.moyArrets,
+                        b: statsB.moyArrets,
+                        max:
+                          Math.max(statsA.moyArrets, statsB.moyArrets, 1) * 1.2,
+                      },
+                      {
+                        label: "% Victoire",
+                        a: statsA.pctVictoire,
+                        b: statsB.pctVictoire,
+                        max: 100,
+                      },
+                      {
+                        label: "Matchs",
+                        a: statsA.matchs,
+                        b: statsB.matchs,
+                        max: Math.max(statsA.matchs, statsB.matchs, 1) * 1.2,
+                      },
+                    ]
+                  : neitherGardien
+                    ? [
+                        {
+                          label: "% Victoire",
+                          a: statsA.pctVictoire,
+                          b: statsB.pctVictoire,
+                          max: 100,
+                        },
+                        {
+                          label: "Moy. Buts",
+                          a: statsA.moyButs,
+                          b: statsB.moyButs,
+                          max:
+                            Math.max(statsA.moyButs, statsB.moyButs, 1) * 1.2,
+                        },
+                        {
+                          label: "% Tir",
+                          a: statsA.pctTir,
+                          b: statsB.pctTir,
+                          max: 100,
+                        },
+                        {
+                          label: "Moy. Tirs",
+                          a: statsA.moyTirs,
+                          b: statsB.moyTirs,
+                          max:
+                            Math.max(statsA.moyTirs, statsB.moyTirs, 1) * 1.2,
+                        },
+                        {
+                          label: "Moy. 7m",
+                          a: statsA.moy7m,
+                          b: statsB.moy7m,
+                          max: Math.max(statsA.moy7m, statsB.moy7m, 1) * 1.2,
+                        },
+                        {
+                          label: "Excl. ↓",
+                          a: statsA.moyExcl,
+                          b: statsB.moyExcl,
+                          max: exclMax,
+                          invert: true,
+                        },
+                      ]
+                    : [
+                        {
+                          label: "% Victoire",
+                          a: statsA.pctVictoire,
+                          b: statsB.pctVictoire,
+                          max: 100,
+                        },
+                        {
+                          label: "Moy. Buts",
+                          a: statsA.moyButs,
+                          b: statsB.moyButs,
+                          max:
+                            Math.max(statsA.moyButs, statsB.moyButs, 1) * 1.2,
+                        },
+                        {
+                          label: "% Tir",
+                          a: statsA.pctTir,
+                          b: statsB.pctTir,
+                          max: 100,
+                        },
+                        {
+                          label: "% Arrêts",
+                          a: statsA.pctArrets,
+                          b: statsB.pctArrets,
+                          max: 100,
+                        },
+                        {
+                          label: "Moy. Tirs",
+                          a: statsA.moyTirs,
+                          b: statsB.moyTirs,
+                          max:
+                            Math.max(statsA.moyTirs, statsB.moyTirs, 1) * 1.2,
+                        },
+                        {
+                          label: "Excl. ↓",
+                          a: statsA.moyExcl,
+                          b: statsB.moyExcl,
+                          max: exclMax,
+                          invert: true,
+                        },
+                      ];
                 const N = metrics.length;
-                const CX = 160, CY = 140, R = 110;
-                const angles = metrics.map((_, i) => (i / N) * 2 * Math.PI - Math.PI / 2);
+                const CX = 160,
+                  CY = 140,
+                  R = 110;
+                const angles = metrics.map(
+                  (_, i) => (i / N) * 2 * Math.PI - Math.PI / 2,
+                );
                 const radarVal = (m: RMetric, raw: number) =>
                   m.invert ? Math.max(0, m.max - Math.min(raw, m.max)) : raw;
                 const pt = (m: RMetric, raw: number, idx: number) => {
                   const r = (radarVal(m, raw) / m.max) * R;
-                  return [CX + r * Math.cos(angles[idx]), CY + r * Math.sin(angles[idx])];
+                  return [
+                    CX + r * Math.cos(angles[idx]),
+                    CY + r * Math.sin(angles[idx]),
+                  ];
                 };
-                const polyA = metrics.map((m, i) => pt(m, m.a, i).join(",")).join(" ");
-                const polyB = metrics.map((m, i) => pt(m, m.b, i).join(",")).join(" ");
+                const polyA = metrics
+                  .map((m, i) => pt(m, m.a, i).join(","))
+                  .join(" ");
+                const polyB = metrics
+                  .map((m, i) => pt(m, m.b, i).join(","))
+                  .join(" ");
                 const gridLevels = [0.25, 0.5, 0.75, 1];
 
                 return (
-                  <svg viewBox="0 0 320 280" className="w-full max-w-sm mx-auto">
+                  <svg
+                    viewBox="0 0 320 280"
+                    className="w-full max-w-sm mx-auto"
+                  >
                     {/* Grille */}
                     {gridLevels.map((lvl) => (
                       <polygon
                         key={lvl}
-                        points={angles.map((a) => `${CX + R * lvl * Math.cos(a)},${CY + R * lvl * Math.sin(a)}`).join(" ")}
-                        fill="none" stroke="currentColor" strokeOpacity={0.1} strokeWidth={1}
+                        points={angles
+                          .map(
+                            (a) =>
+                              `${CX + R * lvl * Math.cos(a)},${CY + R * lvl * Math.sin(a)}`,
+                          )
+                          .join(" ")}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeOpacity={0.1}
+                        strokeWidth={1}
                       />
                     ))}
                     {/* Axes */}
                     {angles.map((a, i) => (
-                      <line key={i} x1={CX} y1={CY}
-                        x2={CX + R * Math.cos(a)} y2={CY + R * Math.sin(a)}
-                        stroke="currentColor" strokeOpacity={0.15} strokeWidth={1} />
+                      <line
+                        key={i}
+                        x1={CX}
+                        y1={CY}
+                        x2={CX + R * Math.cos(a)}
+                        y2={CY + R * Math.sin(a)}
+                        stroke="currentColor"
+                        strokeOpacity={0.15}
+                        strokeWidth={1}
+                      />
                     ))}
                     {/* Polygone B */}
-                    <polygon points={polyB} fill={COLOR_B} fillOpacity={0.15} stroke={COLOR_B} strokeWidth={2} strokeOpacity={0.8} />
+                    <polygon
+                      points={polyB}
+                      fill={COLOR_B}
+                      fillOpacity={0.15}
+                      stroke={COLOR_B}
+                      strokeWidth={2}
+                      strokeOpacity={0.8}
+                    />
                     {/* Polygone A */}
-                    <polygon points={polyA} fill={COLOR_A} fillOpacity={0.15} stroke={COLOR_A} strokeWidth={2} strokeOpacity={0.8} />
+                    <polygon
+                      points={polyA}
+                      fill={COLOR_A}
+                      fillOpacity={0.15}
+                      stroke={COLOR_A}
+                      strokeWidth={2}
+                      strokeOpacity={0.8}
+                    />
                     {/* Labels */}
                     {metrics.map((m, i) => {
                       const lx = CX + (R + 16) * Math.cos(angles[i]);
                       const ly = CY + (R + 16) * Math.sin(angles[i]);
                       return (
-                        <text key={i} x={lx} y={ly}
-                          textAnchor="middle" dominantBaseline="middle"
-                          fontSize={8} fontWeight={700} fill="currentColor" fillOpacity={0.6}
+                        <text
+                          key={i}
+                          x={lx}
+                          y={ly}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontSize={8}
+                          fontWeight={700}
+                          fill="currentColor"
+                          fillOpacity={0.6}
                           className="uppercase font-black"
                         >
                           {m.label}
@@ -4831,9 +8475,27 @@ function StatsVersus({ data }: { data: StatsData }) {
                     })}
                     {/* Légende */}
                     <circle cx={10} cy={270} r={4} fill={COLOR_A} />
-                    <text x={17} y={270} dominantBaseline="middle" fontSize={8} fill="currentColor" fillOpacity={0.7}>{statsA.label}</text>
+                    <text
+                      x={17}
+                      y={270}
+                      dominantBaseline="middle"
+                      fontSize={8}
+                      fill="currentColor"
+                      fillOpacity={0.7}
+                    >
+                      {statsA.label}
+                    </text>
                     <circle cx={160} cy={270} r={4} fill={COLOR_B} />
-                    <text x={167} y={270} dominantBaseline="middle" fontSize={8} fill="currentColor" fillOpacity={0.7}>{statsB.label}</text>
+                    <text
+                      x={167}
+                      y={270}
+                      dominantBaseline="middle"
+                      fontSize={8}
+                      fill="currentColor"
+                      fillOpacity={0.7}
+                    >
+                      {statsB.label}
+                    </text>
                   </svg>
                 );
               })()}
@@ -4844,11 +8506,21 @@ function StatsVersus({ data }: { data: StatsData }) {
 
       {!ready && (
         <Card className="rounded-3xl border-2 overflow-hidden">
-          <div className="h-1" style={{ backgroundImage: `linear-gradient(to right, ${COLOR_A}, ${COLOR_B})` }} />
+          <div
+            className="h-1"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${COLOR_A}, ${COLOR_B})`,
+            }}
+          />
           <div className="p-16 text-center">
             <p className="text-5xl mb-4 opacity-20">⚡</p>
-            <p className="font-sport italic font-black text-xl text-muted-foreground uppercase">Choisissez deux entités</p>
-            <p className="text-sm text-muted-foreground/50 mt-2 max-w-xs mx-auto leading-relaxed">Sélectionnez un joueur, une équipe, un poste ou le club entier de chaque côté pour lancer la comparaison.</p>
+            <p className="font-sport italic font-black text-xl text-muted-foreground uppercase">
+              Choisissez deux entités
+            </p>
+            <p className="text-sm text-muted-foreground/50 mt-2 max-w-xs mx-auto leading-relaxed">
+              Sélectionnez un joueur, une équipe, un poste ou le club entier de
+              chaque côté pour lancer la comparaison.
+            </p>
           </div>
         </Card>
       )}
@@ -4893,31 +8565,44 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
     );
   }
 
-  const activeItem = TAB_ITEMS.find((t) => t.value === activeTab) ?? TAB_ITEMS[0];
+  const activeItem =
+    TAB_ITEMS.find((t) => t.value === activeTab) ?? TAB_ITEMS[0];
 
   return (
     <div>
       <FilterBar data={data} filters={filters} setFilters={setFilters} />
 
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setMobileMenuOpen(false); }}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          setActiveTab(v);
+          setMobileMenuOpen(false);
+        }}
+      >
         {/* Mobile: burger menu */}
         <div className="sm:hidden mb-6 relative z-50">
           <button
             onClick={() => setMobileMenuOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-muted/60 border font-sport italic uppercase text-xs"
+            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border-2 border-primary/20 font-sport italic uppercase text-xs shadow-sm"
           >
             <div className="flex items-center gap-2">
               <activeItem.icon size={14} className="shrink-0" />
               {activeItem.label}
             </div>
-            <ChevronDown size={14} className={`transition-transform duration-200 ${mobileMenuOpen ? "rotate-180" : ""}`} />
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-200 ${mobileMenuOpen ? "rotate-180" : ""}`}
+            />
           </button>
           {mobileMenuOpen && (
             <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden">
               {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
-                  onClick={() => { setActiveTab(value); setMobileMenuOpen(false); }}
+                  onClick={() => {
+                    setActiveTab(value);
+                    setMobileMenuOpen(false);
+                  }}
                   className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-sport italic uppercase border-b last:border-0 transition-colors text-left ${activeTab === value ? "bg-primary text-white" : "hover:bg-muted"}`}
                 >
                   <Icon size={13} className="shrink-0" />
@@ -4929,12 +8614,12 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
         </div>
 
         {/* Desktop: tab list */}
-        <TabsList className="hidden sm:flex flex-wrap h-auto rounded-2xl bg-muted/60 border p-1.5 gap-1 mb-8 shadow-sm">
+        <TabsList className="hidden sm:flex flex-wrap justify-center h-auto rounded-2xl bg-primary/8 border-2 border-primary/20 p-1.5 gap-1 mb-8 shadow-md w-full">
           {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}
-              className="rounded-xl font-sport italic uppercase text-xs px-4 py-2.5 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-[0_2px_14px_rgba(99,102,241,0.45)]"
+              className="rounded-xl font-sport italic uppercase text-xs px-4 py-2.5 transition-all duration-200 text-primary/70 hover:text-primary hover:bg-primary/10 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-[0_2px_14px_rgba(99,102,241,0.45)]"
             >
               <Icon size={13} className="mr-1.5 shrink-0" />
               {label}

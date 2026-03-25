@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Users, Calendar } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { formatNomPrenom } from "@/lib/utils";
 
 interface EquipeContentProps {
   clubId: string;
@@ -89,10 +90,7 @@ export default function EquipeContent({
               >
                 <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent z-0"></div>
                 <CardContent className="p-5 pt-6 relative z-10 flex flex-col h-full justify-between gap-4">
-                  <div className="flex items-start justify-between">
-                    <div className="bg-background dark:bg-slate-800 shadow-sm border-2 border-primary/20 h-14 w-14 rounded-2xl flex items-center justify-center text-primary font-sport text-3xl font-black italic transform -rotate-6 group-hover:rotate-0 group-hover:scale-110 transition-all duration-300">
-                      {joueur.num_maillot || "—"}
-                    </div>
+                  <div className="flex items-start justify-end">
                     <Badge
                       variant="secondary"
                       className="text-[9px] uppercase font-black tracking-widest bg-secondary/10 text-secondary-foreground border-none px-3 py-1"
@@ -101,8 +99,8 @@ export default function EquipeContent({
                     </Badge>
                   </div>
                   <div>
-                    <h3 className="font-sport italic font-black text-xl uppercase leading-tight line-clamp-2 group-hover:text-primary transition-colors mt-2">
-                      {joueur.nom_prenom}
+                    <h3 className="font-sport italic font-black text-xl leading-tight line-clamp-2 group-hover:text-primary transition-colors mt-2">
+                      {formatNomPrenom(joueur.nom_prenom)}
                     </h3>
                   </div>
                   <Link

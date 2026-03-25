@@ -5,7 +5,13 @@ import prisma from "@/lib/prisma";
 
 export type StatsData = {
   equipes: { id: number; nom: string }[];
-  joueurs: { id: number; nom_prenom: string; poste_principal: string | null; postes_secondaires: string[]; id_equipe: number | null }[];
+  joueurs: {
+    id: number;
+    nom_prenom: string;
+    poste_principal: string | null;
+    postes_secondaires: string[];
+    id_equipe: number | null;
+  }[];
   competitions: { id: number; nom: string; saison: string }[];
   matchs: {
     id: number;
@@ -31,7 +37,9 @@ export type StatsData = {
   }[];
 };
 
-export async function getStatsData(clubId: number): Promise<{ success: boolean; data?: StatsData; error?: string }> {
+export async function getStatsData(
+  clubId: number,
+): Promise<{ success: boolean; data?: StatsData; error?: string }> {
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Non authentifié");
@@ -43,7 +51,17 @@ export async function getStatsData(clubId: number): Promise<{ success: boolean; 
       orderBy: { nom: "asc" },
     });
 
-    if (equipes.length === 0) return { success: true, data: { equipes: [], joueurs: [], competitions: [], matchs: [], statsJoueurs: [] } };
+    if (equipes.length === 0)
+      return {
+        success: true,
+        data: {
+          equipes: [],
+          joueurs: [],
+          competitions: [],
+          matchs: [],
+          statsJoueurs: [],
+        },
+      };
 
     const equipeIds = equipes.map((e) => e.id);
 
@@ -51,7 +69,13 @@ export async function getStatsData(clubId: number): Promise<{ success: boolean; 
     const [joueurs, competitions, matchsRaw, statsRaw] = await Promise.all([
       prisma.joueurs.findMany({
         where: { id_equipe: { in: equipeIds } },
-        select: { id: true, nom_prenom: true, poste_principal: true, postes_secondaires: true, id_equipe: true },
+        select: {
+          id: true,
+          nom_prenom: true,
+          poste_principal: true,
+          postes_secondaires: true,
+          id_equipe: true,
+        },
         orderBy: { nom_prenom: "asc" },
       }),
       prisma.competition.findMany({
@@ -109,6 +133,9 @@ export async function getStatsData(clubId: number): Promise<{ success: boolean; 
       },
     };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Erreur serveur" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur serveur",
+    };
   }
 }

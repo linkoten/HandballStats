@@ -35,7 +35,9 @@ export default async function EquipeDetailPage({
     if (c.saison) saisonsSet.add(c.saison);
   });
   const saisonsDisplay =
-    saisonsSet.size > 0 ? Array.from(saisonsSet).join(" / ") : "SAISON 24/25";
+    saisonsSet.size > 0
+      ? Array.from(saisonsSet).sort().join(" / ")
+      : "SAISON 24/25";
 
   // Calcul des victoires / nuls / défaites
   let wins = 0;

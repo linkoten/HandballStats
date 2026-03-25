@@ -238,7 +238,6 @@ export async function getCompetitionById(
           },
           orderBy: [{ date_match: "asc" }],
         },
-
       },
     });
 

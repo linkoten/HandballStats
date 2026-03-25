@@ -30,6 +30,7 @@ import {
   Zap,
   Layers,
   ChevronRight,
+  HelpCircle,
 } from "lucide-react";
 import { configureCompetitionsBatch, createEquipe } from "@/app/actions";
 import { toast } from "sonner";
@@ -103,6 +104,102 @@ const competitionSchema = z
   });
 
 type CompetitionErrors = Partial<Record<string, string>>;
+
+// ─── Tooltip d'aide ────────────────────────────────────────────────────────
+function FieldTooltip({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <span className="relative group/tip inline-flex items-center ml-1 shrink-0">
+      <HelpCircle
+        size={12}
+        className="cursor-help text-muted-foreground/60 group-hover/tip:text-primary transition-colors"
+      />
+      <div
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute top-full mt-2 z-[100] w-72 min-w-[200px]",
+          "bg-card border-2 rounded-2xl p-4 text-xs shadow-2xl",
+          "opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150",
+          align === "right" ? "right-0" : "left-0",
+        )}
+      >
+        {children}
+      </div>
+    </span>
+  );
+}
+
+// ─── Guide visuel URL FFHB ───────────────────────────────────────────────────
+function UrlGuide() {
+  return (
+    <Card className="rounded-4xl border-2 shadow-xl bg-card overflow-hidden">
+      <div className="bg-muted/30 px-6 py-3 border-b">
+        <p className="font-sport italic text-xs uppercase tracking-widest flex items-center gap-2">
+          <Info size={14} className="text-primary" /> Guide — URL FFHB
+        </p>
+      </div>
+      <CardContent className="p-5 space-y-4">
+        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+          Exemple d&apos;URL complète :
+        </p>
+        <div className="bg-muted/50 rounded-xl p-3 font-mono text-[10px] leading-6 break-all">
+          <span className="text-muted-foreground">
+            https://www.ffhandball.fr/competitions/
+          </span>
+          <span className="text-blue-500 font-bold bg-blue-500/10 rounded px-0.5">
+            saison-2025-2026-21/regional/16-ans-excellence-feminine-bretagne-27853
+          </span>
+          <span className="text-muted-foreground">/</span>
+          <span className="text-orange-500 font-bold bg-orange-500/10 rounded px-0.5">
+            poule-168469
+          </span>
+          <span className="text-muted-foreground">/journee-1/</span>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-start gap-2.5">
+            <span className="shrink-0 mt-1 w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <div>
+              <p className="font-black text-[11px] uppercase text-blue-600 dark:text-blue-400 tracking-wide">
+                Lien FFHandball
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Tout ce qui précède la poule dans l&apos;URL
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="shrink-0 mt-1 w-2.5 h-2.5 rounded-full bg-orange-500" />
+            <div>
+              <p className="font-black text-[11px] uppercase text-orange-600 dark:text-orange-400 tracking-wide">
+                Poule
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Le segment{" "}
+                <span className="font-mono font-bold">poule-XXXXXX</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+          <p className="text-[10px] font-bold leading-relaxed">
+            💡 La poule n&apos;apparaît pas dans l&apos;URL ?
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+            Cliquez sur une journée dans la compétition FFHB pour faire
+            apparaître le segment{" "}
+            <span className="font-mono font-bold">poule-...</span> dans
+            l&apos;URL.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 /** Groups by (equipeId, saison) when phase is filled — counts as 1 token. */
 function computeEffectiveTokenCost(
@@ -391,7 +488,12 @@ export default function CreateCompetitionClient({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-8 space-y-6">
-            <div className="flex justify-between items-end px-2">
+            {/* Guide visible on mobile only, shown before competitions */}
+            <div className="lg:hidden">
+              <UrlGuide />
+            </div>
+
+            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm flex justify-between items-center px-2 py-3 -my-3 rounded-2xl">
               <h2 className="font-sport italic text-2xl uppercase tracking-tight flex items-center gap-2">
                 <Layers className="text-primary" /> Détails des Engagements
               </h2>
@@ -401,7 +503,7 @@ export default function CreateCompetitionClient({
                 className="rounded-xl border-2 font-bold uppercase text-xs"
                 disabled={isPending}
               >
-                <Plus className="w-4 h-4 mr-2" /> Ajouter un Slot
+                <Plus className="w-4 h-4 mr-2" /> Ajouter une Compétition
               </Button>
             </div>
 
@@ -409,15 +511,9 @@ export default function CreateCompetitionClient({
               {competitions.map((competition, index) => (
                 <Card
                   key={competition.id || index}
-                  className="rounded-[2.5rem] border-2 shadow-lg overflow-hidden transition-all hover:border-primary/30 group bg-card"
+                  className="rounded-[2.5rem] border-2 shadow-lg transition-all hover:border-primary/30 group bg-card"
                 >
-                  {/* Debug log pour vérifier le state */}
-                  {process.env.NODE_ENV === "development" && (
-                    <pre className="text-xs bg-muted/30 p-2 rounded-xl mt-2">
-                      {JSON.stringify(competitions, null, 2)}
-                    </pre>
-                  )}
-                  <div className="bg-muted/30 px-8 py-4 border-b flex justify-between items-center group-hover:bg-primary/5">
+                  <div className="bg-muted/30 px-8 py-4 border-b flex justify-between items-center group-hover:bg-primary/5 rounded-t-[2.5rem]">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-sport italic text-sm">
                         {index + 1}
@@ -447,8 +543,25 @@ export default function CreateCompetitionClient({
                   <CardContent className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Nom de la compétition */}
                     <div className="md:col-span-2 space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center">
                         Nom de la compétition (Affichage)
+                        <FieldTooltip>
+                          <p className="font-black text-foreground mb-1">
+                            Nom affiché dans l&apos;app
+                          </p>
+                          <p className="text-muted-foreground leading-relaxed">
+                            Nom purement personnel pour identifier vos données
+                            plus facilement.
+                          </p>
+                          <div className="bg-secondary/10 rounded-xl p-2 mt-2">
+                            <p className="font-bold text-secondary text-[10px] uppercase mb-1">
+                              Exemple conseillé
+                            </p>
+                            <p className="font-mono leading-relaxed">
+                              2024/2025 +16 ANS EXCELLENCE FEMININE BRETAGNE
+                            </p>
+                          </div>
+                        </FieldTooltip>
                       </Label>
                       <Input
                         placeholder="Ex: N2 - Masculine"
@@ -474,8 +587,25 @@ export default function CreateCompetitionClient({
                     </div>
 
                     <div className="md:col-span-2 space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center">
                         Lien FFHandball officiel
+                        <FieldTooltip>
+                          <p className="font-black text-foreground mb-1">
+                            URL jusqu&apos;à la poule
+                          </p>
+                          <p className="text-muted-foreground leading-relaxed">
+                            Copiez l&apos;URL de la compétition sans le segment
+                            poule ni la journée.
+                          </p>
+                          <div className="bg-blue-500/10 rounded-xl p-2 mt-2">
+                            <p className="font-mono text-[10px] text-blue-600 dark:text-blue-400 break-all leading-relaxed">
+                              https://www.ffhandball.fr/competitions/saison-2025-2026-21/regional/16-ans-excellence-feminine-bretagne-27853
+                            </p>
+                          </div>
+                          <p className="text-muted-foreground mt-1.5">
+                            → Voir le guide dans la colonne de droite
+                          </p>
+                        </FieldTooltip>
                       </Label>
                       <div className="relative group/input">
                         <Globe
@@ -596,8 +726,26 @@ export default function CreateCompetitionClient({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center">
                         Nom sur FFHandball
+                        <FieldTooltip align="right">
+                          <p className="font-black text-foreground mb-1">
+                            Nom exact sur FFHB
+                          </p>
+                          <p className="text-muted-foreground leading-relaxed">
+                            Le nom de votre équipe tel qu&apos;il apparaît dans
+                            les rencontres sur le site FFHB (feuille de match,
+                            classement…).
+                          </p>
+                          <div className="bg-muted rounded-xl p-2 mt-2">
+                            <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                              Exemples
+                            </p>
+                            <p className="font-mono">PSG HANDBALL</p>
+                            <p className="font-mono">HBCL +16 ANS F</p>
+                            <p className="font-mono">BREST BRETAGNE HB</p>
+                          </div>
+                        </FieldTooltip>
                       </Label>
                       <Input
                         placeholder="Ex: PSG HANDBALL"
@@ -620,8 +768,29 @@ export default function CreateCompetitionClient({
                     {/* Champs techniques */}
                     <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-dashed">
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center">
                           Poule
+                          <FieldTooltip>
+                            <p className="font-black text-foreground mb-1">
+                              Segment poule de l&apos;URL
+                            </p>
+                            <p className="text-muted-foreground leading-relaxed">
+                              Copiez uniquement le segment{" "}
+                              <span className="font-mono font-bold text-orange-500">
+                                poule-XXXXXX
+                              </span>{" "}
+                              de l&apos;URL FFHB.
+                            </p>
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2 mt-2">
+                              <p className="font-bold">
+                                ⚠️ La poule n&apos;apparaît pas ?
+                              </p>
+                              <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                                Cliquez sur une journée dans la compétition FFHB
+                                pour la faire apparaître dans l&apos;URL.
+                              </p>
+                            </div>
+                          </FieldTooltip>
                         </Label>
                         <Input
                           placeholder="poule-123"
@@ -641,11 +810,47 @@ export default function CreateCompetitionClient({
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-secondary">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-secondary flex items-center">
                           Phase{" "}
                           <span className="text-muted-foreground font-normal text-[9px] normal-case">
                             (optionnel)
                           </span>
+                          <FieldTooltip>
+                            <p className="font-black text-foreground mb-2">
+                              Phase de la compétition
+                            </p>
+                            <div className="space-y-2 text-muted-foreground">
+                              <div className="flex items-start gap-2">
+                                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
+                                <p>
+                                  <span className="font-bold text-foreground">
+                                    Championnat complet
+                                  </span>{" "}
+                                  — laisser vide
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
+                                <p>
+                                  <span className="font-bold text-foreground">
+                                    Compétition en 2 temps
+                                  </span>{" "}
+                                  (poule haute/basse) — créer 2 compétitions :
+                                  &ldquo;1&rdquo; pour la 1ère partie,
+                                  &ldquo;2&rdquo; pour la 2nde
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
+                                <p>
+                                  <span className="font-bold text-foreground">
+                                    Coupe de France
+                                  </span>{" "}
+                                  — 1 compétition par tour, numéroter 1, 2, 3…
+                                </p>
+                              </div>
+                            </div>
+                          </FieldTooltip>
                         </Label>
                         <Input
                           placeholder="Phase 1"
@@ -677,8 +882,21 @@ export default function CreateCompetitionClient({
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center">
                           Journées
+                          <FieldTooltip align="right">
+                            <p className="font-black text-foreground mb-1">
+                              Nombre total de journées
+                            </p>
+                            <p className="text-muted-foreground leading-relaxed">
+                              Indiquez le nombre de journées{" "}
+                              <span className="font-bold text-foreground">
+                                total
+                              </span>{" "}
+                              de la compétition, même si certaines n&apos;ont
+                              pas encore été jouées.
+                            </p>
+                          </FieldTooltip>
                         </Label>
                         <Input
                           type="number"
@@ -708,7 +926,10 @@ export default function CreateCompetitionClient({
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
+          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-8 lg:self-start">
+            <div className="hidden lg:block">
+              <UrlGuide />
+            </div>
             <Card className="rounded-[2rem] border-2 shadow-2xl bg-primary text-white overflow-hidden">
               <div className="p-8 space-y-6">
                 <div className="space-y-2">

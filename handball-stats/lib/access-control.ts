@@ -222,8 +222,12 @@ export async function getClubSubscriptionStatus(clubId: number): Promise<{
 
   if (!adminMembership) return empty;
 
-  const { subscription, stripeCurrentPeriodEnd, tokensRemaining, baseTokenAllocation } =
-    adminMembership.user;
+  const {
+    subscription,
+    stripeCurrentPeriodEnd,
+    tokensRemaining,
+    baseTokenAllocation,
+  } = adminMembership.user;
   const now = new Date();
 
   const isActive =
@@ -235,13 +239,11 @@ export async function getClubSubscriptionStatus(clubId: number): Promise<{
   // fallback sur tokensRemaining pour les comptes existants sans baseTokenAllocation encore peuplé.
   const planKey = subscription as keyof typeof PLAN_LIMITS;
   const planMax = PLAN_LIMITS[planKey]?.maxTokens ?? 0;
-  const effectiveAllocation = baseTokenAllocation > 0
-    ? baseTokenAllocation
-    : Math.max(tokensRemaining, planMax);
-  const quota =
-    subscription === "PREMIUM"
-      ? -1
-      : effectiveAllocation;
+  const effectiveAllocation =
+    baseTokenAllocation > 0
+      ? baseTokenAllocation
+      : Math.max(tokensRemaining, planMax);
+  const quota = subscription === "PREMIUM" ? -1 : effectiveAllocation;
 
   const base = {
     isActive,

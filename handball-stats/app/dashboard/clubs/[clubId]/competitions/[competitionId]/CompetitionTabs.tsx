@@ -98,6 +98,73 @@ function FormeChar({ c }: { c: string }) {
   return null;
 }
 
+function EvolutionTooltip({
+  active,
+  payload,
+  label,
+  equipeNom,
+}: {
+  active?: boolean;
+  payload?: readonly any[];
+  label?: string | number;
+  equipeNom?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const firstWord = equipeNom?.toLowerCase().split(" ")[0] ?? "";
+  const sorted = [...payload]
+    .filter((p) => p.value != null)
+    .sort((a, b) => a.value - b.value);
+  return (
+    <div className="bg-background border-2 rounded-2xl shadow-xl overflow-hidden min-w-[200px] max-w-[260px]">
+      <div className="bg-primary text-white px-3 py-2 font-sport italic font-black text-sm uppercase tracking-wide">
+        {label}
+      </div>
+      <div className="p-2 space-y-0.5">
+        {sorted.map((entry: any) => {
+          const isOurs = Boolean(
+            firstWord && entry.dataKey.toLowerCase().includes(firstWord),
+          );
+          const pos = entry.value as number;
+          const ordinal = pos === 1 ? "1er" : `${pos}e`;
+          return (
+            <div
+              key={entry.dataKey}
+              className={`flex items-center justify-between gap-2 px-2 py-1 rounded-lg text-xs ${
+                isOurs ? "bg-secondary/20" : ""
+              }`}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: entry.stroke }}
+                />
+                <span
+                  className={`truncate ${
+                    isOurs ? "font-black" : "font-medium"
+                  }`}
+                >
+                  {entry.dataKey}
+                </span>
+              </div>
+              <span
+                className={`font-black shrink-0 ${
+                  pos === 1
+                    ? "text-amber-500"
+                    : isOurs
+                      ? "text-secondary"
+                      : "text-muted-foreground"
+                }`}
+              >
+                {ordinal}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   matchs: any[];
   classement: any[];
@@ -108,6 +175,7 @@ interface Props {
   playedCount: number;
   updatedAt: string | null;
   clubId: string;
+  journeeMax: number;
 }
 
 export default function CompetitionTabs({
@@ -120,13 +188,16 @@ export default function CompetitionTabs({
   playedCount,
   updatedAt,
   clubId,
+  journeeMax,
 }: Props) {
   // Construire les données du graphique d'évolution
   // Format : [{ journee: 12, "ASC RENNAIS": 3, "DINAN HB": 1, ... }, ...]
-  const journees = [...new Set(historiqueClassement.map((r: any) => r.journee))].sort(
-    (a, b) => a - b,
-  );
-  const equipes = [...new Set(historiqueClassement.map((r: any) => r.nomEquipe as string))];
+  const journees = [
+    ...new Set(historiqueClassement.map((r: any) => r.journee)),
+  ].sort((a, b) => a - b);
+  const equipes = [
+    ...new Set(historiqueClassement.map((r: any) => r.nomEquipe as string)),
+  ];
 
   const evolutionData = journees.map((j) => {
     const point: any = { journee: `J${j}` };
@@ -139,12 +210,35 @@ export default function CompetitionTabs({
 
   // Couleurs pour les lignes — ton équipe en jaune (secondary), les autres en gris
   const COLORS = [
-    "#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
-    "#06b6d4", "#f97316", "#84cc16", "#ec4899", "#14b8a6",
+    "#6366f1",
+    "#f59e0b",
+    "#10b981",
+    "#ef4444",
+    "#8b5cf6",
+    "#06b6d4",
+    "#f97316",
+    "#84cc16",
+    "#ec4899",
+    "#14b8a6",
   ];
   const ourTeamColor = "hsl(var(--secondary))";
 
   const hasEvolution = evolutionData.length >= 2;
+
+  const isOursCheck = (nom: string) =>
+    equipeNom
+      ? nom
+          .toLowerCase()
+          .includes(equipeNom.toLowerCase().split(" ")[0].toLowerCase())
+      : false;
+
+  // Notre équipe en dernier → rendue au-dessus des autres dans le SVG
+  const sortedEquipes = [...equipes].sort((a, b) => {
+    if (isOursCheck(a) && !isOursCheck(b)) return 1;
+    if (!isOursCheck(a) && isOursCheck(b)) return -1;
+    return 0;
+  });
+
   return (
     <Tabs defaultValue="matchs" className="space-y-6">
       <TabsList className="h-12 rounded-2xl bg-muted p-1 w-full sm:w-auto">
@@ -251,7 +345,7 @@ export default function CompetitionTabs({
                     return (
                       <Link
                         key={match.id}
-                        href={`/dashboard/matchs/${match.id}`}
+                        href={`/dashboard/clubs/${clubId}/matchs/${match.id}`}
                         className={`flex items-center justify-between p-5 transition-colors group ${cfg.rowCls}`}
                       >
                         {/* Date */}
@@ -336,20 +430,26 @@ export default function CompetitionTabs({
           <Card className="rounded-[2.5rem] border-2 overflow-hidden">
             <CardHeader className="bg-muted/50 border-b">
               <CardTitle className="font-sport italic text-sm uppercase flex items-center gap-2">
-                <TrendingUp size={18} className="text-primary" /> Évolution des positions
+                <TrendingUp size={18} className="text-primary" /> Évolution des
+                positions
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-6">
-              <p className="text-[10px] text-muted-foreground uppercase font-black mb-4 text-center">
-                Position dans la poule par journée (1 = 1er)
-              </p>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={evolutionData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={evolutionData}
+                  margin={{ top: 8, right: 16, left: 4, bottom: 8 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    opacity={0.15}
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="journee"
                     tick={{ fontSize: 11, fontWeight: 700 }}
                     tickLine={false}
+                    axisLine={false}
                   />
                   <YAxis
                     reversed
@@ -357,36 +457,54 @@ export default function CompetitionTabs({
                     domain={[1, equipes.length]}
                     tick={{ fontSize: 11 }}
                     tickLine={false}
-                    tickFormatter={(v) => `${v}`}
-                    width={24}
+                    axisLine={false}
+                    tickFormatter={(v: number) => (v === 1 ? "1er" : `${v}e`)}
+                    width={36}
                   />
                   <Tooltip
-                    formatter={(value: any, name: string | undefined) => [`${value}e`, name ?? ""]}
-                    labelFormatter={(label) => `Journée ${label}`}
-                    contentStyle={{ borderRadius: "12px", fontSize: "12px" }}
+                    content={(props) => (
+                      <EvolutionTooltip {...props} equipeNom={equipeNom} />
+                    )}
                   />
                   <Legend
                     wrapperStyle={{ fontSize: "11px", paddingTop: "16px" }}
                     formatter={(value) =>
-                      equipeNom && value.toLowerCase().includes(equipeNom.toLowerCase().split(" ")[0].toLowerCase())
-                        ? <strong>{value}</strong>
-                        : value
+                      isOursCheck(value) ? (
+                        <strong style={{ color: ourTeamColor }}>{value}</strong>
+                      ) : (
+                        value
+                      )
                     }
                   />
-                  {equipes.map((nom, i) => {
-                    const isOurs =
-                      equipeNom &&
-                      nom.toLowerCase().includes(equipeNom.toLowerCase().split(" ")[0].toLowerCase());
+                  {sortedEquipes.map((nom) => {
+                    const isOurs = isOursCheck(nom);
+                    const color = isOurs
+                      ? ourTeamColor
+                      : COLORS[equipes.indexOf(nom) % COLORS.length];
                     return (
                       <Line
                         key={nom}
                         type="monotone"
                         dataKey={nom}
-                        stroke={isOurs ? ourTeamColor : COLORS[i % COLORS.length]}
+                        stroke={color}
                         strokeWidth={isOurs ? 3 : 1.5}
-                        dot={{ r: isOurs ? 5 : 3 }}
-                        activeDot={{ r: 6 }}
-                        opacity={isOurs ? 1 : 0.55}
+                        dot={
+                          isOurs
+                            ? {
+                                r: 5,
+                                fill: ourTeamColor,
+                                stroke: "white",
+                                strokeWidth: 2,
+                              }
+                            : false
+                        }
+                        activeDot={{
+                          r: isOurs ? 7 : 5,
+                          fill: color,
+                          stroke: "white",
+                          strokeWidth: 2,
+                        }}
+                        opacity={isOurs ? 1 : 0.5}
                         connectNulls
                       />
                     );
@@ -397,8 +515,8 @@ export default function CompetitionTabs({
           </Card>
         ) : historiqueClassement.length > 0 ? (
           <div className="text-center text-sm text-muted-foreground italic py-4">
-            Le graphique d&apos;évolution apparaîtra après au moins 2 scrapings (actuellement{" "}
-            {journees.length} journée enregistrée).
+            Le graphique d&apos;évolution apparaîtra après au moins 2 scrapings
+            (actuellement {journees.length} journée enregistrée).
           </div>
         ) : null}
 
@@ -517,6 +635,11 @@ export default function CompetitionTabs({
                         {/* MJ */}
                         <td className="px-3 py-3 text-center text-muted-foreground font-medium">
                           {row.matchsJoues}
+                          {row.journee < journeeMax && (
+                            <span className="ml-0.5 text-[8px] text-amber-500 font-black align-super">
+                              *
+                            </span>
+                          )}
                         </td>
 
                         {/* V */}
@@ -549,7 +672,9 @@ export default function CompetitionTabs({
                           <span
                             className={`font-bold text-xs ${row.diffButs > 0 ? "text-emerald-600" : row.diffButs < 0 ? "text-destructive" : "text-muted-foreground"}`}
                           >
-                            {row.diffButs > 0 ? `+${row.diffButs}` : row.diffButs}
+                            {row.diffButs > 0
+                              ? `+${row.diffButs}`
+                              : row.diffButs}
                           </span>
                         </td>
 
@@ -564,7 +689,9 @@ export default function CompetitionTabs({
                                 ))}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">
+                              —
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -574,6 +701,13 @@ export default function CompetitionTabs({
               </table>
             </div>
           )}
+          {journeeMax > 0 &&
+            classement.some((r: any) => r.journee < journeeMax) && (
+              <p className="text-[10px] text-amber-500/80 font-bold italic px-8 py-3 border-t">
+                * Données de la journée précédente — journée {journeeMax}{" "}
+                partiellement jouée
+              </p>
+            )}
         </Card>
       </TabsContent>
     </Tabs>

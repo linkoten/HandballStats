@@ -19,6 +19,7 @@ import {
 import { getJoueurs } from "@/app/actions/joueur-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatNomPrenom } from "@/lib/utils";
 
 export default function ListeJoueursPage() {
   const router = useRouter();
@@ -188,8 +189,8 @@ export default function ListeJoueursPage() {
                               >
                                 {joueur.poste_principal || "Non défini"}
                               </Badge>
-                              <h3 className="text-2xl font-sport font-black italic uppercase leading-tight truncate group-hover:text-primary transition-colors">
-                                {joueur.nom_prenom}
+                              <h3 className="text-2xl font-sport font-black italic leading-tight truncate group-hover:text-primary transition-colors">
+                                {formatNomPrenom(joueur.nom_prenom)}
                               </h3>
                             </div>
 

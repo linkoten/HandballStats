@@ -36,7 +36,7 @@ export default function Home() {
           <div className="flex justify-center mb-6">
             <Logo size={220} />
           </div>
-          
+
           <h1 className="text-4xl md:text-6xl font-sport font-black italic uppercase tracking-tighter mb-6">
             Simplifiez <span className="text-secondary">votre saison</span>
           </h1>

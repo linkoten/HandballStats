@@ -60,7 +60,9 @@ export function Navbar() {
 
   const clubId = userData?.clubs?.[0]?.id;
   const equipesUrl = clubId ? `/dashboard/clubs/${clubId}/equipes` : "/equipes";
-  const competitionsUrl = clubId ? `/dashboard/clubs/${clubId}/competitions` : "/competitions";
+  const competitionsUrl = clubId
+    ? `/dashboard/clubs/${clubId}/competitions`
+    : "/competitions";
   const matchsUrl = clubId ? `/dashboard/clubs/${clubId}/matchs` : "/matchs";
   const statsUrl = clubId
     ? `/dashboard/clubs/${clubId}/statistiques`
@@ -71,7 +73,12 @@ export function Navbar() {
     { href: competitionsUrl, label: "Compétitions", icon: Trophy },
     { href: matchsUrl, label: "Matchs", icon: Calendar },
     { href: statsUrl, label: "Stats", icon: BarChart3 },
-    { href: "/pricing", label: "Premium", icon: Gem, highlight: true },
+    {
+      href: "/pricing",
+      label: "Abonnement",
+      icon: Gem,
+      highlight: true,
+    },
   ];
 
   return (
@@ -80,9 +87,15 @@ export function Navbar() {
         {/* Logo Section */}
         <div className="flex items-center gap-10">
           <Link href="/" className="group flex items-center gap-2">
-            <Logo size={40} className="transition-transform group-hover:scale-105" />
+            <Logo
+              size={40}
+              className="transition-transform group-hover:scale-105"
+            />
             <span className="text-xl font-sport font-black italic uppercase tracking-tighter text-foreground group-hover:text-primary transition-colors">
-              Hand<span className="text-primary group-hover:text-foreground">Stats</span>
+              Hand
+              <span className="text-primary group-hover:text-foreground">
+                Stats
+              </span>
             </span>
           </Link>
 
@@ -105,7 +118,10 @@ export function Navbar() {
                         "text-secondary hover:text-secondary hover:bg-secondary/5",
                     )}
                   >
-                    <link.icon size={14} className={cn(isActive ? "animate-pulse" : "")} />
+                    <link.icon
+                      size={14}
+                      className={cn(isActive ? "animate-pulse" : "")}
+                    />
                     {link.label}
                   </Link>
                 );
@@ -139,14 +155,21 @@ export function Navbar() {
                 <Badge
                   className={cn(
                     "h-7 font-sport italic text-[10px] border-2",
-                    userData.role === "ADMIN_GENERAL" || userData.role === "ADMIN_CLUB"
+                    userData.role === "ADMIN_GENERAL" ||
+                      userData.role === "ADMIN_CLUB"
                       ? "bg-foreground text-background border-foreground"
                       : "bg-muted text-muted-foreground border-transparent",
                   )}
                 >
-                  {userData.role === "ADMIN_GENERAL" && <Crown size={10} className="mr-1" />}
-                  {userData.role === "ENTRAINEUR" && <Trophy size={10} className="mr-1" />}
-                  {userData.role.replace("ADMIN_", "").replace("UTILISATEUR", "JOUEUR")}
+                  {userData.role === "ADMIN_GENERAL" && (
+                    <Crown size={10} className="mr-1" />
+                  )}
+                  {userData.role === "ENTRAINEUR" && (
+                    <Trophy size={10} className="mr-1" />
+                  )}
+                  {userData.role
+                    .replace("ADMIN_", "")
+                    .replace("UTILISATEUR", "JOUEUR")}
                 </Badge>
               </div>
             )}
@@ -156,7 +179,8 @@ export function Navbar() {
                 afterSignOutUrl="/"
                 appearance={{
                   elements: {
-                    avatarBox: "w-9 h-9 border-2 border-primary/20 hover:border-primary transition-colors",
+                    avatarBox:
+                      "w-9 h-9 border-2 border-primary/20 hover:border-primary transition-colors",
                     userButtonPopoverCard: "rounded-[2rem] border-2 shadow-2xl",
                   },
                 }}
@@ -198,7 +222,9 @@ export function Navbar() {
                     isActive
                       ? "bg-primary text-white shadow-lg shadow-primary/20"
                       : "text-muted-foreground hover:text-primary hover:bg-primary/5",
-                    link.highlight && !isActive && "text-secondary hover:bg-secondary/5",
+                    link.highlight &&
+                      !isActive &&
+                      "text-secondary hover:bg-secondary/5",
                   )}
                 >
                   <link.icon size={16} />
@@ -220,19 +246,28 @@ export function Navbar() {
                   )}
                 >
                   <Zap size={10} className="fill-current" />
-                  {userData.subscription === "PREMIUM" ? "ILLIMITÉ" : `${userData.tokensRemaining} TOKENS`}
+                  {userData.subscription === "PREMIUM"
+                    ? "ILLIMITÉ"
+                    : `${userData.tokensRemaining} TOKENS`}
                 </Badge>
                 <Badge
                   className={cn(
                     "h-7 font-sport italic text-[10px] border-2",
-                    userData.role === "ADMIN_GENERAL" || userData.role === "ADMIN_CLUB"
+                    userData.role === "ADMIN_GENERAL" ||
+                      userData.role === "ADMIN_CLUB"
                       ? "bg-foreground text-background border-foreground"
                       : "bg-muted text-muted-foreground border-transparent",
                   )}
                 >
-                  {userData.role === "ADMIN_GENERAL" && <Crown size={10} className="mr-1" />}
-                  {userData.role === "ENTRAINEUR" && <Trophy size={10} className="mr-1" />}
-                  {userData.role.replace("ADMIN_", "").replace("UTILISATEUR", "JOUEUR")}
+                  {userData.role === "ADMIN_GENERAL" && (
+                    <Crown size={10} className="mr-1" />
+                  )}
+                  {userData.role === "ENTRAINEUR" && (
+                    <Trophy size={10} className="mr-1" />
+                  )}
+                  {userData.role
+                    .replace("ADMIN_", "")
+                    .replace("UTILISATEUR", "JOUEUR")}
                 </Badge>
               </div>
             )}

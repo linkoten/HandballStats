@@ -42,7 +42,6 @@ const PLANS = [
       "10 jetons (= 10 compétitions scrapées)",
       "3 entraîneurs dans le club",
       "Réallocation de jetons en août",
-      "Support prioritaire",
     ],
     popular: true,
   },
@@ -56,7 +55,6 @@ const PLANS = [
       "25 jetons (= 25 compétitions scrapées)",
       "10 entraîneurs dans le club",
       "Réallocation de jetons en août",
-      "Support prioritaire",
     ],
     popular: false,
   },
@@ -70,7 +68,6 @@ const PLANS = [
       "Jetons illimités",
       "Entraîneurs illimités",
       "Réallocation de jetons en août",
-      "Support dédié",
     ],
     popular: false,
   },
@@ -365,6 +362,9 @@ export default function PricingPage() {
                       </span>
                       <span className="text-xl font-bold text-muted-foreground">
                         €
+                      </span>
+                      <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                        /mois
                       </span>
                     </div>
                     {pack.savings && (

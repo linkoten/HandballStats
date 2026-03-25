@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Trophy, FileText, Calendar, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { formatNomPrenom } from "@/lib/utils";
 import { MatchStatsTable } from "./MatchStatsTable";
 
 // Fonction utilitaire pour le calcul de pourcentage
@@ -214,7 +215,7 @@ export default async function MatchDetailPage({
         {/* 3. Analyse & Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Sidebar : Résumé de performance globale */}
-          <div className="xl:col-span-1 space-y-6">
+          <div className="md:col-span-1 space-y-6">
             <Card className="rounded-4xl border-2 bg-card overflow-hidden">
               <CardHeader className="bg-muted/50 border-b text-center">
                 <CardTitle className="font-sport italic uppercase text-sm">
@@ -294,7 +295,7 @@ export default async function MatchDetailPage({
                     Top Buteur
                   </p>
                   <h3 className="text-2xl font-sport font-black italic uppercase text-primary leading-none mb-4">
-                    {topScorer.joueurs?.nom_prenom}
+                    {formatNomPrenom(topScorer.joueurs?.nom_prenom)}
                   </h3>
                   <div className="flex items-center gap-4">
                     <div className="bg-primary text-white h-12 w-12 rounded-xl flex flex-col items-center justify-center">
@@ -316,7 +317,7 @@ export default async function MatchDetailPage({
           </div>
 
           {/* Tableau des Statistiques Détaillées */}
-          <div className="xl:col-span-3">
+          <div className="md:col-span-3">
             <Card className="rounded-4xl border-2 shadow-xl overflow-hidden">
               <div className="bg-primary text-white px-8 py-6">
                 <h3 className="font-sport italic uppercase text-xl font-black tracking-tight">

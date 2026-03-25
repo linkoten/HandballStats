@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatNomPrenom } from "@/lib/utils";
 import { updateStatistiquesJoueur } from "@/app/actions/match-actions";
 
 function calcEff(val: number | null, total: number | null): number {
@@ -200,8 +201,8 @@ export function MatchStatsTable({ stats: initialStats, canEdit }: Props) {
                 {/* Joueur */}
                 <TableCell>
                   <div className="flex flex-col">
-                    <span className="font-black uppercase text-sm italic group-hover:text-primary transition-colors">
-                      {stat.joueurs?.nom_prenom}
+                    <span className="font-black text-sm italic group-hover:text-primary transition-colors">
+                      {formatNomPrenom(stat.joueurs?.nom_prenom)}
                     </span>
                     <span className="text-[9px] text-muted-foreground font-bold uppercase">
                       {stat.joueurs?.poste_principal || "Joueur"}

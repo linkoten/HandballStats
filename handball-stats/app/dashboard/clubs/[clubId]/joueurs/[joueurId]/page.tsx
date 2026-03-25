@@ -57,6 +57,7 @@ import {
   type FixePar,
 } from "@/app/actions/objectif-actions";
 import { cn } from "@/lib/utils";
+import { formatNomPrenom } from "@/lib/utils";
 import { toast } from "sonner";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -494,10 +495,13 @@ export default function ProfilJoueurPage() {
                 </span>
               </div>
 
-              <h1 className="text-4xl sm:text-6xl md:text-9xl font-sport font-black italic uppercase leading-[0.8] tracking-tighter">
-                {joueur.nom_prenom.split(" ")[0]} <br />
+              <h1 className="text-4xl sm:text-6xl md:text-9xl font-sport font-black italic leading-[0.8] tracking-tighter">
+                {formatNomPrenom(joueur.nom_prenom).split(" ")[0]} <br />
                 <span className="text-primary font-outline-2">
-                  {joueur.nom_prenom.split(" ").slice(1).join(" ")}
+                  {formatNomPrenom(joueur.nom_prenom)
+                    .split(" ")
+                    .slice(1)
+                    .join(" ")}
                 </span>
               </h1>
 
@@ -579,6 +583,12 @@ export default function ProfilJoueurPage() {
           ) : (
             <>
               <StatBox
+                label="Matchs joués"
+                val={statsGlobales?.matchs ?? 0}
+                icon={Calendar}
+                color="text-blue-400"
+              />
+              <StatBox
                 label="Total Buts"
                 val={statsGlobales?.buts ?? 0}
                 icon={Target}
@@ -596,12 +606,6 @@ export default function ProfilJoueurPage() {
                 icon={Zap}
                 color="text-secondary"
               />
-              <StatBox
-                label="Exclusions 2'"
-                val={statsGlobales?.exclusions ?? 0}
-                icon={AlertTriangle}
-                color="text-rose-400"
-              />
             </>
           )}
         </div>
@@ -614,7 +618,12 @@ export default function ProfilJoueurPage() {
             label="Avertissements"
             val={statsGlobales?.avertissements ?? 0}
           />
-          <MiniStat label="Matchs joués" val={statsGlobales?.matchs ?? 0} />
+          {!isGardien && (
+            <MiniStat
+              label="Exclusions 2'"
+              val={statsGlobales?.exclusions ?? 0}
+            />
+          )}
         </div>
 
         {/* Tabs */}

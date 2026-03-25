@@ -101,9 +101,8 @@ export async function GET(request: NextRequest) {
       // Allocation cible = baseTokenAllocation (plan + bonus achetés)
       // Fallback sur planMax pour les comptes antérieurs à la migration
       const planMax = planLimits?.maxTokens ?? 0;
-      const targetAllocation = user.baseTokenAllocation > 0
-        ? user.baseTokenAllocation
-        : planMax;
+      const targetAllocation =
+        user.baseTokenAllocation > 0 ? user.baseTokenAllocation : planMax;
 
       if (targetAllocation === 0) {
         await prisma.tokenUsageHistory.create({

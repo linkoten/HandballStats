@@ -1,4 +1,7 @@
-import { getCompetitionById, getClassementHistorique } from "@/app/actions/competition-actions";
+import {
+  getCompetitionById,
+  getClassementHistorique,
+} from "@/app/actions/competition-actions";
 import { getCurrentUser } from "@/app/actions/user-actions";
 import { getClubSubscriptionStatus } from "@/lib/access-control";
 import { Badge } from "@/components/ui/badge";
@@ -109,15 +112,30 @@ export default async function CompetitionPage({
 
   // Historique des classements (toutes journées) pour le graphique
   const historiqueRes = await getClassementHistorique(competitionId);
-  const historiqueClassement = historiqueRes.success ? (historiqueRes.data ?? []) : [];
+  const historiqueClassement = historiqueRes.success
+    ? (historiqueRes.data ?? [])
+    : [];
 
-  // Classement actuel = snapshot de la journée la plus récente
-  const journeeMax = historiqueClassement.length > 0
-    ? Math.max(...historiqueClassement.map((r: any) => r.journee as number))
-    : 0;
-  const classement = historiqueClassement
-    .filter((r: any) => r.journee === journeeMax)
-    .sort((a: any, b: any) => a.position - b.position);
+  // Classement actuel : pour chaque équipe, on prend son snapshot le plus récent.
+  // Cela garantit que toutes les équipes apparaissent même si journeeMax correspond
+  // à un seul match joué en avance (journée partielle).
+  const journeeMax =
+    historiqueClassement.length > 0
+      ? Math.max(...historiqueClassement.map((r: any) => r.journee as number))
+      : 0;
+  const teamLatest: Record<string, any> = {};
+  for (const r of historiqueClassement) {
+    const key = r.nomEquipe as string;
+    if (
+      !teamLatest[key] ||
+      Number(r.journee) > Number(teamLatest[key].journee)
+    ) {
+      teamLatest[key] = r;
+    }
+  }
+  const classement = Object.values(teamLatest).sort(
+    (a: any, b: any) => a.position - b.position,
+  );
 
   const canRescrape =
     currentUser?.role === "ADMIN_CLUB" || currentUser?.role === "ADMIN_GENERAL";
@@ -288,6 +306,7 @@ export default async function CompetitionPage({
           playedCount={playedCount}
           updatedAt={competition.updatedAt?.toString() ?? null}
           clubId={clubId}
+          journeeMax={journeeMax}
         />
       </div>
     </div>

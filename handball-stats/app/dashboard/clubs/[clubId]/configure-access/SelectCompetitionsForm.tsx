@@ -134,7 +134,8 @@ export function SelectCompetitionsForm({ competitions, quota, clubId }: Props) {
                 // Désactivé seulement si l'ajout consommerait un slot supplémentaire et dépasse le quota
                 const isDisabled =
                   !isSelected &&
-                  getEffectiveCount(new Set([...selectedIds, competition.id])) > quota;
+                  getEffectiveCount(new Set([...selectedIds, competition.id])) >
+                    quota;
 
                 return (
                   <button

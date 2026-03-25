@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Russo_One } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
 import { Navbar } from "@/components/navbar";
 import { UserSync } from "@/components/user-sync";
 import "./globals.css";
@@ -33,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider localization={frFR}>
       <html lang="fr" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${russoOne.variable} antialiased min-h-screen bg-slate-50 overflow-x-hidden`}

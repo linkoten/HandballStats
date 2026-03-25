@@ -257,7 +257,7 @@ export default function DashboardClient({
               </Badge>
             </div>
             <h1 className="text-4xl md:text-7xl font-sport font-black uppercase italic tracking-tighter text-white leading-none">
-              Hello,{" "}
+              Bienvenue,{" "}
               <span className="text-secondary drop-shadow-sm">
                 {user?.firstName || "Coach"}
               </span>
@@ -467,22 +467,38 @@ export default function DashboardClient({
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-widest">
-                      <KeyRound className="w-3.5 h-3.5" /> Code d'invitation requis
+                      <KeyRound className="w-3.5 h-3.5" /> Code d'invitation
+                      requis
                     </div>
                     <h2 className="text-3xl md:text-5xl font-sport font-black uppercase italic tracking-tighter leading-none">
-                      Rejoignez<br />
+                      Rejoignez
+                      <br />
                       <span className="text-primary">votre club</span>
                     </h2>
                     <p className="text-muted-foreground text-sm max-w-sm">
-                      Votre président ou entraîneur dispose d'un code d'invitation. Saisissez-le pour accéder aux statistiques de votre équipe.
+                      Votre président ou entraîneur dispose d'un code
+                      d'invitation. Saisissez-le pour accéder aux statistiques
+                      de votre équipe.
                     </p>
                   </div>
                   {/* Étapes */}
                   <div className="space-y-3">
                     {[
-                      { num: 1, label: "Demandez le code à votre club", icon: UserPlus },
-                      { num: 2, label: "Saisissez-le dans le formulaire", icon: KeyRound },
-                      { num: 3, label: "Accédez à toutes les stats", icon: BarChart3 },
+                      {
+                        num: 1,
+                        label: "Demandez le code à votre club",
+                        icon: UserPlus,
+                      },
+                      {
+                        num: 2,
+                        label: "Saisissez-le dans le formulaire",
+                        icon: KeyRound,
+                      },
+                      {
+                        num: 3,
+                        label: "Accédez à toutes les stats",
+                        icon: BarChart3,
+                      },
                     ].map(({ num, label, icon: Icon }) => (
                       <div key={num} className="flex items-center gap-3">
                         <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-black shrink-0">
@@ -498,8 +514,12 @@ export default function DashboardClient({
                 {/* Droite : formulaire */}
                 <div className="bg-muted/40 border-2 border-border rounded-2xl p-6 space-y-5">
                   <div className="text-center space-y-1">
-                    <p className="font-sport italic uppercase font-black text-lg">Entrez votre code</p>
-                    <p className="text-xs text-muted-foreground">Format : CODE-XXXX</p>
+                    <p className="font-sport italic uppercase font-black text-lg">
+                      Entrez votre code
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Format : CODE-XXXX
+                    </p>
                   </div>
                   <input
                     value={joinCode}
@@ -522,7 +542,10 @@ export default function DashboardClient({
                   </Button>
                   <p className="text-[11px] text-center text-muted-foreground">
                     Vous n'avez pas de code ?{" "}
-                    <Link href="/pricing" className="text-primary font-bold hover:underline">
+                    <Link
+                      href="/pricing"
+                      className="text-primary font-bold hover:underline"
+                    >
                       Créez votre propre club →
                     </Link>
                   </p>
@@ -533,10 +556,26 @@ export default function DashboardClient({
             {/* Aperçu des fonctionnalités débloquées */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { icon: BarChart3, label: "Statistiques",     desc: "Analyse complète de vos performances" },
-                { icon: Users,     label: "Équipes",          desc: "Effectif, rôles et suivi" },
-                { icon: Calendar,  label: "Matchs",           desc: "Résultats et feuilles de stats" },
-                { icon: Trophy,    label: "Compétitions",     desc: "Classements et calendriers" },
+                {
+                  icon: BarChart3,
+                  label: "Statistiques",
+                  desc: "Analyse complète de vos performances",
+                },
+                {
+                  icon: Users,
+                  label: "Équipes",
+                  desc: "Effectif, rôles et suivi",
+                },
+                {
+                  icon: Calendar,
+                  label: "Matchs",
+                  desc: "Résultats et feuilles de stats",
+                },
+                {
+                  icon: Trophy,
+                  label: "Compétitions",
+                  desc: "Classements et calendriers",
+                },
               ].map(({ icon: Icon, label, desc }) => (
                 <div
                   key={label}
@@ -545,10 +584,13 @@ export default function DashboardClient({
                   <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Icon className="w-4 h-4 text-primary" />
                   </div>
-                  <p className="font-sport italic uppercase font-black text-sm">{label}</p>
+                  <p className="font-sport italic uppercase font-black text-sm">
+                    {label}
+                  </p>
                   <p className="text-[10px] text-muted-foreground">{desc}</p>
                   <div className="mt-auto flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <CheckCircle2 className="w-3 h-3" /> Débloqué après inscription
+                    <CheckCircle2 className="w-3 h-3" /> Débloqué après
+                    inscription
                   </div>
                 </div>
               ))}
@@ -624,7 +666,8 @@ export default function DashboardClient({
         )}
 
         {/* Colonne Latérale (1/3) - Seulement pour ADMIN_CLUB et UTILISATEUR avec club */}
-        {(userRole === "ADMIN_CLUB" || (userRole === "UTILISATEUR" && clubId)) && (
+        {(userRole === "ADMIN_CLUB" ||
+          (userRole === "UTILISATEUR" && clubId)) && (
           <div className="space-y-6">
             {/* Codes d'invitation pour admin_club */}
             {userRole === "ADMIN_CLUB" && clubCodes && (

@@ -67,19 +67,23 @@ export function Navbar() {
   const statsUrl = clubId
     ? `/dashboard/clubs/${clubId}/statistiques`
     : "/statistiques";
-  const navLinks = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: equipesUrl, label: "Équipes", icon: Users },
-    { href: competitionsUrl, label: "Compétitions", icon: Trophy },
-    { href: matchsUrl, label: "Matchs", icon: Calendar },
-    { href: statsUrl, label: "Stats", icon: BarChart3 },
+  const allNavLinks = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, requiresClub: false },
+    { href: equipesUrl, label: "Équipes", icon: Users, requiresClub: true },
+    { href: competitionsUrl, label: "Compétitions", icon: Trophy, requiresClub: true },
+    { href: matchsUrl, label: "Matchs", icon: Calendar, requiresClub: true },
+    { href: statsUrl, label: "Stats", icon: BarChart3, requiresClub: true },
     {
       href: "/pricing",
       label: "Abonnement",
       icon: Gem,
       highlight: true,
+      requiresClub: false,
     },
   ];
+  const navLinks = isSignedIn && userData !== null && !clubId
+    ? allNavLinks.filter((l) => !l.requiresClub)
+    : allNavLinks;
 
   return (
     <nav className="sticky top-0 z-100 w-full border-b-2 border-primary/10 bg-background/60 backdrop-blur-2xl">

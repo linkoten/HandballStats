@@ -31,6 +31,10 @@ import {
   ArrowUpRight,
   Sparkles,
   PersonStanding,
+  KeyRound,
+  BarChart3,
+  CheckCircle2,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import { getClubCodes, validateClubCode } from "@/app/actions";
@@ -445,27 +449,113 @@ export default function DashboardClient({
         </section>
       )}
 
-      {/* Section pour utilisateur sans club */}
-      {userRole === "UTILISATEUR" && !clubId && (
-        <section className="text-center py-12">
-          <div className="max-w-md mx-auto space-y-6">
-            <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <UserPlus size={48} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-sport italic uppercase tracking-tighter mb-2">
-                Rejoindre un Club
-              </h2>
-              <p className="text-muted-foreground">
-                Saisissez le code d'invitation de votre club pour commencer !
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Section pour utilisateur sans club — remplacée dans MAIN CONTENT */}
 
       {/* --- MAIN CONTENT --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ── Onboarding plein écran pour UTILISATEUR sans club ── */}
+        {userRole === "UTILISATEUR" && !clubId && (
+          <div className="lg:col-span-3 space-y-6">
+            {/* Hero join */}
+            <div className="relative overflow-hidden rounded-4xl border-2 border-primary/20 bg-card p-8 md:p-12 shadow-sm">
+              {/* Déco fond */}
+              <div className="absolute -bottom-8 -right-8 font-sport text-[12rem] leading-none text-primary/5 select-none uppercase italic font-black pointer-events-none">
+                JOIN
+              </div>
+              <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+                {/* Gauche : message + étapes */}
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-widest">
+                      <KeyRound className="w-3.5 h-3.5" /> Code d'invitation requis
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-sport font-black uppercase italic tracking-tighter leading-none">
+                      Rejoignez<br />
+                      <span className="text-primary">votre club</span>
+                    </h2>
+                    <p className="text-muted-foreground text-sm max-w-sm">
+                      Votre président ou entraîneur dispose d'un code d'invitation. Saisissez-le pour accéder aux statistiques de votre équipe.
+                    </p>
+                  </div>
+                  {/* Étapes */}
+                  <div className="space-y-3">
+                    {[
+                      { num: 1, label: "Demandez le code à votre club", icon: UserPlus },
+                      { num: 2, label: "Saisissez-le dans le formulaire", icon: KeyRound },
+                      { num: 3, label: "Accédez à toutes les stats", icon: BarChart3 },
+                    ].map(({ num, label, icon: Icon }) => (
+                      <div key={num} className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-black shrink-0">
+                          {num}
+                        </div>
+                        <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Droite : formulaire */}
+                <div className="bg-muted/40 border-2 border-border rounded-2xl p-6 space-y-5">
+                  <div className="text-center space-y-1">
+                    <p className="font-sport italic uppercase font-black text-lg">Entrez votre code</p>
+                    <p className="text-xs text-muted-foreground">Format : CODE-XXXX</p>
+                  </div>
+                  <input
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    className="w-full bg-background border-2 border-border rounded-xl px-4 py-3 font-mono text-center text-xl uppercase tracking-[0.3em] font-bold focus:border-primary outline-none transition-colors"
+                    placeholder="CODE-XXXX"
+                    maxLength={12}
+                  />
+                  <Button
+                    className="w-full font-sport italic uppercase text-sm h-11 rounded-xl"
+                    onClick={handleJoinClub}
+                    disabled={isPending || !joinCode.trim()}
+                  >
+                    {isPending ? (
+                      <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                    ) : (
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                    )}
+                    Rejoindre le club
+                  </Button>
+                  <p className="text-[11px] text-center text-muted-foreground">
+                    Vous n'avez pas de code ?{" "}
+                    <Link href="/pricing" className="text-primary font-bold hover:underline">
+                      Créez votre propre club →
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Aperçu des fonctionnalités débloquées */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { icon: BarChart3, label: "Statistiques",     desc: "Analyse complète de vos performances" },
+                { icon: Users,     label: "Équipes",          desc: "Effectif, rôles et suivi" },
+                { icon: Calendar,  label: "Matchs",           desc: "Résultats et feuilles de stats" },
+                { icon: Trophy,    label: "Compétitions",     desc: "Classements et calendriers" },
+              ].map(({ icon: Icon, label, desc }) => (
+                <div
+                  key={label}
+                  className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-4 flex flex-col gap-2 opacity-60"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="font-sport italic uppercase font-black text-sm">{label}</p>
+                  <p className="text-[10px] text-muted-foreground">{desc}</p>
+                  <div className="mt-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <CheckCircle2 className="w-3 h-3" /> Débloqué après inscription
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Colonne Equipes */}
         {clubId && DASHBOARD_LINKS.length > 0 && (
           <div
@@ -533,8 +623,8 @@ export default function DashboardClient({
           </div>
         )}
 
-        {/* Colonne Latérale (1/3) - Seulement pour ADMIN_CLUB et UTILISATEUR */}
-        {(userRole === "ADMIN_CLUB" || userRole === "UTILISATEUR") && (
+        {/* Colonne Latérale (1/3) - Seulement pour ADMIN_CLUB et UTILISATEUR avec club */}
+        {(userRole === "ADMIN_CLUB" || (userRole === "UTILISATEUR" && clubId)) && (
           <div className="space-y-6">
             {/* Codes d'invitation pour admin_club */}
             {userRole === "ADMIN_CLUB" && clubCodes && (

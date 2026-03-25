@@ -140,7 +140,7 @@ export async function validateClubCode(code: string): Promise<ClubResponse> {
 
     // Déterminer le rôle selon le code utilisé
     const isCoachCode = club.coachCode === code.trim().toUpperCase();
-    const newRole = isCoachCode ? "ENTRAINEUR" : "UTILISATEUR";
+    const newRole = isCoachCode ? "ENTRAINEUR" : "JOUEUR";
 
     // Si code coach, vérifier la limite d'entraîneurs du plan de l'admin du club
     if (isCoachCode) {

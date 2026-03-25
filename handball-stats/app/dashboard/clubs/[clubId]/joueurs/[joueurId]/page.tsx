@@ -68,7 +68,7 @@ const CURRENT_SAISON = "2025-2026";
 
 const OBJECTIF_LABELS: Record<ObjectifType, string> = {
   buts: "Buts",
-  tirs: "Tirs cadrés",
+  tirs: "Tirs",
   arrets: "Arrêts",
   pct_tir: "% au tir",
   sept_metres: "7 mètres",
@@ -183,6 +183,7 @@ export default function ProfilJoueurPage() {
     note: "",
   });
   const [savingObj, setSavingObj] = useState(false);
+  const [selectedSaison, setSelectedSaison] = useState<string>("all");
 
   useEffect(() => {
     async function loadData() {
@@ -275,10 +276,30 @@ export default function ProfilJoueurPage() {
     [isGardien, joueur],
   );
 
+  // ── Saisons disponibles ─────────────────────────────────────────────────────
+  const saisons = useMemo(() => {
+    if (!joueur?.statistiques_joueur?.length) return [];
+    const set = new Set<string>();
+    for (const s of joueur.statistiques_joueur) {
+      const saison = s.matchs?.competition?.saison;
+      if (saison) set.add(saison);
+    }
+    return Array.from(set).sort().reverse();
+  }, [joueur]);
+
+  // ── Stats filtrées par saison (pour les graphiques) ──────────────────────────
+  const filteredStatsForChart = useMemo(() => {
+    if (!joueur?.statistiques_joueur?.length) return [];
+    if (selectedSaison === "all") return joueur.statistiques_joueur;
+    return joueur.statistiques_joueur.filter(
+      (s: any) => s.matchs?.competition?.saison === selectedSaison,
+    );
+  }, [joueur, selectedSaison]);
+
   // ── Chart data ──────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
-    if (!joueur?.statistiques_joueur?.length) return [];
-    const slice = [...joueur.statistiques_joueur].slice(0, 15).reverse();
+    if (!filteredStatsForChart.length) return [];
+    const slice = [...filteredStatsForChart].slice(0, 15).reverse();
     let cumButs = 0;
     return slice.map((s: any, i: number) => {
       const m = s.matchs;
@@ -303,12 +324,12 @@ export default function ProfilJoueurPage() {
         "% Tir": pctTir,
       };
     });
-  }, [joueur]);
+  }, [filteredStatsForChart, joueur]);
 
   // ── Goalkeeper-specific chart data (only matches with ≥1 arrêt) ──────────
   const chartDataGardien = useMemo(() => {
-    if (!hasGardienPoste || !joueur?.statistiques_joueur?.length) return [];
-    return [...joueur.statistiques_joueur]
+    if (!hasGardienPoste || !filteredStatsForChart.length) return [];
+    return [...filteredStatsForChart]
       .filter((s: any) => (s.arrets || 0) > 0)
       .slice(0, 15)
       .reverse()
@@ -357,10 +378,11 @@ export default function ProfilJoueurPage() {
           "% Équipe": pctEquipe,
         };
       });
-  }, [hasGardienPoste, joueur]);
+  }, [hasGardienPoste, filteredStatsForChart, joueur]);
 
   const gardienKPIs = useMemo(() => {
     if (!hasGardienPoste || !joueur?.statistiques_joueur?.length) return null;
+    // Use all stats (not filtered) for global KPIs
     const stats = joueur.statistiques_joueur;
     const totalArrets = stats.reduce(
       (a: number, s: any) => a + (s.arrets || 0),
@@ -369,6 +391,22 @@ export default function ProfilJoueurPage() {
     const bestMatch = Math.max(...stats.map((s: any) => s.arrets || 0));
     const avgArrets =
       stats.length > 0 ? (totalArrets / stats.length).toFixed(1) : "0.0";
+    // % arrêts global = arrêts / (arrêts + buts encaissés)
+    const totalButsEncaisses = stats.reduce((acc: number, s: any) => {
+      const m = s.matchs;
+      if (!m?.score_final) return acc;
+      const parts = m.score_final.replace(/\s/g, "").split("-");
+      if (parts.length !== 2) return acc;
+      const n1 = parseInt(parts[0]);
+      const n2 = parseInt(parts[1]);
+      if (isNaN(n1) || isNaN(n2)) return acc;
+      const isHome = m.equipe_recevant_id === joueur.id_equipe;
+      return acc + (isHome ? n2 : n1);
+    }, 0);
+    const pctArretsGlobal =
+      totalArrets + totalButsEncaisses > 0
+        ? Math.round((totalArrets / (totalArrets + totalButsEncaisses)) * 100)
+        : null;
     const pctValues = chartDataGardien
       .map((d) => d["% Perso"])
       .filter((v): v is number => v !== null);
@@ -376,7 +414,7 @@ export default function ProfilJoueurPage() {
       pctValues.length > 0
         ? Math.round(pctValues.reduce((a, b) => a + b, 0) / pctValues.length)
         : null;
-    return { totalArrets, bestMatch, avgArrets, avgPctPerso };
+    return { totalArrets, bestMatch, avgArrets, avgPctPerso, pctArretsGlobal };
   }, [hasGardienPoste, joueur, chartDataGardien]);
 
   const isEntraineur = ["ENTRAINEUR", "ADMIN_CLUB", "ADMIN_GENERAL"].includes(
@@ -488,11 +526,28 @@ export default function ProfilJoueurPage() {
           <div className="flex flex-col md:flex-row items-center gap-10">
             {/* Identity */}
             <div className="text-center md:text-left space-y-4">
-              <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 px-4 py-1.5 rounded-full">
-                <Trophy size={14} className="text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                  Saison {CURRENT_SAISON}
-                </span>
+              {/* Saisons du joueur */}
+              <div className="flex flex-wrap justify-center md:justify-start gap-2">
+                {saisons.length > 0 ? (
+                  saisons.map((s) => (
+                    <div
+                      key={s}
+                      className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 px-4 py-1.5 rounded-full"
+                    >
+                      <Trophy size={14} className="text-primary" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                        Saison {s}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/30 px-4 py-1.5 rounded-full">
+                    <Trophy size={14} className="text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                      Saison {CURRENT_SAISON}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <h1 className="text-4xl sm:text-6xl md:text-9xl font-sport font-black italic leading-[0.8] tracking-tighter">
@@ -562,8 +617,19 @@ export default function ProfilJoueurPage() {
                 color="text-emerald-500"
               />
               <StatBox
+                label="Moy. Arrêts / Match"
+                val={gardienKPIs?.avgArrets ?? "0.0"}
+                icon={TrendingUp}
+                color="text-emerald-400"
+              />
+              <StatBox
                 label="% Arrêts"
-                val={`${statsGlobales?.pctArrets ?? 0}%`}
+                val={
+                  gardienKPIs?.pctArretsGlobal !== null &&
+                  gardienKPIs?.pctArretsGlobal !== undefined
+                    ? `${gardienKPIs.pctArretsGlobal}%`
+                    : "—"
+                }
                 icon={Activity}
                 color="text-violet-500"
               />
@@ -572,12 +638,6 @@ export default function ProfilJoueurPage() {
                 val={statsGlobales?.matchs ?? 0}
                 icon={Calendar}
                 color="text-blue-400"
-              />
-              <StatBox
-                label="Exclusions 2'"
-                val={statsGlobales?.exclusions ?? 0}
-                icon={AlertTriangle}
-                color="text-rose-400"
               />
             </>
           ) : (
@@ -612,7 +672,7 @@ export default function ProfilJoueurPage() {
 
         {/* Secondary KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStat label="Tirs cadrés" val={statsGlobales?.tirs ?? 0} />
+          <MiniStat label="Tirs" val={statsGlobales?.tirs ?? 0} />
           <MiniStat label="7 mètres" val={statsGlobales?.septMetres ?? 0} />
           <MiniStat
             label="Avertissements"
@@ -646,6 +706,37 @@ export default function ProfilJoueurPage() {
 
           {/* ── TAB: ANALYSE ────────────────────────────────────────────────────── */}
           <TabsContent value="analyse" className="space-y-8">
+            {/* ── Filtre saison ─────────────────────────────────────────────────── */}
+            {saisons.length > 1 && (
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Saison :
+                </span>
+                <button
+                  onClick={() => setSelectedSaison("all")}
+                  className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border-2 transition-colors ${
+                    selectedSaison === "all"
+                      ? "bg-primary text-white border-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  Toutes
+                </button>
+                {saisons.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSelectedSaison(s)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border-2 transition-colors ${
+                      selectedSaison === s
+                        ? "bg-primary text-white border-primary"
+                        : "border-border text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* ── Goalkeeper chart — visible when player has any GK role ──────── */}
             {hasGardienPoste && (
               <Card className="rounded-[3rem] border-2 shadow-xl bg-[#0F172A] text-white p-8">

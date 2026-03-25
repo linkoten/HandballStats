@@ -78,6 +78,10 @@ function getResult(
 function pct(num: number, den: number) {
   return den === 0 ? 0 : Math.round((num / den) * 100);
 }
+/** Exclut les lignes statistiques aberrantes où buts > tirs (anomalie de saisie) */
+function isStatValide(s: { buts?: number | null; tirs?: number | null }) {
+  return (s.buts ?? 0) <= (s.tirs ?? 0);
+}
 function quartile(sorted: number[], q: number): number {
   if (sorted.length === 0) return 0;
   const pos = (sorted.length - 1) * q;
@@ -158,10 +162,10 @@ function getHeure(dateStr: string | null): string | null {
   if (!hasTime) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
-  const h = d.getHours();
-  const m = d.getMinutes();
-  // If both are 0 and the original string had no explicit time (e.g. "T00:00:00Z"),
-  // treat as no time info to avoid spurious "00:00" entries.
+  // Use UTC methods: dates are stored as UTC (e.g. 2023-09-16T18:30:00.000Z → 18h30)
+  const h = d.getUTCHours();
+  const m = d.getUTCMinutes();
+  // If both are 0 treat as no time info to avoid spurious "00:00" entries.
   if (h === 0 && m === 0) return null;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
@@ -196,6 +200,8 @@ interface Filters {
   difficultes: Difficulte[];
   jours: string[];
   heures: string[];
+  postes: string[];
+  resultats: string[];
 }
 
 function applyMatchFilter(
@@ -229,8 +235,24 @@ function applyMatchFilter(
   // Score requis pour les filtres suivants
   if (!match.score_final) return false;
   // Exclure les scores invalides (ex : forfait "20-PE")
-  const [_sa, _sb] = match.score_final.split("-").map(Number);
-  if (isNaN(_sa) || isNaN(_sb)) return false;
+  const [sa, sb] = match.score_final.split("-").map(Number);
+  if (isNaN(sa) || isNaN(sb)) return false;
+
+  // Résultat
+  if (filters.resultats.length > 0) {
+    const isHome =
+      match.equipe_recevant_id != null &&
+      equipeIds.includes(match.equipe_recevant_id);
+    const ourScore = isHome ? sa : sb;
+    const theirScore = isHome ? sb : sa;
+    const res =
+      ourScore > theirScore
+        ? "Victoire"
+        : ourScore < theirScore
+          ? "Défaite"
+          : "Nul";
+    if (!filters.resultats.includes(res)) return false;
+  }
 
   // Dates
   if (
@@ -302,6 +324,7 @@ function MultiSelectDropdown({
   const allIds = options.map((o) => o.id);
   const isAllSelected =
     selected.length === 0 || selected.length === allIds.length;
+  const isPartial = !isAllSelected && selected.length > 0;
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(search.toLowerCase()),
   );
@@ -329,14 +352,13 @@ function MultiSelectDropdown({
       ref_={ref}
     >
       <DropdownSearch search={search} setSearch={setSearch} />
+      <DropdownItem
+        checked={isAllSelected}
+        label={allLabel}
+        onClick={() => onChange([])}
+      />
+      <div className="mx-3 border-t border-muted/60" />
       <div className="max-h-56 overflow-y-auto">
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          className={`w-full text-left px-4 py-2 text-[10px] font-black uppercase transition-colors hover:bg-muted ${isAllSelected ? "text-primary" : "text-muted-foreground"}`}
-        >
-          {allLabel}
-        </button>
         {filtered.map((o) => {
           const checked = !isAllSelected && selected.includes(o.id);
           return (
@@ -390,6 +412,7 @@ function StringMultiSelect({
 
   const isAllSelected =
     selected.length === 0 || selected.length === options.length;
+  const isPartial = !isAllSelected && selected.length > 0;
   const filtered = options.filter((o) =>
     o.toLowerCase().includes(search.toLowerCase()),
   );
@@ -419,14 +442,13 @@ function StringMultiSelect({
       {options.length > 5 && (
         <DropdownSearch search={search} setSearch={setSearch} />
       )}
+      <DropdownItem
+        checked={isAllSelected}
+        label={allLabel}
+        onClick={() => onChange([])}
+      />
+      <div className="mx-3 border-t border-muted/60" />
       <div className="max-h-56 overflow-y-auto">
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          className={`w-full text-left px-4 py-2 text-[10px] font-black uppercase transition-colors hover:bg-muted ${isAllSelected ? "text-primary" : "text-muted-foreground"}`}
-        >
-          {allLabel}
-        </button>
         {filtered.map((o) => {
           const checked = !isAllSelected && selected.includes(o);
           return (
@@ -624,6 +646,18 @@ function FilterBar({
     return [...s].sort();
   }, [data.matchs]);
 
+  const availablePostes = useMemo(() => {
+    const s = new Set<string>();
+    data.joueurs
+      .filter((j) => equipeOk(j.id_equipe, filters.equipeIds))
+      .forEach((j) => {
+        if (j.poste_principal) s.add(j.poste_principal);
+      });
+    return [...s].sort();
+  }, [data.joueurs, filters.equipeIds]);
+
+  const RESULTATS_OPTIONS = ["Victoire", "Nul", "Défaite"];
+
   const hasBaseFilters =
     (filters.equipeIds.length > 0 &&
       filters.equipeIds.length < data.equipes.length) ||
@@ -636,7 +670,9 @@ function FilterBar({
     filters.localisation !== "tous" ||
     filters.difficultes.length > 0 ||
     filters.jours.length > 0 ||
-    filters.heures.length > 0;
+    filters.heures.length > 0 ||
+    filters.postes.length > 0 ||
+    filters.resultats.length > 0;
 
   const hasActiveFilters = hasBaseFilters || hasAdvancedFilters;
 
@@ -652,13 +688,15 @@ function FilterBar({
       difficultes: [],
       jours: [],
       heures: [],
+      postes: [],
+      resultats: [],
     });
   }
 
   return (
     <div className="space-y-2 mb-6">
       {/* Ligne principale */}
-      <div className="flex flex-wrap gap-2 items-center p-3 bg-card rounded-2xl border-2 shadow-sm relative overflow-hidden">
+      <div className="flex flex-wrap gap-2 items-center p-3 bg-card rounded-2xl border-2 shadow-sm relative">
         {/* bande d'accent */}
         <div className="absolute left-0 top-0 h-full w-1 bg-primary rounded-l-2xl" />
         <Filter size={14} className="text-primary shrink-0 ml-3" />
@@ -726,6 +764,8 @@ function FilterBar({
                 filters.difficultes.length > 0 ? 1 : 0,
                 filters.jours.length > 0 ? 1 : 0,
                 filters.heures.length > 0 ? 1 : 0,
+                filters.postes.length > 0 ? 1 : 0,
+                filters.resultats.length > 0 ? 1 : 0,
               ].reduce((a, b) => a + b, 0)}
             </span>
           )}
@@ -825,6 +865,26 @@ function FilterBar({
               allLabel="Toutes heures"
             />
           )}
+
+          {/* Poste */}
+          {availablePostes.length > 0 && (
+            <StringMultiSelect
+              label="Poste"
+              options={availablePostes}
+              selected={filters.postes}
+              onChange={(vals) => setFilters({ ...filters, postes: vals })}
+              allLabel="Tous postes"
+            />
+          )}
+
+          {/* Résultat */}
+          <StringMultiSelect
+            label="Résultat"
+            options={RESULTATS_OPTIONS}
+            selected={filters.resultats}
+            onChange={(vals) => setFilters({ ...filters, resultats: vals })}
+            allLabel="Tous résultats"
+          />
         </div>
       )}
     </div>
@@ -1585,8 +1645,14 @@ function StatsIndividuelles({
   }, [data.equipes]);
 
   const joueursFiltres = useMemo(
-    () => data.joueurs.filter((j) => equipeOk(j.id_equipe, filters.equipeIds)),
-    [data.joueurs, filters.equipeIds],
+    () =>
+      data.joueurs.filter(
+        (j) =>
+          equipeOk(j.id_equipe, filters.equipeIds) &&
+          (filters.postes.length === 0 ||
+            filters.postes.includes(j.poste_principal ?? "")),
+      ),
+    [data.joueurs, filters.equipeIds, filters.postes],
   );
 
   const indivJoueursFiltres = useMemo(
@@ -1611,6 +1677,7 @@ function StatsIndividuelles({
     return data.statsJoueurs
       .filter((s) => {
         if (s.id_joueur !== joueurId || !s.id_match) return false;
+        if (!isStatValide(s)) return false;
         const match = data.matchs.find((m) => m.id === s.id_match);
         return match
           ? applyMatchFilter(
@@ -1705,7 +1772,7 @@ function StatsIndividuelles({
     const allMatchesSaison = (saison: string | null): typeof statsJoueur => {
       if (!saison || !joueurId || !joueurEquipeId) return [];
       return data.statsJoueurs
-        .filter((s) => s.id_joueur === joueurId && s.id_match != null)
+        .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
         .map((s) => {
           const match = data.matchs.find((m) => m.id === s.id_match);
           if (!match) return null;
@@ -1750,7 +1817,7 @@ function StatsIndividuelles({
       labelRef = "Tous matchs (toutes saisons)";
       if (joueurId && joueurEquipeId) {
         periodeRef = data.statsJoueurs
-          .filter((s) => s.id_joueur === joueurId && s.id_match != null)
+          .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
           .map((s) => {
             const match = data.matchs.find((m) => m.id === s.id_match);
             if (!match) return null;
@@ -1776,6 +1843,7 @@ function StatsIndividuelles({
         periodeRef = data.statsJoueurs
           .filter((s) => {
             if (s.id_joueur !== joueurId || !s.id_match) return false;
+            if (!isStatValide(s)) return false;
             const match = data.matchs.find((m) => m.id === s.id_match);
             if (!match) return false;
             if (
@@ -3909,8 +3977,13 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       nameGroups[j.nom_prenom].push(j);
     });
 
-    const grouped = Object.entries(nameGroups).filter(([, joueurs]) =>
-      joueurs.some((j) => equipeOk(j.id_equipe, filters.equipeIds)),
+    const grouped = Object.entries(nameGroups).filter(
+      ([, joueurs]) =>
+        joueurs.some((j) => equipeOk(j.id_equipe, filters.equipeIds)) &&
+        (filters.postes.length === 0 ||
+          joueurs.some((j) =>
+            filters.postes.includes(j.poste_principal ?? ""),
+          )),
     );
 
     const result = grouped.map(([nom, joueurs]) => {
@@ -3926,6 +3999,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       data.statsJoueurs.forEach((s) => {
         if (!s.id_joueur || !ids.has(s.id_joueur)) return;
         if (!s.id_match) return;
+        if (!isStatValide(s)) return;
         const match = matchMap[s.id_match];
         if (!match) return;
         const j = joueurByIdMap[s.id_joueur];
@@ -3982,6 +4056,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       data.statsJoueurs.forEach((s) => {
         if (!s.id_joueur || !playerIds.has(s.id_joueur)) return;
         if (!s.id_match) return;
+        if (!isStatValide(s)) return;
         const match = matchMap[s.id_match];
         if (!match) return;
         if (!applyMatchFilter(match, filters, [eq.id], data.competitions))
@@ -4102,6 +4177,116 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
     .sort((a, b) => b.moyButs - a.moyButs)
     .slice(0, 5);
   const top5Pct = [...agg].sort((a, b) => b.pctTir - a.pctTir).slice(0, 5);
+
+  const joueurMap = useMemo(
+    () => Object.fromEntries(data.joueurs.map((j) => [j.id, j])),
+    [data.joueurs],
+  );
+
+  // Record buts en un seul match — tous joueurs filtrés
+  const maxButsData = useMemo(() => {
+    const equipeMap = Object.fromEntries(
+      data.equipes.map((e) => [e.id, e.nom]),
+    );
+    const perJoueur: Record<
+      number,
+      { maxButs: number; matchs: number; nom: string; idEquipe: number | null }
+    > = {};
+    data.statsJoueurs.forEach((s) => {
+      if (!s.id_joueur || !s.id_match) return;
+      if (!isStatValide(s)) return;
+      const match = matchMap[s.id_match];
+      if (!match) return;
+      const j = joueurMap[s.id_joueur];
+      if (!j?.id_equipe) return;
+      if (!equipeOk(j.id_equipe, filters.equipeIds)) return;
+      if (!applyMatchFilter(match, filters, [j.id_equipe], data.competitions))
+        return;
+      const buts = s.buts ?? 0;
+      if (!perJoueur[s.id_joueur]) {
+        perJoueur[s.id_joueur] = {
+          maxButs: buts,
+          matchs: 1,
+          nom: formatNomPrenom(j.nom_prenom),
+          idEquipe: j.id_equipe,
+        };
+      } else {
+        perJoueur[s.id_joueur].maxButs = Math.max(
+          perJoueur[s.id_joueur].maxButs,
+          buts,
+        );
+        perJoueur[s.id_joueur].matchs += 1;
+      }
+    });
+    return Object.entries(perJoueur)
+      .map(([id, d]) => ({
+        id: Number(id),
+        nom: d.nom,
+        maxButs: d.maxButs,
+        matchs: d.matchs,
+        equipeColor: d.idEquipe
+          ? (equipeColorMap[d.idEquipe] ?? TEAM_PALETTE[0])
+          : TEAM_PALETTE[0],
+        equipeNom: d.idEquipe ? (equipeMap[d.idEquipe] ?? "—") : "—",
+      }))
+      .filter((d) => d.maxButs > 0)
+      .sort((a, b) => b.maxButs - a.maxButs)
+      .slice(0, 15);
+  }, [data, filters, equipeColorMap, matchMap, joueurMap]);
+
+  // Record arrêts en un seul match — tous joueurs ayant au moins 1 arrêt
+  const maxArretsData = useMemo(() => {
+    const equipeMap = Object.fromEntries(
+      data.equipes.map((e) => [e.id, e.nom]),
+    );
+    const perJoueur: Record<
+      number,
+      {
+        maxArrets: number;
+        matchs: number;
+        nom: string;
+        idEquipe: number | null;
+      }
+    > = {};
+    data.statsJoueurs.forEach((s) => {
+      const arrets = s.arrets ?? 0;
+      if (!s.id_joueur || !s.id_match || arrets === 0) return;
+      const match = matchMap[s.id_match];
+      if (!match) return;
+      const j = joueurMap[s.id_joueur];
+      if (!j?.id_equipe) return;
+      if (!equipeOk(j.id_equipe, filters.equipeIds)) return;
+      if (!applyMatchFilter(match, filters, [j.id_equipe], data.competitions))
+        return;
+      if (!perJoueur[s.id_joueur]) {
+        perJoueur[s.id_joueur] = {
+          maxArrets: arrets,
+          matchs: 1,
+          nom: formatNomPrenom(j.nom_prenom),
+          idEquipe: j.id_equipe,
+        };
+      } else {
+        perJoueur[s.id_joueur].maxArrets = Math.max(
+          perJoueur[s.id_joueur].maxArrets,
+          arrets,
+        );
+        perJoueur[s.id_joueur].matchs += 1;
+      }
+    });
+    return Object.entries(perJoueur)
+      .map(([id, d]) => ({
+        id: Number(id),
+        nom: d.nom,
+        maxArrets: d.maxArrets,
+        matchs: d.matchs,
+        equipeColor: d.idEquipe
+          ? (equipeColorMap[d.idEquipe] ?? TEAM_PALETTE[0])
+          : TEAM_PALETTE[0],
+        equipeNom: d.idEquipe ? (equipeMap[d.idEquipe] ?? "—") : "—",
+      }))
+      .sort((a, b) => b.maxArrets - a.maxArrets)
+      .slice(0, 15);
+  }, [data, filters, equipeColorMap, matchMap, joueurMap]);
 
   const visibleEquipes = data.equipes.filter((e) =>
     equipeOk(e.id, filters.equipeIds),
@@ -4269,6 +4454,203 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
   return (
     <div className="space-y-8">
+      {/* ── Meilleures Performances ─────────────────────────────────────────── */}
+      {(maxButsData.length > 0 || maxArretsData.length > 0) && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-sport italic text-xl uppercase tracking-tight">
+              Meilleures Performances
+            </h3>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              Record personnel sur un seul match · Top 15
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ── Max Buts ── */}
+            {maxButsData.length > 0 && (
+              <ChartCard title="Record Buts — Meilleur Match">
+                <ResponsiveContainer
+                  width="100%"
+                  height={maxButsData.length * 34 + 24}
+                >
+                  <BarChart
+                    data={maxButsData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 44, bottom: 4, left: 8 }}
+                    barCategoryGap="20%"
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                      opacity={0.2}
+                    />
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 11 }}
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="nom"
+                      tick={{ fontSize: 10, fontWeight: 600 }}
+                      width={118}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v: string) =>
+                        v.length > 17 ? v.slice(0, 15) + "\u2026" : v
+                      }
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                      wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-background border-2 rounded-2xl shadow-xl p-3 text-xs min-w-[160px] space-y-1.5">
+                            <div className="flex items-center gap-2 pb-1 border-b">
+                              <span
+                                className="w-3 h-3 rounded-full shrink-0"
+                                style={{ background: d.equipeColor }}
+                              />
+                              <p className="font-black text-sm">{d.nom}</p>
+                            </div>
+                            <p className="text-muted-foreground text-[10px]">
+                              {d.equipeNom}
+                            </p>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground font-bold uppercase text-[10px]">
+                                Record
+                              </span>
+                              <span className="font-sport italic font-black text-primary">
+                                {d.maxButs} but{d.maxButs > 1 ? "s" : ""}
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground font-bold uppercase text-[10px]">
+                                Matchs
+                              </span>
+                              <span className="font-bold">{d.matchs}</span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar
+                      dataKey="maxButs"
+                      radius={[0, 6, 6, 0]}
+                      maxBarSize={22}
+                      label={{
+                        position: "right",
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {maxButsData.map((entry, i) => (
+                        <Cell key={i} fill={entry.equipeColor} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
+
+            {/* ── Max Arrêts ── */}
+            {maxArretsData.length > 0 && (
+              <ChartCard title="Record Arrêts — Meilleur Match">
+                <ResponsiveContainer
+                  width="100%"
+                  height={maxArretsData.length * 34 + 24}
+                >
+                  <BarChart
+                    data={maxArretsData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 44, bottom: 4, left: 8 }}
+                    barCategoryGap="20%"
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                      opacity={0.2}
+                    />
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 11 }}
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="nom"
+                      tick={{ fontSize: 10, fontWeight: 600 }}
+                      width={118}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v: string) =>
+                        v.length > 17 ? v.slice(0, 15) + "\u2026" : v
+                      }
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                      wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-background border-2 rounded-2xl shadow-xl p-3 text-xs min-w-[160px] space-y-1.5">
+                            <div className="flex items-center gap-2 pb-1 border-b">
+                              <span
+                                className="w-3 h-3 rounded-full shrink-0"
+                                style={{ background: d.equipeColor }}
+                              />
+                              <p className="font-black text-sm">{d.nom}</p>
+                            </div>
+                            <p className="text-muted-foreground text-[10px]">
+                              {d.equipeNom}
+                            </p>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground font-bold uppercase text-[10px]">
+                                Record
+                              </span>
+                              <span className="font-sport italic font-black text-emerald-500">
+                                {d.maxArrets} arrêt{d.maxArrets > 1 ? "s" : ""}
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground font-bold uppercase text-[10px]">
+                                Matchs (avec arrêts)
+                              </span>
+                              <span className="font-bold">{d.matchs}</span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar
+                      dataKey="maxArrets"
+                      radius={[0, 6, 6, 0]}
+                      maxBarSize={22}
+                      label={{
+                        position: "right",
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {maxArretsData.map((entry, i) => (
+                        <Cell key={i} fill={entry.equipeColor} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ─── Gardiens — % Arrêts ───────────────────────────────────────── */}
       {aggGardiens.length > 0 && (
         <div className="relative z-40 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -6173,6 +6555,7 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
         const statsJoueur = data.statsJoueurs
           .filter((s) => {
             if (s.id_joueur !== joueurId || !s.id_match) return false;
+            if (!isStatValide(s)) return false;
             const match = data.matchs.find((m) => m.id === s.id_match);
             return match
               ? applyMatchFilter(
@@ -6200,7 +6583,7 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
         const allForSaison = (saison: string | null): typeof statsJoueur => {
           if (!saison) return [];
           return data.statsJoueurs
-            .filter((s) => s.id_joueur === joueurId && s.id_match != null)
+            .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
             .map((s) => {
               const match = data.matchs.find((m) => m.id === s.id_match);
               if (!match) return null;
@@ -6218,7 +6601,7 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
 
         const allTotal = (): typeof statsJoueur =>
           data.statsJoueurs
-            .filter((s) => s.id_joueur === joueurId && s.id_match != null)
+            .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
             .map((s) => {
               const match = data.matchs.find((m) => m.id === s.id_match);
               if (!match) return null;
@@ -6255,6 +6638,7 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
             ref = data.statsJoueurs
               .filter((s) => {
                 if (s.id_joueur !== joueurId || !s.id_match) return false;
+                if (!isStatValide(s)) return false;
                 const match = data.matchs.find((m) => m.id === s.id_match);
                 if (!match) return false;
                 if (
@@ -6999,7 +7383,7 @@ function computeVersusStats(
 
   // Stats joueurs filtrées selon entité
   let statsRows = data.statsJoueurs.filter(
-    (s) => s.id_match != null && matchIds.has(s.id_match!),
+    (s) => s.id_match != null && matchIds.has(s.id_match!) && isStatValide(s),
   );
 
   if (entity.type === "joueur" && joueurId != null) {
@@ -7690,6 +8074,8 @@ function StatsVersus({ data }: { data: StatsData }) {
     difficultes: [],
     jours: [],
     heures: [],
+    postes: [],
+    resultats: [],
   });
 
   const [entityA, setEntityA] = useState<VersusEntity | null>(null);
@@ -8553,6 +8939,8 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
     difficultes: [],
     jours: [],
     heures: [],
+    postes: [],
+    resultats: [],
   }));
   const [activeTab, setActiveTab] = useState("club");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

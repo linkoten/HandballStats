@@ -56,9 +56,9 @@ export async function getClubEntraineurs(
     });
     if (!currentUser) throw new Error("Utilisateur introuvable");
 
-    // On autorise les ADMIN_CLUB, ADMIN_GENERAL et ENTRAINEUR à consulter
+    // On autorise les ADMIN_CLUB, ADMIN_GENERAL, ENTRAINEUR et JOUEUR à consulter
     if (
-      !["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR"].includes(currentUser.role)
+      !["ADMIN_CLUB", "ADMIN_GENERAL", "ENTRAINEUR", "JOUEUR"].includes(currentUser.role)
     ) {
       throw new Error("Accès refusé");
     }

@@ -485,6 +485,9 @@ export async function getJoueurComplet(
                 equipes_matchs_equipe_exterieur_idToequipes: {
                   select: { nom: true },
                 },
+                competition: {
+                  select: { saison: true },
+                },
               },
             },
           },

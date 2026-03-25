@@ -65,6 +65,27 @@ describe("validateClubCode", () => {
     expect(res.data.clubName).toBe("ClubTest");
   });
 
+  it("assigne le rôle JOUEUR avec le code joueur", async () => {
+    (auth as jest.Mock).mockResolvedValue({ userId: "user-1" });
+    prisma.user.findUnique.mockResolvedValue({ id: 42 });
+    prisma.club.findFirst.mockResolvedValue({
+      id: 10,
+      nom: "ClubTest",
+      coachCode: "COACH-001",
+      playerCode: "PLAY-001",
+    });
+    checkUserClubRole.mockResolvedValue({
+      isAdmin: false,
+      isGeneralAdmin: false,
+    });
+    prisma.userClub.findFirst.mockResolvedValue(null);
+    prisma.user.update.mockResolvedValue({});
+    prisma.userClub.create.mockResolvedValue({});
+    const res = await validateClubCode("PLAY-001");
+    expect(res.success).toBe(true);
+    expect(res.data.newRole).toBe("JOUEUR");
+  });
+
   it("refuse un code incorrect", async () => {
     (auth as jest.Mock).mockResolvedValue({ userId: "user-1" });
     prisma.user.findUnique.mockResolvedValue({ id: 42 });

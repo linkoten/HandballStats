@@ -167,16 +167,28 @@ export default async function CompetitionPage({
       {/* Header / Navigation */}
       <div className="bg-muted/30 border-b mb-8">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="font-sport italic"
-          >
-            <Link href={`/dashboard/clubs/${clubId}/competitions`}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Retour aux compétitions
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="font-sport italic"
+            >
+              <Link href="/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="font-sport italic"
+            >
+              <Link href={`/dashboard/clubs/${clubId}/competitions`}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Retour aux compétitions
+              </Link>
+            </Button>
+          </div>
           {competition.url && (
             <Button variant="outline" size="sm" asChild className="rounded-xl">
               <a

@@ -111,12 +111,20 @@ export default async function MatchDetailPage({
       {/* 1. Barre de navigation */}
       <div className="bg-muted/30 border-b">
         <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href={`/dashboard/clubs/${clubId}/matchs`}
-            className="flex items-center gap-2 text-sm font-sport italic hover:text-primary transition-colors"
-          >
-            <ArrowLeft size={16} /> Retour aux matchs
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 text-sm font-sport italic hover:text-primary transition-colors"
+            >
+              <ArrowLeft size={16} /> Dashboard
+            </Link>
+            <Link
+              href={`/dashboard/clubs/${clubId}/matchs`}
+              className="flex items-center gap-2 text-sm font-sport italic hover:text-primary transition-colors"
+            >
+              <ArrowLeft size={16} /> Retour aux matchs
+            </Link>
+          </div>
           {match.pdf_url && (
             <Button
               variant="secondary"

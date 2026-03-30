@@ -28,9 +28,12 @@ export default async function StatistiquesPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card px-6 py-4 flex items-center gap-3">
-        <div className="bg-primary/10 p-2 rounded-xl text-primary">
-          <BarChart3 size={22} />
-        </div>
+        <a href="/dashboard">
+          <button className="bg-primary/10 p-2 rounded-xl text-primary flex items-center gap-2 hover:bg-primary/20 transition-colors">
+            <BarChart3 size={22} />
+            <span className="hidden sm:inline font-sport italic text-xs">Dashboard</span>
+          </button>
+        </a>
         <div>
           <h1 className="font-sport italic text-xl font-black uppercase leading-none">
             Statistiques

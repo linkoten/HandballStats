@@ -3949,7 +3949,7 @@ function ScatterSection({
 }
 
 function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
-  const [gardienSearch, setGardienSearch] = useState("");
+
 
   const equipeColorMap = useMemo(() => {
     const m: Record<number, string> = {};
@@ -3964,6 +3964,61 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
     () => Object.fromEntries(data.matchs.map((m) => [m.id, m])),
     [data.matchs],
   );
+
+  const joueurMap = useMemo(
+    () => Object.fromEntries(data.joueurs.map((j) => [j.id, j])),
+    [data.joueurs],
+  );
+
+  // Agrégat exclusions vs matchs joués par joueur
+  const exclusionsVsMatchs = useMemo(() => {
+    const equipeMap = Object.fromEntries(data.equipes.map((e) => [e.id, e.nom]));
+    const perJoueur: Record<
+      number,
+      {
+        exclusions: number;
+        matchs: number;
+        nom: string;
+        idEquipe: number | null;
+        equipeColor: string;
+        equipeNom: string;
+        poste: string;
+      }
+    > = {};
+    data.statsJoueurs.forEach((s) => {
+      if (!s.id_joueur || !s.id_match) return;
+      const j = joueurMap[s.id_joueur];
+      if (!j?.id_equipe) return;
+      if (!equipeOk(j.id_equipe, filters.equipeIds)) return;
+      if (!applyMatchFilter(matchMap[s.id_match], filters, [j.id_equipe], data.competitions)) return;
+      if (!perJoueur[s.id_joueur]) {
+        perJoueur[s.id_joueur] = {
+          exclusions: 0,
+          matchs: 0,
+          nom: formatNomPrenom(j.nom_prenom),
+          idEquipe: j.id_equipe,
+          equipeColor: equipeColorMap[j.id_equipe] ?? TEAM_PALETTE[0],
+          equipeNom: equipeMap[j.id_equipe] ?? "—",
+          poste: j.poste_principal ?? "—",
+        };
+      }
+      perJoueur[s.id_joueur].exclusions += s.exclusions_2min ?? 0;
+      perJoueur[s.id_joueur].matchs += 1;
+    });
+    return Object.entries(perJoueur)
+      .map(([id, d]) => ({ id: Number(id), ...d }))
+      .filter((d) => d.matchs > 0);
+  }, [data, filters, equipeColorMap, matchMap, joueurMap]);
+
+  // Top 5 exclusions
+  const top5Exclusions = useMemo(() => {
+    return [...exclusionsVsMatchs]
+      .sort((a, b) => b.exclusions - a.exclusions)
+      .slice(0, 5);
+  }, [exclusionsVsMatchs]);
+
+  const [gardienSearch, setGardienSearch] = useState("");
+
 
   // Agrégats par nom de joueur — regroupe les joueurs ayant joué dans plusieurs équipes
   const agg = useMemo<AggPlayer[]>(() => {
@@ -4178,10 +4233,6 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
     .slice(0, 5);
   const top5Pct = [...agg].sort((a, b) => b.pctTir - a.pctTir).slice(0, 5);
 
-  const joueurMap = useMemo(
-    () => Object.fromEntries(data.joueurs.map((j) => [j.id, j])),
-    [data.joueurs],
-  );
 
   // Record buts en un seul match — tous joueurs filtrés
   const maxButsData = useMemo(() => {
@@ -4454,6 +4505,144 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
   return (
     <div className="space-y-8">
+      {/* ── Exclusions vs Matchs joués ─────────────────────────────── */}
+      {exclusionsVsMatchs.length > 0 && (
+        <div className="relative z-40 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2">
+            <ChartCard title="Exclusions (2') vs Matchs joués (TOP 5)">
+              <ResponsiveContainer width="100%" height={320}>
+                <ScatterChart margin={{ top: 16, right: 32, bottom: 32, left: 32 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis
+                    dataKey="matchs"
+                    type="number"
+                    name="Matchs joués"
+                    tick={{ fontSize: 11 }}
+                    label={{
+                      value: "Matchs joués",
+                      position: "insideBottom",
+                      offset: -16,
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                  />
+                  <YAxis
+                    dataKey="exclusions"
+                    type="number"
+                    name="Exclusions (2')"
+                    tick={{ fontSize: 11 }}
+                    label={{
+                      value: "Exclusions (2')",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 12,
+                      fontSize: 11,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
+                  />
+                  <Tooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div className="bg-background border-2 rounded-2xl shadow-xl p-3 text-xs min-w-40 space-y-1.5">
+                          <div className="flex items-center gap-2 pb-1 border-b">
+                            <span
+                              className="w-3 h-3 rounded-full shrink-0"
+                              style={{ background: d.equipeColor }}
+                            />
+                            <p className="font-black text-sm">{d.nom}</p>
+                          </div>
+                          <p className="text-muted-foreground text-[10px]">
+                            {d.equipeNom}
+                          </p>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground font-bold uppercase text-[10px]">Exclusions</span>
+                            <span className="font-sport italic font-black text-red-500">{d.exclusions}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground font-bold uppercase text-[10px]">Matchs</span>
+                            <span className="font-bold">{d.matchs}</span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Scatter
+                    name="Joueurs"
+                    data={exclusionsVsMatchs}
+                    shape={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      return (
+                        <g>
+                          <circle cx={cx} cy={cy} r={7} fill={payload.equipeColor} opacity={1} stroke="white" strokeWidth={1.5} />
+                        </g>
+                      );
+                    }}
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
+                {visibleEquipes.map((eq) => (
+                  <div
+                    key={eq.id}
+                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                      style={{ background: equipeColorMap[eq.id] }}
+                    />
+                    {eq.nom}
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+          </div>
+          <Card className="rounded-3xl border-2 overflow-hidden">
+            <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+                Top 5 — Exclusions (2')
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {top5Exclusions.map((p, i) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+                >
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-xs truncate">{p.nom}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ background: p.equipeColor }}
+                      />
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {p.poste} · {p.equipeNom}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="font-sport italic font-black text-base text-red-500">
+                      {p.exclusions}
+                    </span>
+                    <p className="text-[9px] text-muted-foreground">
+                      {p.matchs} matchs
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      )}
       {/* ── Meilleures Performances ─────────────────────────────────────────── */}
       {(maxButsData.length > 0 || maxArretsData.length > 0) && (
         <div className="space-y-4">
@@ -4509,7 +4698,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                         if (!active || !payload?.length) return null;
                         const d = payload[0].payload;
                         return (
-                          <div className="bg-background border-2 rounded-2xl shadow-xl p-3 text-xs min-w-[160px] space-y-1.5">
+                          <div className="bg-background border-2 rounded-2xl shadow-xl p-3 text-xs min-w-40 space-y-1.5">
                             <div className="flex items-center gap-2 pb-1 border-b">
                               <span
                                 className="w-3 h-3 rounded-full shrink-0"
@@ -4600,7 +4789,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                         if (!active || !payload?.length) return null;
                         const d = payload[0].payload;
                         return (
-                          <div className="bg-background border-2 rounded-2xl shadow-xl p-3 text-xs min-w-[160px] space-y-1.5">
+                          <div className="bg-background border-2 rounded-2xl shadow-xl p-3 text-xs min-w-40 space-y-1.5">
                             <div className="flex items-center gap-2 pb-1 border-b">
                               <span
                                 className="w-3 h-3 rounded-full shrink-0"
@@ -8957,9 +9146,13 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
     TAB_ITEMS.find((t) => t.value === activeTab) ?? TAB_ITEMS[0];
 
   return (
-    <div>
-      <FilterBar data={data} filters={filters} setFilters={setFilters} />
+    <div className="relative">
+      {/* Stacking context for FilterBar and dropdowns */}
+      <div className="relative z-30">
+        <FilterBar data={data} filters={filters} setFilters={setFilters} />
+      </div>
 
+      {/* Tabs and tab menus */}
       <Tabs
         value={activeTab}
         onValueChange={(v) => {
@@ -8968,7 +9161,7 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
         }}
       >
         {/* Mobile: burger menu */}
-        <div className="sm:hidden mb-6 relative z-50">
+        <div className="sm:hidden mb-6 relative z-20">
           <button
             onClick={() => setMobileMenuOpen((o) => !o)}
             className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border-2 border-primary/20 font-sport italic uppercase text-xs shadow-sm"
@@ -8983,7 +9176,7 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
             />
           </button>
           {mobileMenuOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden z-40">
               {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
@@ -9002,7 +9195,7 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
         </div>
 
         {/* Desktop: tab list */}
-        <TabsList className="hidden sm:flex flex-wrap justify-center h-auto rounded-2xl bg-primary/8 border-2 border-primary/20 p-1.5 gap-1 mb-8 shadow-md w-full">
+        <TabsList className="hidden sm:flex flex-wrap justify-center h-auto rounded-2xl bg-primary/8 border-2 border-primary/20 p-1.5 gap-1 mb-8 shadow-md w-full relative z-10">
           {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}

@@ -80,11 +80,18 @@ export default async function EquipeDetailPage({
     <div className="min-h-screen p-4 md:p-8 space-y-12 max-w-7xl mx-auto">
       {/* Retour et Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <Link href={`/dashboard/clubs/${clubId}/equipes`}>
-          <Button variant="ghost" className="font-sport italic uppercase gap-2">
-            <ChevronLeft size={16} /> Retour aux équipes
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/dashboard">
+            <Button variant="ghost" className="font-sport italic uppercase gap-2">
+              <ChevronLeft size={16} /> Dashboard
+            </Button>
+          </Link>
+          <Link href={`/dashboard/clubs/${clubId}/equipes`}>
+            <Button variant="ghost" className="font-sport italic uppercase gap-2">
+              <ChevronLeft size={16} /> Retour aux équipes
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Hero Header Équipe */}

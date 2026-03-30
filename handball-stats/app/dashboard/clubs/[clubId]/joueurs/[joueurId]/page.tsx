@@ -515,13 +515,24 @@ export default function ProfilJoueurPage() {
         </div>
 
         <div className="max-w-7xl mx-auto relative z-10">
-          <Button
-            variant="ghost"
-            className="text-white/50 hover:text-white mb-8 p-0 hover:bg-transparent transition-colors"
-            onClick={() => router.back()}
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" /> Retour à l'effectif
-          </Button>
+          <div className="flex gap-3 mb-8">
+            <Button
+              variant="ghost"
+              className="text-white/50 hover:text-white p-0 hover:bg-transparent transition-colors"
+              onClick={() => router.push("/dashboard")}
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" /> Dashboard
+            </Button>
+            {joueur?.id_equipe && params.clubId && (
+              <Button
+                variant="ghost"
+                className="text-white/50 hover:text-white p-0 hover:bg-transparent transition-colors"
+                onClick={() => router.push(`/dashboard/clubs/${params.clubId}/equipes/${joueur.id_equipe}`)}
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" /> Retour à l'équipe
+              </Button>
+            )}
+          </div>
 
           <div className="flex flex-col md:flex-row items-center gap-10">
             {/* Identity */}

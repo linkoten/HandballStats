@@ -81,9 +81,14 @@ export function Navbar() {
       requiresClub: false,
     },
   ];
-  const navLinks = isSignedIn && userData !== null && !clubId
-    ? allNavLinks.filter((l) => !l.requiresClub)
-    : allNavLinks;
+  // N'affiche les liens club que si clubId est défini
+  let navLinks = allNavLinks;
+  if (isSignedIn && userData !== null && !clubId) {
+    navLinks = allNavLinks.filter((l) => !l.requiresClub);
+  } else if (isSignedIn && userData !== null && clubId === undefined) {
+    // Si le profil n'est pas encore chargé, n'affiche pas les liens club
+    navLinks = allNavLinks.filter((l) => !l.requiresClub);
+  }
 
   return (
     <nav className="sticky top-0 z-100 w-full border-b-2 border-primary/10 bg-background/60 backdrop-blur-2xl">

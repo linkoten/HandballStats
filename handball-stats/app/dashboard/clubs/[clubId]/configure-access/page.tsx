@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/app/actions/user-actions";
 import { getClubSubscriptionStatus } from "@/lib/access-control";

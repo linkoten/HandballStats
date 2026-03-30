@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // dashboard/clubs/[clubId]/equipes/[equipeId]/page.tsx
 import { getEquipeDetails } from "@/app/actions/equipe-actions";
 import { getJoueursByEquipe } from "@/app/actions/joueur-actions";

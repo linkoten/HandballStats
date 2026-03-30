@@ -1,4 +1,5 @@
-﻿import { redirect } from "next/navigation";
+﻿export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 import { checkUserClubRole } from "@/lib/access-control";
 import prisma from "@/lib/prisma";
 import { BarChart3 } from "lucide-react";

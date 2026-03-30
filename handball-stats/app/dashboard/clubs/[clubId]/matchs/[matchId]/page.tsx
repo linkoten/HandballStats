@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getMatchById } from "@/app/actions/match-actions";
 import { getCurrentUser } from "@/app/actions/user-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

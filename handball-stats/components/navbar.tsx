@@ -51,6 +51,8 @@ export function Navbar() {
       try {
         const result = await getUserProfile();
         if (result.success) setUserData(result.data);
+        // Ajout log debug pour desktop
+        console.log("[NAVBAR DEBUG] userData:", result.data);
       } catch (error) {
         console.error("Erreur chargement données utilisateur:", error);
       }

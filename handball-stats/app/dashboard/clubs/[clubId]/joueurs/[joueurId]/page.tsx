@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -527,7 +529,11 @@ export default function ProfilJoueurPage() {
               <Button
                 variant="ghost"
                 className="text-white/50 hover:text-white p-0 hover:bg-transparent transition-colors"
-                onClick={() => router.push(`/dashboard/clubs/${params.clubId}/equipes/${joueur.id_equipe}`)}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/clubs/${params.clubId}/equipes/${joueur.id_equipe}`,
+                  )
+                }
               >
                 <ArrowLeft className="w-5 h-5 mr-2" /> Retour à l'équipe
               </Button>

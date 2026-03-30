@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getUserProfile, getUserTokens } from "@/app/actions";
 import { getEquipesByClub } from "@/app/actions/equipe-actions";
 import { getClubEntraineurs } from "@/app/actions/entraineur-actions";

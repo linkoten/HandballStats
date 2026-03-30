@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getMatchs } from "@/app/actions/match-actions";
 import { getEquipesByClub } from "@/app/actions/equipe-actions";
 import { Trophy } from "lucide-react";

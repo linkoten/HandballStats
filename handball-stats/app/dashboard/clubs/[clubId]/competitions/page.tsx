@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import prisma from "@/lib/prisma";
 import { Trophy, RefreshCw } from "lucide-react";
 import { CompetitionsClient } from "./competitions-client";

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getCurrentUser } from "@/app/actions/user-actions";
 import { getClubEntraineurs } from "@/app/actions/entraineur-actions";
 import { redirect } from "next/navigation";

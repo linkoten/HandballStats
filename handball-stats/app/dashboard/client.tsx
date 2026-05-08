@@ -42,9 +42,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AddEquipeModalButton } from "@/components/AddEquipeModalButton";
 import RescrapeAllButton from "@/app/dashboard/clubs/[clubId]/competitions/RescrapeAllButton";
+import { FreeTrialBanner } from "@/components/FreeTrialBanner";
 
 const PLAN_LABELS = {
   GRATUIT: "Gratuit",
+  FREE_TRIAL: "Free Trial",
   STARTER: "Starter",
   PRO: "Pro",
   CLUB: "Club",
@@ -53,9 +55,10 @@ const PLAN_LABELS = {
 
 const PLAN_PRICES = {
   GRATUIT: "Gratuit",
-  STARTER: "9 €/mois",
-  PRO: "29 €/mois",
-  CLUB: "59 €/mois",
+  FREE_TRIAL: "Essai 30 jours",
+  STARTER: "6 €/mois",
+  PRO: "20 €/mois",
+  CLUB: "40 €/mois",
   PREMIUM: "99 €/mois",
 } as const;
 
@@ -80,6 +83,7 @@ export default function DashboardClient({
   initialTokensData,
   equipesData,
   coachCount,
+  freeTrialData,
 }: any) {
   const { user } = useUser();
   const [userData, setUserData] = useState(initialUserData);
@@ -217,6 +221,14 @@ export default function DashboardClient({
 
   return (
     <div className="min-h-screen p-4 md:p-8 space-y-10 max-w-7xl mx-auto">
+      {/* Bannière Free Trial */}
+      {freeTrialData?.isFreeTrial && (
+        <FreeTrialBanner
+          daysRemaining={freeTrialData.daysRemaining}
+          expiresAt={freeTrialData.expiresAt}
+        />
+      )}
+
       {/* --- HERO SECTION TACTIQUE --- */}
       <section className="relative group overflow-hidden bg-primary rounded-[2rem] p-8 md:p-12 shadow-2xl border-b-8 border-secondary/50 transition-all">
         {/* Texte décoratif en arrière-plan */}

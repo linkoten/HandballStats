@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -32,11 +33,16 @@ model User {
   tokensUsed          Int @default(0) @map("tokens_used") // Tokens consommés (historique cumulatif)
   baseTokenAllocation Int @default(0) @map("base_token_allocation") // Allocation totale = plan + bonus achetés (source de vérité pour le reset août)
 
+  // Free Trial
+  freeTrialStartedAt DateTime? @map("free_trial_started_at")
+  freeTrialExpiresAt DateTime? @map("free_trial_expires_at")
+
   // Relations
   clubs             UserClub[]
   competitionAccess CompetitionAccess[]
   tokenUsageHistory TokenUsageHistory[]
   equipeMetadata    UserEquipeMetadata[]
+  freePlanCode      FreePlanCode?
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -150,6 +156,9 @@ model Competition {
   niveau String? @db.VarChar(100) // ex: "Régional", "Départemental"
   phase  String? @db.VarChar(50) // ex: "Poule", "Phase finale"
 
+  // Free Trial tracking
+  freePlanCodeId Int? @unique @map("free_plan_code_id")
+
   // Sélection manuelle de l'admin après downgrade
   isPinned Boolean @default(false) @map("is_pinned")
 
@@ -165,6 +174,7 @@ model Competition {
   matchs            matchs[]
   competitionAccess CompetitionAccess[]
   classementPoule   ClassementPoule[]
+  freePlanCode      FreePlanCode?       @relation(fields: [freePlanCodeId], references: [id])
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -229,6 +239,32 @@ model TokenUsageHistory {
 }
 
 // ============================================
+// CODES FREE TRIAL (usage unique, pré-générés)
+// ============================================
+model FreePlanCode {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique @db.VarChar(32)
+  isUsed    Boolean @default(false) @map("is_used")
+
+  // Qui a utilisé ce code
+  usedById  String? @unique @map("used_by_id")
+  usedAt    DateTime? @map("used_at")
+
+  // Compétition créée avec ce code
+  competition Competition?
+
+  // Relations
+  usedBy    User?   @relation(fields: [usedById], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([code])
+  @@index([isUsed])
+  @@map("free_plan_codes")
+}
+
+// ============================================
 // LIMITES PAR TYPE D'ABONNEMENT
 // ============================================
 model SubscriptionLimit {
@@ -252,6 +288,7 @@ model SubscriptionLimit {
 // ============================================
 enum SubscriptionType {
   GRATUIT // 0 token, découverte
+  FREE_TRIAL // 1 compétition pendant 30 jours
   STARTER // 3 tokens
   PRO // 10 tokens
   CLUB // 25 tokens

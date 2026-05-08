@@ -930,9 +930,9 @@ function ChartCard({
 }) {
   return (
     <Card
-      className={`rounded-3xl border-2 overflow-visible relative z-0 hover:z-10 ${className}`}
+      className={`rounded-3xl border-2 overflow-visible relative hover:z-[20] ${className}`}
     >
-      <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5 rounded-t-3xl overflow-hidden">
+      <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5 rounded-t-3xl overflow-hidden">
         <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
           {title}
         </CardTitle>
@@ -1374,6 +1374,7 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
                 ))}
               </Pie>
               <Tooltip
+                isAnimationActive={false}
                 content={<PieTooltipContent />}
                 wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
               />
@@ -1394,6 +1395,7 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
                 <XAxis dataKey="equipe" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip
+                  isAnimationActive={false}
                   content={<BilanTooltipContent />}
                   wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
                 />
@@ -1443,6 +1445,7 @@ function StatsClub({ data, filters }: { data: StatsData; filters: Filters }) {
                 tick={{ fontSize: 11 }}
               />
               <Tooltip
+                isAnimationActive={false}
                 content={<CumulTooltipContent />}
                 wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
               />
@@ -2608,6 +2611,7 @@ function StatsIndividuelles({
                     tick={{ fontSize: 11 }}
                   />
                   <Tooltip
+                    isAnimationActive={false}
                     content={<CumulJoueurTooltip />}
                     wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
                   />
@@ -2677,6 +2681,7 @@ function StatsIndividuelles({
                     tick={{ fontSize: 11 }}
                   />
                   <Tooltip
+                    isAnimationActive={false}
                     content={<CumulGardienTooltip />}
                     wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
                   />
@@ -3744,6 +3749,7 @@ function ScatterSection({
               />
               <ZAxis range={[50, 180]} />
               <Tooltip
+                isAnimationActive={false}
                 cursor={{ strokeDasharray: "3 3" }}
                 wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                 content={({ payload }) => (
@@ -3904,7 +3910,7 @@ function ScatterSection({
       </div>
 
       <Card className="rounded-3xl border-2 overflow-hidden">
-        <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+        <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
           <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
             Top 5 — {top5Label}
           </CardTitle>
@@ -4541,6 +4547,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                     }}
                   />
                   <Tooltip
+                    isAnimationActive={false}
                     cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={({ active, payload }) => {
@@ -4601,7 +4608,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
             </ChartCard>
           </div>
           <Card className="rounded-3xl border-2 overflow-hidden">
-            <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+            <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
               <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
                 Top 5 — Exclusions (2')
               </CardTitle>
@@ -4692,6 +4699,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                       }
                     />
                     <Tooltip
+                      isAnimationActive={false}
                       cursor={{ fill: "rgba(0,0,0,0.04)" }}
                       wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                       content={({ active, payload }) => {
@@ -4783,6 +4791,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                       }
                     />
                     <Tooltip
+                      isAnimationActive={false}
                       cursor={{ fill: "rgba(0,0,0,0.04)" }}
                       wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                       content={({ active, payload }) => {
@@ -4905,6 +4914,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                   />
                   <ZAxis dataKey="matchs" range={[50, 200]} />
                   <Tooltip
+                    isAnimationActive={false}
                     cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={<GardienTooltip />}
@@ -4974,7 +4984,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
             </ChartCard>
           </div>
           <Card className="rounded-3xl border-2 overflow-hidden">
-            <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+            <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
               <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
                 Top 5 — % Arrêts
               </CardTitle>
@@ -5069,6 +5079,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                   />
                   <ZAxis dataKey="matchs" range={[50, 200]} />
                   <Tooltip
+                    isAnimationActive={false}
                     cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={<GardienArretTooltip />}
@@ -5139,7 +5150,7 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
             </ChartCard>
           </div>
           <Card className="rounded-3xl border-2 overflow-hidden">
-            <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+            <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
               <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
                 Top 5 — Total Arrêts
               </CardTitle>
@@ -5639,6 +5650,7 @@ function StatsOffensives({
               tick={{ fontSize: 11 }}
             />
             <Tooltip
+              isAnimationActive={false}
               content={<OffTooltip />}
               wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
             />
@@ -5711,7 +5723,7 @@ function StatsOffensives({
                   fill: "hsl(var(--muted-foreground))",
                 }}
               />
-              <Tooltip wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+              <Tooltip isAnimationActive={false} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {equipeLabels.map((nom, i) => (
                 <Line
@@ -5758,6 +5770,7 @@ function StatsOffensives({
               <XAxis dataKey="context" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
+                isAnimationActive={false}
                 wrapperStyle={{ zIndex: 9999 }}
                 formatter={(v: any, name?: string) => [
                   `${v} buts/match`,
@@ -6219,6 +6232,7 @@ function StatsDefensives({
               tick={{ fontSize: 11 }}
             />
             <Tooltip
+              isAnimationActive={false}
               content={<DefTooltip />}
               wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
             />
@@ -6359,6 +6373,7 @@ function StatsDefensives({
                 tick={{ fontSize: 11 }}
               />
               <Tooltip
+                isAnimationActive={false}
                 content={<ArretTimelineTooltip />}
                 wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
               />
@@ -6398,7 +6413,7 @@ function StatsDefensives({
                 tickFormatter={(v) => v.toFixed(1)}
                 tick={{ fontSize: 11 }}
               />
-              <Tooltip wrapperStyle={{ zIndex: 9999 }} />
+              <Tooltip isAnimationActive={false} wrapperStyle={{ zIndex: 9999 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar
                 yAxisId="left"
@@ -6439,6 +6454,7 @@ function StatsDefensives({
                   tick={{ fontSize: 11 }}
                 />
                 <Tooltip
+                  isAnimationActive={false}
                   wrapperStyle={{ zIndex: 9999 }}
                   formatter={(v: any) =>
                     typeof v === "number" ? v.toFixed(2) : "-"
@@ -6562,7 +6578,7 @@ function TopRankCard({
   if (!entries.length) {
     return (
       <Card className="rounded-3xl border-2 overflow-hidden opacity-60">
-        <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+        <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
           <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
             {title}
           </CardTitle>
@@ -6576,7 +6592,7 @@ function TopRankCard({
 
   return (
     <Card className="rounded-3xl border-2 overflow-visible">
-      <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5 rounded-t-3xl">
+      <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5 rounded-t-3xl">
         <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
           {title}
         </CardTitle>
@@ -7221,7 +7237,7 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
       {/* ── Tableau complet ── */}
       {sortedRows.length > 0 && (
         <Card className="rounded-3xl border-2 overflow-hidden">
-          <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+          <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
             <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
               Tableau — Tous les joueurs ({sortedRows.length})
             </CardTitle>
@@ -8571,7 +8587,7 @@ function StatsVersus({ data }: { data: StatsData }) {
                 backgroundImage: `linear-gradient(to right, ${COLOR_A}, ${COLOR_B})`,
               }}
             />
-            <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+            <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center">
                 <p
                   className="text-xs font-black uppercase"
@@ -8817,7 +8833,7 @@ function StatsVersus({ data }: { data: StatsData }) {
                 backgroundImage: `linear-gradient(to right, ${COLOR_B}, ${COLOR_A})`,
               }}
             />
-            <CardHeader className="bg-muted/40 border-b pb-3 pt-4 px-5">
+            <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
               <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
                 Profil comparatif — Vue radar
               </CardTitle>
@@ -9161,7 +9177,7 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
         }}
       >
         {/* Mobile: burger menu */}
-        <div className="sm:hidden mb-6 relative z-20">
+        <div className="sm:hidden mb-6 relative z-[35]">
           <button
             onClick={() => setMobileMenuOpen((o) => !o)}
             className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border-2 border-primary/20 font-sport italic uppercase text-xs shadow-sm"

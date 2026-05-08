@@ -321,6 +321,20 @@ export async function createCompetition(
       throw new Error("Utilisateur introuvable");
     }
 
+    // Guard FREE_TRIAL : limite à 1 compétition
+    if (user.subscription === "FREE_TRIAL") {
+      const existingCount = await prisma.competition.count({
+        where: {
+          equipe: { clubId: { in: (await prisma.userClub.findMany({ where: { userId: user.id } })).map((uc) => uc.clubId) } },
+        },
+      });
+      if (existingCount >= 1) {
+        throw new Error(
+          "Le plan Free Trial est limité à 1 compétition. Passez à un abonnement payant pour en ajouter davantage.",
+        );
+      }
+    }
+
     // Guard d'accès : seul admin du club ou ADMIN_GENERAL peut créer une compétition
     const equipe = await prisma.equipes.findUnique({
       where: { id: equipeId },

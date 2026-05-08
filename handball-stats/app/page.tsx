@@ -218,6 +218,12 @@ export default function Home() {
             >
               Inscription
             </Link>
+            <a
+              href={`mailto:${process.env.CONTACT_EMAIL ?? "contact@handballapp.fr"}`}
+              className="hover:text-foreground transition-colors"
+            >
+              Contact
+            </a>
           </div>
         </div>
       </footer>

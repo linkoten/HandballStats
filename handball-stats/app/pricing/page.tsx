@@ -77,22 +77,22 @@ const TOKEN_PACKS = [
   {
     id: "SINGLE",
     name: "1 Jeton",
-    price: 5,
+    price: 3.5,
     tokens: 1,
     savings: null,
   },
   {
     id: "PACK_3",
     name: "3 Jetons",
-    price: 13,
+    price: 9,
     tokens: 3,
-    savings: "13%",
+    savings: "14%",
     popular: true,
   },
   {
     id: "PACK_5",
     name: "5 Jetons",
-    price: 20,
+    price: 14,
     tokens: 5,
     savings: "20%",
   },
@@ -221,7 +221,51 @@ export default function PricingPage() {
         </div>
 
         {/* Plans d'abonnement avec nouveau design */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-16">
+
+          {/* Carte Free Trial */}
+          <Card className="relative transition-all duration-300 hover:scale-105 hover:shadow-2xl bg-card/40 backdrop-blur-md overflow-hidden border-2 border-dashed border-secondary/50 hover:border-secondary">
+            <div className="absolute top-0 right-0">
+              <div className="bg-secondary/20 text-secondary text-xs font-sport uppercase tracking-wider font-bold px-3 py-1 rounded-bl-xl">
+                🎁 Gratuit
+              </div>
+            </div>
+            <CardHeader className="pb-4 relative z-10">
+              <CardTitle className="text-3xl font-sport uppercase italic tracking-wide text-foreground">
+                Free Trial
+              </CardTitle>
+              <CardDescription className="text-base font-medium">
+                <span className="inline-flex items-center gap-1.5 bg-secondary/10 text-secondary px-2 py-1 rounded-sm text-xs font-bold uppercase tracking-wide">
+                  30 jours d&apos;essai
+                </span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              <div className="mb-6 pb-6 border-b border-border/50">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-5xl font-mono font-black tracking-tighter text-foreground">0</span>
+                  <span className="text-xl font-bold text-muted-foreground">€</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Sans carte bancaire</p>
+              </div>
+              <ul className="space-y-3 mb-6">
+                {["1 compétition scrapée", "1 club + 1 équipe", "30 jours d'accès complet", "Données officielles FFHB"].map((feature) => (
+                  <li key={feature} className="flex items-start gap-3 text-sm">
+                    <span className="text-secondary mt-0.5">✓</span>
+                    <span className="text-muted-foreground font-medium">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+            <CardFooter className="relative z-10">
+              <Link href="/onboarding" className="w-full">
+                <Button variant="outline" className="w-full font-sport uppercase tracking-wide text-sm py-6 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-all">
+                  🎟️ Obtenir un code
+                </Button>
+              </Link>
+            </CardFooter>
+          </Card>
+
           {PLANS.map((plan) => (
             <Card
               key={plan.id}

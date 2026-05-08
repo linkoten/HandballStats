@@ -2,13 +2,15 @@ export const dynamic = "force-dynamic";
 import { getUserProfile, getUserTokens } from "@/app/actions";
 import { getEquipesByClub } from "@/app/actions/equipe-actions";
 import { getClubEntraineurs } from "@/app/actions/entraineur-actions";
+import { getFreeTrialStatus } from "@/app/actions/free-trial-actions";
 import DashboardClient from "./client";
 
 export default async function DashboardPage() {
   // Récupérer les données utilisateur et tokens via Server Actions
-  const [userResult, tokensResult] = await Promise.allSettled([
+  const [userResult, tokensResult, freeTrialResult] = await Promise.allSettled([
     getUserProfile(),
     getUserTokens(),
+    getFreeTrialStatus(),
   ]);
 
   const userData =
@@ -20,6 +22,9 @@ export default async function DashboardPage() {
     tokensResult.status === "fulfilled" && tokensResult.value.success
       ? tokensResult.value.data
       : null;
+
+  const freeTrialData =
+    freeTrialResult.status === "fulfilled" ? freeTrialResult.value : null;
 
   const error =
     userResult.status === "rejected"
@@ -53,6 +58,7 @@ export default async function DashboardPage() {
       equipesData={equipesData}
       coachCount={coachCount}
       error={error}
+      freeTrialData={freeTrialData}
     />
   );
 }

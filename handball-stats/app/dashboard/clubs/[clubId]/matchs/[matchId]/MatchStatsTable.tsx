@@ -32,6 +32,7 @@ interface StatRow {
   exclusions_2min: number | null;
   avertissements: number | null;
   disqualifications: number | null;
+  sept_metres: number | null;
   joueurs?: {
     nom_prenom?: string | null;
     num_maillot?: string | null;
@@ -44,6 +45,9 @@ interface EditValues {
   tirs: number;
   arrets: number;
   exclusions_2min: number;
+  avertissements: number;
+  discipline: number;
+  sept_metres: number;
 }
 
 interface Props {
@@ -65,6 +69,9 @@ export function MatchStatsTable({ stats: initialStats, canEdit }: Props) {
       tirs: stat.tirs ?? 0,
       arrets: stat.arrets ?? 0,
       exclusions_2min: stat.exclusions_2min ?? 0,
+      avertissements: stat.avertissements ?? 0,
+      discipline: stat.disqualifications ?? 0,
+      sept_metres: 0,
     });
   }
 
@@ -159,6 +166,9 @@ export function MatchStatsTable({ stats: initialStats, canEdit }: Props) {
             </TableHead>
             <TableHead className="text-center font-sport italic text-[10px] uppercase">
               Discipline
+            </TableHead>
+            <TableHead className="text-center font-sport italic text-[10px] uppercase bg-secondary/5">
+              7m
             </TableHead>
             {canEdit && (
               <TableHead className="w-20 text-center font-sport italic text-[10px] uppercase" />
@@ -281,26 +291,46 @@ export function MatchStatsTable({ stats: initialStats, canEdit }: Props) {
 
                 {/* Discipline */}
                 <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    {(stat.avertissements ?? 0) > 0 && (
-                      <div
-                        className="w-3 h-4 bg-yellow-400 rounded-sm shadow-sm border border-yellow-500"
-                        title="Avertissement"
-                      />
-                    )}
-                    {(stat.disqualifications ?? 0) > 0 && (
-                      <div
-                        className="w-3 h-4 bg-red-600 rounded-sm shadow-sm border border-red-700"
-                        title="Disqualification"
-                      />
-                    )}
-                    {!(stat.avertissements ?? 0) &&
-                      !(stat.disqualifications ?? 0) && (
-                        <span className="text-muted-foreground/20 text-xs">
-                          -
-                        </span>
+                  {isEditing ? (
+                    <div className="flex items-end justify-center gap-2">
+                      <NumInput field="avertissements" label="Jaune" />
+                      <NumInput field="discipline" label="Rouge" />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1.5">
+                      {(stat.avertissements ?? 0) > 0 && (
+                        <div
+                          className="w-3 h-4 bg-yellow-400 rounded-sm shadow-sm border border-yellow-500"
+                          title="Avertissement"
+                        />
                       )}
-                  </div>
+                      {(stat.disqualifications ?? 0) > 0 && (
+                        <div
+                          className="w-3 h-4 bg-red-600 rounded-sm shadow-sm border border-red-700"
+                          title="Disqualification"
+                        />
+                      )}
+                      {!(stat.avertissements ?? 0) &&
+                        !(stat.disqualifications ?? 0) && (
+                          <span className="text-muted-foreground/20 text-xs">
+                            -
+                          </span>
+                        )}
+                    </div>
+                  )}
+                </TableCell>
+
+                {/* 7 mètres */}
+                <TableCell className="text-center bg-secondary/5">
+                  {isEditing ? (
+                    <NumInput field="sept_metres" label="7m" />
+                  ) : (stat.sept_metres ?? 0) > 0 ? (
+                    <span className="text-sm font-black font-sport italic text-secondary">
+                      {stat.sept_metres}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/20 text-xs">-</span>
+                  )}
                 </TableCell>
 
                 {/* Boutons d'édition */}

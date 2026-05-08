@@ -548,6 +548,9 @@ export async function updateStatistiquesJoueur(
     tirs?: number;
     arrets?: number;
     exclusions_2min?: number;
+    avertissements?: number;
+    discipline?: number;
+    sept_metres?: number;
   },
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -595,12 +598,21 @@ export async function updateStatistiquesJoueur(
       tirs?: number;
       arrets?: number;
       exclusions_2min?: number;
+      avertissements?: number;
+      discipline?: number;
+      sept_metres?: number;
     } = {};
     if (data.buts !== undefined) clean.buts = Math.max(0, data.buts);
     if (data.tirs !== undefined) clean.tirs = Math.max(0, data.tirs);
     if (data.arrets !== undefined) clean.arrets = Math.max(0, data.arrets);
     if (data.exclusions_2min !== undefined)
       clean.exclusions_2min = Math.max(0, data.exclusions_2min);
+    if (data.avertissements !== undefined)
+      clean.avertissements = Math.max(0, data.avertissements);
+    if (data.discipline !== undefined)
+      clean.discipline = Math.max(0, data.discipline);
+    if (data.sept_metres !== undefined)
+      clean.sept_metres = Math.max(0, data.sept_metres);
 
     await prisma.statistiques_joueur.update({
       where: { id: statId },

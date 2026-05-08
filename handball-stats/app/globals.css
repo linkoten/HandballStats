@@ -196,3 +196,8 @@ body::before {
 .recharts-wrapper > svg {
   overflow: visible !important;
 }
+
+/* Delay tooltip hide so mouse can reach interactive tooltips */
+.recharts-tooltip-wrapper {
+  transition: opacity 300ms ease 200ms, visibility 300ms ease 200ms !important;
+}

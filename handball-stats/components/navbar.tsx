@@ -72,7 +72,7 @@ export function Navbar() {
     { href: equipesUrl, label: "Équipes", icon: Users, requiresClub: true },
     { href: competitionsUrl, label: "Compétitions", icon: Trophy, requiresClub: true },
     { href: matchsUrl, label: "Matchs", icon: Calendar, requiresClub: true },
-    { href: statsUrl, label: "Stats", icon: BarChart3, requiresClub: true },
+    { href: statsUrl, label: "Stats", icon: BarChart3, requiresClub: true, featured: true },
     {
       href: "/pricing",
       label: "Abonnement",
@@ -125,6 +125,9 @@ export function Navbar() {
                       link.highlight &&
                         !isActive &&
                         "text-secondary hover:text-secondary hover:bg-secondary/5",
+                      (link as any).featured &&
+                        !isActive &&
+                        "text-primary ring-2 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/15 hover:ring-primary/50 hover:bg-primary/10",
                     )}
                   >
                     <link.icon

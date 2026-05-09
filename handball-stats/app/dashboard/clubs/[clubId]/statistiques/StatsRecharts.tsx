@@ -930,7 +930,7 @@ function ChartCard({
 }) {
   return (
     <Card
-      className={`rounded-3xl border-2 overflow-visible relative hover:z-[20] ${className}`}
+      className={`rounded-3xl border-2 overflow-visible relative hover:z-20 ${className}`}
     >
       <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5 rounded-t-3xl overflow-hidden">
         <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
@@ -4849,353 +4849,253 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
         </div>
       )}
 
-      {/* ─── Gardiens — % Arrêts ───────────────────────────────────────── */}
+      {/* ─── Gardiens — 3 Nuages de points vs Matchs joués ─────────── */}
       {aggGardiens.length > 0 && (
-        <div className="relative z-40 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <ChartCard title="Gardiens — Moy. Arrêts vs % Arrêts (matchs ≥ 2 arrêts)">
-              {/* Recherche gardien */}
-              <div className="mb-3 relative">
-                <svg
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path strokeLinecap="round" d="m21 21-4.35-4.35" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Rechercher un gardien…"
-                  value={gardienSearch}
-                  onChange={(e) => setGardienSearch(e.target.value)}
-                  className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-              <ResponsiveContainer
-                width="100%"
-                height={320}
-                style={{ overflow: "visible" }}
-              >
-                <ScatterChart
-                  margin={{ top: 16, right: 32, bottom: 32, left: 32 }}
-                >
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-sport italic text-xl uppercase tracking-tight">
+              Gardiens — Performance vs Matchs joués
+            </h3>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              Nuages de points · taille du point proportionnelle au nombre de matchs
+            </p>
+          </div>
+          {/* Recherche gardien partagée */}
+          <div className="relative max-w-xs">
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path strokeLinecap="round" d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Rechercher un gardien…"
+              value={gardienSearch}
+              onChange={(e) => setGardienSearch(e.target.value)}
+              className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* ── Total Arrêts vs Matchs ── */}
+            <ChartCard title="Total Arrêts vs Matchs joués">
+              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+                <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 16 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                  <XAxis
-                    dataKey="moyArrets"
-                    type="number"
-                    name="Moy. Arrêts"
-                    tick={{ fontSize: 11 }}
-                    label={{
-                      value: "Moy. Arrêts / match",
-                      position: "insideBottom",
-                      offset: -16,
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
+                  <XAxis dataKey="matchs" type="number" name="Matchs joués" tick={{ fontSize: 10 }}
+                    label={{ value: "Matchs joués", position: "insideBottom", offset: -16, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   />
-                  <YAxis
-                    dataKey="pctArrets"
-                    type="number"
-                    name="% Arrêts"
-                    domain={[0, 100]}
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v) => `${v}%`}
-                    label={{
-                      value: "% Arrêts",
-                      angle: -90,
-                      position: "insideLeft",
-                      offset: 12,
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
+                  <YAxis dataKey="arrets" type="number" name="Total Arrêts" tick={{ fontSize: 10 }}
+                    label={{ value: "Total Arrêts", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   />
-                  <ZAxis dataKey="matchs" range={[50, 200]} />
-                  <Tooltip
-                    isAnimationActive={false}
-                    cursor={{ strokeDasharray: "3 3" }}
+                  <ZAxis dataKey="matchs" range={[40, 160]} />
+                  <Tooltip isAnimationActive={false} cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={<GardienTooltip />}
                   />
-                  <Scatter
-                    name="Gardiens"
-                    data={[...filteredGardiens].sort(
-                      (a, b) => b.pctArrets - a.pctArrets,
-                    )}
+                  <Scatter name="Gardiens" data={filteredGardiens}
                     shape={(props: any) => {
-                      const { cx, cy, payload } = props as {
-                        cx: number;
-                        cy: number;
-                        payload: AggGardien;
-                      };
-                      const sortedByPct = [...aggGardiens].sort(
-                        (a, b) => b.pctArrets - a.pctArrets,
-                      );
-                      const rank =
-                        sortedByPct.findIndex((g) => g.id === payload.id) + 1;
+                      const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
+                      const sorted = [...aggGardiens].sort((a, b) => b.arrets - a.arrets);
+                      const rank = sorted.findIndex((g) => g.id === payload.id) + 1;
                       const isTop3 = rank <= 3;
                       return (
                         <g>
-                          {/* large transparent circle for reliable hover detection */}
                           <circle cx={cx} cy={cy} r={14} fill="transparent" />
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r={isTop3 ? 7 : 5}
-                            fill={payload.equipeColor}
-                            opacity={isTop3 ? 1 : 0.75}
-                            stroke={isTop3 ? "white" : "none"}
-                            strokeWidth={1.5}
-                          />
-                          {isTop3 && (
-                            <text
-                              x={cx}
-                              y={cy - 10}
-                              textAnchor="middle"
-                              fontSize={9}
-                              fill={payload.equipeColor}
-                              fontWeight="bold"
-                            >
-                              #{rank}
-                            </text>
-                          )}
+                          <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5} fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75} stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
+                          {isTop3 && <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">#{rank}</text>}
                         </g>
                       );
                     }}
                   />
                 </ScatterChart>
               </ResponsiveContainer>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
-                {visibleEquipes.map((eq) => (
-                  <div
-                    key={eq.id}
-                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                      style={{ background: equipeColorMap[eq.id] }}
-                    />
-                    {eq.nom}
-                  </div>
-                ))}
-              </div>
             </ChartCard>
-          </div>
-          <Card className="rounded-3xl border-2 overflow-hidden">
-            <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
-              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
-                Top 5 — % Arrêts
-              </CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                ≥ 5 matchs
-              </p>
-            </CardHeader>
-            <CardContent className="p-0">
-              {[...aggGardiensQual]
-                .sort((a, b) => b.pctArrets - a.pctArrets)
-                .slice(0, 5)
-                .map((g, i) => (
-                  <div
-                    key={g.id}
-                    className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
-                  >
-                    <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
-                    >
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-xs truncate">{g.nom}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ background: g.equipeColor }}
-                        />
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {g.equipeNom}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span
-                        className="font-sport italic font-black text-base"
-                        style={{ color: arretsColor(g.pctArrets) }}
-                      >
-                        {g.pctArrets}%
-                      </span>
-                      <p className="text-[9px] text-muted-foreground">
-                        {g.matchs} matchs
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
-      {/* ─── Gardiens — Moy. Arrêts vs Total Arrêts ──────────────────── */}
-      {aggGardiens.length > 0 && (
-        <div className="relative z-35 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <ChartCard title="Gardiens — Moy. Arrêts / Match vs Total Arrêts">
-              <ResponsiveContainer
-                width="100%"
-                height={320}
-                style={{ overflow: "visible" }}
-              >
-                <ScatterChart
-                  margin={{ top: 16, right: 32, bottom: 32, left: 32 }}
-                >
+            {/* ── Moy. Arrêts vs Matchs ── */}
+            <ChartCard title="Moy. Arrêts / Match vs Matchs joués">
+              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+                <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 16 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                  <XAxis
-                    dataKey="moyArrets"
-                    type="number"
-                    name="Moy. Arrêts"
-                    tick={{ fontSize: 11 }}
-                    label={{
-                      value: "Moy. Arrêts / match",
-                      position: "insideBottom",
-                      offset: -16,
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
+                  <XAxis dataKey="matchs" type="number" name="Matchs joués" tick={{ fontSize: 10 }}
+                    label={{ value: "Matchs joués", position: "insideBottom", offset: -16, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   />
-                  <YAxis
-                    dataKey="arrets"
-                    type="number"
-                    name="Total Arrêts"
-                    tick={{ fontSize: 11 }}
-                    label={{
-                      value: "Total Arrêts",
-                      angle: -90,
-                      position: "insideLeft",
-                      offset: 12,
-                      fontSize: 11,
-                      fill: "hsl(var(--muted-foreground))",
-                    }}
+                  <YAxis dataKey="moyArrets" type="number" name="Moy. Arrêts" tick={{ fontSize: 10 }}
+                    label={{ value: "Moy. Arrêts", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   />
-                  <ZAxis dataKey="matchs" range={[50, 200]} />
-                  <Tooltip
-                    isAnimationActive={false}
-                    cursor={{ strokeDasharray: "3 3" }}
+                  <ZAxis dataKey="matchs" range={[40, 160]} />
+                  <Tooltip isAnimationActive={false} cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
-                    content={<GardienArretTooltip />}
+                    content={<GardienTooltip />}
                   />
-                  <Scatter
-                    name="Gardiens"
-                    data={[...filteredGardiens].sort(
-                      (a, b) => b.arrets - a.arrets,
-                    )}
+                  <Scatter name="Gardiens" data={filteredGardiens}
                     shape={(props: any) => {
-                      const { cx, cy, payload } = props as {
-                        cx: number;
-                        cy: number;
-                        payload: AggGardien;
-                      };
-                      const sortedByArrets = [...aggGardiensQual].sort(
-                        (a, b) => b.arrets - a.arrets,
-                      );
-                      const rank =
-                        sortedByArrets.findIndex((g) => g.id === payload.id) +
-                        1;
-                      const isTop3 = rank >= 1 && rank <= 3;
+                      const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
+                      const sorted = [...aggGardiens].sort((a, b) => b.moyArrets - a.moyArrets);
+                      const rank = sorted.findIndex((g) => g.id === payload.id) + 1;
+                      const isTop3 = rank <= 3;
                       return (
                         <g>
-                          {/* large transparent circle for reliable hover detection */}
                           <circle cx={cx} cy={cy} r={14} fill="transparent" />
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r={isTop3 ? 7 : 5}
-                            fill={payload.equipeColor}
-                            opacity={isTop3 ? 1 : 0.75}
-                            stroke={isTop3 ? "white" : "none"}
-                            strokeWidth={1.5}
-                          />
-                          {isTop3 && (
-                            <text
-                              x={cx}
-                              y={cy - 10}
-                              textAnchor="middle"
-                              fontSize={9}
-                              fill={payload.equipeColor}
-                              fontWeight="bold"
-                            >
-                              #{rank}
-                            </text>
-                          )}
+                          <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5} fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75} stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
+                          {isTop3 && <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">#{rank}</text>}
                         </g>
                       );
                     }}
                   />
                 </ScatterChart>
               </ResponsiveContainer>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1 justify-center">
-                {visibleEquipes.map((eq) => (
-                  <div
-                    key={eq.id}
-                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                      style={{ background: equipeColorMap[eq.id] }}
-                    />
-                    {eq.nom}
-                  </div>
-                ))}
-              </div>
+            </ChartCard>
+
+            {/* ── % Arrêts vs Matchs ── */}
+            <ChartCard title="% Arrêts vs Matchs joués">
+              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
+                <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis dataKey="matchs" type="number" name="Matchs joués" tick={{ fontSize: 10 }}
+                    label={{ value: "Matchs joués", position: "insideBottom", offset: -16, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis dataKey="pctArrets" type="number" name="% Arrêts" domain={[0, 100]} tick={{ fontSize: 10 }}
+                    tickFormatter={(v) => `${v}%`}
+                    label={{ value: "% Arrêts", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <ZAxis dataKey="matchs" range={[40, 160]} />
+                  <Tooltip isAnimationActive={false} cursor={{ strokeDasharray: "3 3" }}
+                    wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
+                    content={<GardienTooltip />}
+                  />
+                  <Scatter name="Gardiens" data={filteredGardiens}
+                    shape={(props: any) => {
+                      const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
+                      const sorted = [...aggGardiens].sort((a, b) => b.pctArrets - a.pctArrets);
+                      const rank = sorted.findIndex((g) => g.id === payload.id) + 1;
+                      const isTop3 = rank <= 3;
+                      return (
+                        <g>
+                          <circle cx={cx} cy={cy} r={14} fill="transparent" />
+                          <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5} fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75} stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
+                          {isTop3 && <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">#{rank}</text>}
+                        </g>
+                      );
+                    }}
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
             </ChartCard>
           </div>
-          <Card className="rounded-3xl border-2 overflow-hidden">
-            <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
-              <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
-                Top 5 — Total Arrêts
-              </CardTitle>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                ≥ 5 matchs
-              </p>
-            </CardHeader>
-            <CardContent className="p-0">
-              {[...aggGardiensQual]
-                .sort((a, b) => b.arrets - a.arrets)
-                .slice(0, 5)
-                .map((g, i) => (
-                  <div
-                    key={g.id}
-                    className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
-                  >
-                    <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
-                    >
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-xs truncate">{g.nom}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ background: g.equipeColor }}
-                        />
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {g.equipeNom}
-                        </p>
+
+          {/* Légende équipes */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 justify-center">
+            {visibleEquipes.map((eq) => (
+              <div key={eq.id} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ background: equipeColorMap[eq.id] }} />
+                {eq.nom}
+              </div>
+            ))}
+          </div>
+
+          {/* ── Top 5 gardiens ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Top 5 — Total Arrêts */}
+            <Card className="rounded-3xl border-2 overflow-hidden">
+              <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
+                <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+                  Top 5 — Total Arrêts
+                </CardTitle>
+                <p className="text-[10px] text-muted-foreground mt-0.5">≥ 5 matchs</p>
+              </CardHeader>
+              <CardContent className="p-0">
+                {[...aggGardiensQual]
+                  .sort((a, b) => b.arrets - a.arrets)
+                  .slice(0, 5)
+                  .map((g, i) => (
+                    <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-xs truncate">{g.nom}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.equipeColor }} />
+                          <p className="text-[10px] text-muted-foreground truncate">{g.equipeNom}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-sport italic font-black text-base text-indigo-500">{g.arrets}</span>
+                        <p className="text-[9px] text-muted-foreground">{g.matchs}m · {g.moyArrets}/m</p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="font-sport italic font-black text-base text-indigo-500">
-                        {g.arrets}
+                  ))}
+              </CardContent>
+            </Card>
+
+            {/* Top 5 — Moy. Arrêts */}
+            <Card className="rounded-3xl border-2 overflow-hidden">
+              <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
+                <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+                  Top 5 — Moy. Arrêts / Match
+                </CardTitle>
+                <p className="text-[10px] text-muted-foreground mt-0.5">≥ 5 matchs</p>
+              </CardHeader>
+              <CardContent className="p-0">
+                {[...aggGardiensQual]
+                  .sort((a, b) => b.moyArrets - a.moyArrets)
+                  .slice(0, 5)
+                  .map((g, i) => (
+                    <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+                        {i + 1}
                       </span>
-                      <p className="text-[9px] text-muted-foreground">
-                        {g.matchs}m · {g.moyArrets}/m
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-xs truncate">{g.nom}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.equipeColor }} />
+                          <p className="text-[10px] text-muted-foreground truncate">{g.equipeNom}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-sport italic font-black text-base text-indigo-500">{g.moyArrets}</span>
+                        <p className="text-[9px] text-muted-foreground">{g.matchs}m · {g.arrets} total</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-            </CardContent>
-          </Card>
+                  ))}
+              </CardContent>
+            </Card>
+
+            {/* Top 5 — % Arrêts */}
+            <Card className="rounded-3xl border-2 overflow-hidden">
+              <CardHeader className="bg-primary/10 border-b border-primary/20 pb-3 pt-4 px-5">
+                <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
+                  Top 5 — % Arrêts
+                </CardTitle>
+                <p className="text-[10px] text-muted-foreground mt-0.5">≥ 5 matchs</p>
+              </CardHeader>
+              <CardContent className="p-0">
+                {[...aggGardiensQual]
+                  .sort((a, b) => b.pctArrets - a.pctArrets)
+                  .slice(0, 5)
+                  .map((g, i) => (
+                    <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-xs truncate">{g.nom}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.equipeColor }} />
+                          <p className="text-[10px] text-muted-foreground truncate">{g.equipeNom}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-sport italic font-black text-base" style={{ color: arretsColor(g.pctArrets) }}>{g.pctArrets}%</span>
+                        <p className="text-[9px] text-muted-foreground">{g.matchs}m · {g.arrets} arrêts</p>
+                      </div>
+                    </div>
+                  ))}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
@@ -9177,7 +9077,7 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
         }}
       >
         {/* Mobile: burger menu */}
-        <div className="sm:hidden mb-6 relative z-[35]">
+        <div className="sm:hidden mb-6 relative z-60">
           <button
             onClick={() => setMobileMenuOpen((o) => !o)}
             className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border-2 border-primary/20 font-sport italic uppercase text-xs shadow-sm"
@@ -9192,7 +9092,7 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
             />
           </button>
           {mobileMenuOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden z-40">
+            <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden z-60">
               {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}

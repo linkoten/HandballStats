@@ -10,8 +10,7 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url:
-      process.env.DATABASE_URL ||
-      "prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19xWDFBLVZGSnVyRXlzcC1vYlpWVHciLCJhcGlfa2V5IjoiMDFLSDlNSDREWVhLUTJBMFE2RlNTQlcyME0iLCJ0ZW5hbnRfaWQiOiJlOWM2OWVjMWI1Nzk4OWNlYTRlZGM2YmU0NzhiYTBmZjRlNmExMzYzYmRhYTBmNjE4ZTE4MTA3OTJkMDU2ODIwIiwiaW50ZXJuYWxfc2VjcmV0IjoiMTliM2Y4ZDItNThkNi00MzE5LTkxMzMtMDA3NDg0NjE0YTMzIn0.H3D-buniAxXDmxaF1Ax4o3K4zPoiyuayM2jJHeAjgQo",
+    url: process.env.DATABASE_URL!,
+    directUrl: process.env.DIRECT_URL,
   },
 });

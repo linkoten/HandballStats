@@ -5118,10 +5118,10 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       </div>
       <div className="relative z-20">
         <ScatterSection
-          title="Moyenne Buts vs Moyenne Tirs / Match"
-          xKey="moyTirs"
+          title="Moy. Buts / Match vs Matchs joués"
+          xKey="matchs"
           yKey="moyButs"
-          xLabel="Moy. Tirs"
+          xLabel="Matchs joués"
           yLabel="Moy. Buts"
           sortKey="moyButs"
           top5={top5MoyButs}

@@ -88,20 +88,20 @@ export const SUBSCRIPTION_PLANS = {
 export const TOKEN_PACKS = {
   SINGLE: {
     name: "1 Jeton",
-    price: 3.5,
+    price: 5,
     priceId: process.env.STRIPE_TOKEN_1_PRICE_ID!,
     tokens: 1,
   },
   PACK_3: {
     name: "3 Jetons",
-    price: 9,
+    price: 13,
     priceId: process.env.STRIPE_TOKEN_3_PRICE_ID!,
     tokens: 3,
-    savings: "14%",
+    savings: "13%",
   },
   PACK_5: {
     name: "5 Jetons",
-    price: 14,
+    price: 20,
     priceId: process.env.STRIPE_TOKEN_5_PRICE_ID!,
     tokens: 5,
     savings: "20%",

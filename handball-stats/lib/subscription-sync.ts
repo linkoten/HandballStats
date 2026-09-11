@@ -62,6 +62,32 @@ export async function syncSubscriptionFromStripe(
   });
   const tokensToSet = subscriptionLimit?.maxTokens || 0;
 
+  // Un changement de plan ne doit pas écraser la conso/les achats en cours :
+  // on préserve les jetons achetés à la carte et la consommation déjà faite,
+  // seule la part "plan" de l'allocation change.
+  const previousUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { subscription: true, tokensRemaining: true, baseTokenAllocation: true },
+  });
+  const previousPlanLimit = previousUser
+    ? await prisma.subscriptionLimit.findUnique({
+        where: { subscriptionType: previousUser.subscription },
+      })
+    : null;
+  const previousPlanMaxTokens = previousPlanLimit?.maxTokens ?? 0;
+
+  const extraPurchasedTokens = Math.max(
+    0,
+    (previousUser?.baseTokenAllocation ?? 0) - previousPlanMaxTokens,
+  );
+  const tokensUsed = Math.max(
+    0,
+    (previousUser?.baseTokenAllocation ?? 0) - (previousUser?.tokensRemaining ?? 0),
+  );
+
+  const newBaseTokenAllocation = tokensToSet + extraPurchasedTokens;
+  const newTokensRemaining = Math.max(0, newBaseTokenAllocation - tokensUsed);
+
   // Depuis l'API Stripe 2025+, current_period_end est porté par l'item de
   // l'abonnement (et non plus par l'abonnement lui-même).
   const currentPeriodEnd =
@@ -78,8 +104,8 @@ export async function syncSubscriptionFromStripe(
         stripeSubscriptionId: subscription.id,
         stripePriceId: priceId,
         stripeCurrentPeriodEnd: new Date(currentPeriodEnd * 1000),
-        tokensRemaining: tokensToSet,
-        baseTokenAllocation: tokensToSet,
+        tokensRemaining: newTokensRemaining,
+        baseTokenAllocation: newBaseTokenAllocation,
       },
     });
 
@@ -87,14 +113,14 @@ export async function syncSubscriptionFromStripe(
       data: {
         userId,
         action: "SUBSCRIPTION",
-        amount: tokensToSet,
-        reason: `Abonnement ${subscriptionType} activé - ${tokensToSet} tokens attribués`,
+        amount: newTokensRemaining,
+        reason: `Abonnement ${subscriptionType} activé - ${newTokensRemaining} tokens disponibles (dont ${extraPurchasedTokens} achetés conservés)`,
       },
     });
   });
 
   console.log(
-    `✅ Abonnement ${subscriptionType} activé pour user ${userId} - ${tokensToSet} tokens attribués`,
+    `✅ Abonnement ${subscriptionType} activé pour user ${userId} - ${newTokensRemaining} tokens disponibles`,
   );
 }
 

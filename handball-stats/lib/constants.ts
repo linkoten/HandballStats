@@ -3,4 +3,4 @@
 export const CURRENT_SAISON = "2026-2027";
 
 // Adresse mail de contact affichée dans l'app (support, demandes diverses).
-export const CONTACT_EMAIL = "catto.francois@hotmail.fr";
+export const CONTACT_EMAIL = "contact@hand-stats.fr";

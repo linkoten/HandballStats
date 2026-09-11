@@ -36,7 +36,8 @@ export default function OnboardingWithFreeTrial() {
             Bienvenue
           </p>
           <h1 className="text-4xl font-sport font-black italic uppercase tracking-tighter">
-            Comment voulez-vous <span className="text-secondary">commencer</span> ?
+            Comment voulez-vous{" "}
+            <span className="text-secondary">commencer</span> ?
           </h1>
           <p className="text-white/70 text-sm">
             Essai gratuit 30 jours ou abonnement direct.

@@ -156,7 +156,9 @@ export async function generateFreePlanCodes(
 
     for (let i = 0; i < n; i++) {
       // Génère un code 12 chars alphanumérique
-      const raw = nanoid(12).toUpperCase().replace(/[^A-Z0-9]/g, "X");
+      const raw = nanoid(12)
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "X");
       codes.push(raw);
     }
 

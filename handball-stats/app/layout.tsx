@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Russo_One } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { frFR } from "@clerk/localizations";
 import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
 import { UserSync } from "@/components/user-sync";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -43,6 +44,7 @@ export default function RootLayout({
           <UserSync />
           <Navbar />
           <main className="pb-20">{children}</main>
+          <Footer />
         </body>
       </html>
     </ClerkProvider>

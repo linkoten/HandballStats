@@ -1,9 +1,11 @@
 import { getCurrentUser } from "@/app/actions/user-actions";
 import { getClubSubscriptionStatus } from "@/lib/access-control";
+import { getClubEntraineurs } from "@/app/actions/entraineur-actions";
 import prisma from "@/lib/prisma";
 import { SelectCompetitionsForm } from "./configure-access/SelectCompetitionsForm";
+import EntraineursClient from "./entraineurs/EntraineursClient";
 import { Button } from "@/components/ui/button";
-import { Lock, CreditCard, Calendar, Settings2, Trophy } from "lucide-react";
+import { Lock, CreditCard, Calendar, Settings2, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 
 interface Props {
@@ -191,6 +193,91 @@ export default async function ClubLayout({ children, params }: Props) {
     );
   }
 
-  // ── 3. ACCÈS NORMAL ─────────────────────────────────────────────────
+  // ── 3. ENTRAÎNEURS EN EXCÉDENT (downgrade) ───────────────────────────
+  const entraineursResult = await getClubEntraineurs(clubIdNum);
+  const maxEntraineurs = entraineursResult.data?.maxEntraineurs ?? -1;
+  const members = entraineursResult.data?.members ?? [];
+  const entraineurExcess =
+    maxEntraineurs !== -1 && members.length > maxEntraineurs;
+
+  if (entraineurExcess) {
+    // Membres (coach/joueur) : attente de configuration
+    if (currentUser?.role !== "ADMIN_CLUB") {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-8 bg-background">
+          <div className="max-w-md w-full text-center space-y-6">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
+              <Settings2 className="w-10 h-10 text-muted-foreground animate-spin-slow" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-sport font-black italic uppercase tracking-tighter">
+                Configuration en cours
+              </h2>
+              <p className="text-muted-foreground">
+                L'administrateur du club finalise la configuration des accès
+                suite à un changement d'abonnement.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Revenez dans quelques instants.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ADMIN_CLUB : doit retirer les entraîneurs en trop avant de retrouver l'accès
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-primary font-sport italic text-sm">
+              <Users size={16} className="fill-current" />
+              CONFIGURATION REQUISE
+            </div>
+            <h1 className="text-4xl font-sport font-black italic uppercase tracking-tighter">
+              Trop d'<span className="text-primary">entraîneurs</span>
+            </h1>
+            <p className="text-muted-foreground">
+              Suite à votre changement de plan, votre quota est désormais de{" "}
+              <span className="font-black text-foreground">
+                {maxEntraineurs}
+              </span>{" "}
+              entraîneur{maxEntraineurs !== 1 ? "s" : ""} (actuellement{" "}
+              {members.length}). Retirez le rôle entraîneur à{" "}
+              {members.length - maxEntraineurs} membre(s) pour retrouver
+              l'accès complet au club.
+            </p>
+            <p className="text-sm text-muted-foreground border-l-2 border-primary pl-3">
+              Les membres du club (coachs, joueurs) n'ont accès à aucune donnée
+              tant que cette configuration n'est pas terminée. Un entraîneur
+              retiré devient Joueur du club.
+            </p>
+          </div>
+
+          <EntraineursClient
+            clubId={clubIdNum}
+            currentUserId={currentUser.id}
+            currentUserRole={currentUser.role}
+            initialMembers={members}
+            maxEntraineurs={maxEntraineurs}
+            planKey={entraineursResult.data?.planKey ?? "GRATUIT"}
+          />
+
+          <p className="text-sm text-muted-foreground text-center">
+            Besoin de garder plus d'entraîneurs ?{" "}
+            <Link
+              href="/pricing"
+              className="text-primary font-bold hover:underline"
+            >
+              Passez à un plan supérieur
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 4. ACCÈS NORMAL ─────────────────────────────────────────────────
   return <>{children}</>;
 }

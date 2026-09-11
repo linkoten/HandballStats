@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CURRENT_SAISON } from "@/lib/constants";
 import {
   Select,
   SelectContent,
@@ -58,7 +59,8 @@ export function CompetitionsClient({
 }: Props) {
   const [search, setSearch] = useState("");
   const [equipeFilter, setEquipeFilter] = useState<string>("all");
-  const [saisonFilter, setSaisonFilter] = useState<string>("all");
+  // Par défaut, on n'affiche que la saison en cours.
+  const [saisonFilter, setSaisonFilter] = useState<string>(CURRENT_SAISON);
 
   const equipes = useMemo(
     () => Array.from(new Set(competitions.map((c) => c.equipeNom))).sort(),
@@ -84,12 +86,12 @@ export function CompetitionsClient({
   }, [competitions, search, equipeFilter, saisonFilter]);
 
   const hasFilters =
-    search !== "" || equipeFilter !== "all" || saisonFilter !== "all";
+    search !== "" || equipeFilter !== "all" || saisonFilter !== CURRENT_SAISON;
 
   function resetFilters() {
     setSearch("");
     setEquipeFilter("all");
-    setSaisonFilter("all");
+    setSaisonFilter(CURRENT_SAISON);
   }
 
   return (
@@ -192,7 +194,7 @@ export function CompetitionsClient({
       </div>
 
       {/* Compteur résultats */}
-      <div className="px-1">
+      <div className="px-1 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold uppercase text-muted-foreground">
           {filtered.length} compétition{filtered.length !== 1 ? "s" : ""}
           {hasFilters && (
@@ -202,6 +204,28 @@ export function CompetitionsClient({
             </span>
           )}
         </p>
+
+        {saisonFilter !== "all" ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSaisonFilter("all")}
+            className="rounded-xl font-bold uppercase text-xs"
+          >
+            <Layers size={13} className="mr-1.5" /> Afficher toutes les
+            compétitions
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSaisonFilter(CURRENT_SAISON)}
+            className="rounded-xl font-bold uppercase text-xs"
+          >
+            <Trophy size={13} className="mr-1.5" /> Revenir à la saison{" "}
+            {CURRENT_SAISON}
+          </Button>
+        )}
       </div>
 
       {/* Bannière quota limité */}

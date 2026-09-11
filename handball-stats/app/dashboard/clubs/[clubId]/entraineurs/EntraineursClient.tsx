@@ -75,7 +75,7 @@ export default function EntraineursClient({
     startTransition(async () => {
       const result = await removeEntraineurRole(memberId, clubId);
       if (result.success) {
-        toast.success("L'entraîneur est maintenant Utilisateur");
+        toast.success("L'entraîneur est maintenant Joueur du club");
         setMembers((prev) => prev.filter((m) => m.id !== memberId));
         setConfirmAction(null);
         router.refresh();

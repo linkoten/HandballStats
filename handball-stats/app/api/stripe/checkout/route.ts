@@ -5,6 +5,7 @@ import {
   createStripeCustomer,
   createSubscriptionCheckoutSession,
   createTokenCheckoutSession,
+  stripe,
   SUBSCRIPTION_PLANS,
   TOKEN_PACKS,
 } from "@/lib/stripe";
@@ -49,9 +50,12 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     // Pour un abonnement : rediriger vers l'onboarding (création de club)
     // Pour des tokens : rediriger vers le dashboard directement
+    // session_id permet de resynchroniser la BDD immédiatement au retour, sans
+    // dépendre uniquement du webhook (utile en local où le webhook ne peut pas
+    // atteindre localhost, et comme filet de sécurité en prod).
     const successUrl = planType
-      ? `${baseUrl}/onboarding?checkout=success`
-      : `${baseUrl}/dashboard?checkout=success`;
+      ? `${baseUrl}/onboarding?checkout=success&session_id={CHECKOUT_SESSION_ID}`
+      : `${baseUrl}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/pricing?checkout=canceled`;
 
     // Abonnement ou jetons ?
@@ -62,6 +66,25 @@ export async function POST(request: Request) {
 
       if (!plan) {
         return NextResponse.json({ error: "Plan invalide" }, { status: 400 });
+      }
+
+      // Un utilisateur avec un abonnement Stripe déjà actif ne doit jamais repasser
+      // par Checkout (ça créerait un 2e abonnement en doublon) : il doit changer de
+      // plan via l'action serveur dédiée (stripe.subscriptions.update, sans carte).
+      if (user.stripeSubscriptionId) {
+        const existing = await stripe.subscriptions.retrieve(
+          user.stripeSubscriptionId,
+        ).catch(() => null);
+        if (existing && existing.status !== "canceled") {
+          return NextResponse.json(
+            {
+              error: "ALREADY_SUBSCRIBED",
+              message:
+                "Vous avez déjà un abonnement actif. Utilisez « Gérer mon abonnement » pour changer de plan.",
+            },
+            { status: 409 },
+          );
+        }
       }
 
       // Sélectionner le bon price ID selon l'intervalle

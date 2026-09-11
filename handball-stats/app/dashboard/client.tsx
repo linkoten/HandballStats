@@ -38,11 +38,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getClubCodes, validateClubCode } from "@/app/actions";
+import { getUserProfile } from "@/app/actions/user-actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AddEquipeModalButton } from "@/components/AddEquipeModalButton";
 import RescrapeAllButton from "@/app/dashboard/clubs/[clubId]/competitions/RescrapeAllButton";
 import { FreeTrialBanner } from "@/components/FreeTrialBanner";
+import { SubscriptionManagerDialog } from "@/components/SubscriptionManagerDialog";
+import { CURRENT_SAISON } from "@/lib/constants";
 
 const PLAN_LABELS = {
   GRATUIT: "Gratuit",
@@ -94,10 +97,17 @@ export default function DashboardClient({
   const [joinCode, setJoinCode] = useState("");
   const [isPending, startTransition] = useTransition();
   const [portalLoading, setPortalLoading] = useState(false);
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const router = useRouter();
 
   const clubId = userData?.club?.id;
   const userRole = userData?.role;
+
+  const refreshUserData = async () => {
+    const result = await getUserProfile();
+    if (result.success) setUserData(result.data);
+    router.refresh();
+  };
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
@@ -285,7 +295,7 @@ export default function DashboardClient({
               clubId && (
                 <RescrapeAllButton
                   clubId={Number(clubId)}
-                  saison="2025-2026"
+                  saison={CURRENT_SAISON}
                   variant="outline"
                   className="w-full"
                 />
@@ -324,14 +334,9 @@ export default function DashboardClient({
                 size="sm"
                 variant="outline"
                 className="rounded-xl font-sport italic uppercase text-xs w-full"
-                onClick={handleManageSubscription}
-                disabled={portalLoading}
+                onClick={() => setSubscriptionDialogOpen(true)}
               >
-                {portalLoading ? (
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                ) : (
-                  <CreditCard className="mr-2 h-3 w-3" />
-                )}
+                <CreditCard className="mr-2 h-3 w-3" />
                 Gérer l'abonnement
               </Button>
             ) : (
@@ -809,15 +814,10 @@ export default function DashboardClient({
                   </p>
                   {userData?.stripeSubscriptionId ? (
                     <Button
-                      onClick={handleManageSubscription}
-                      disabled={portalLoading}
+                      onClick={() => setSubscriptionDialogOpen(true)}
                       className="w-full bg-white text-secondary hover:bg-black hover:text-white font-sport uppercase italic"
                     >
-                      {portalLoading ? (
-                        <Loader2 className="animate-spin w-4 h-4" />
-                      ) : (
-                        "Gérer / Changer de plan"
-                      )}
+                      Gérer / Changer de plan
                     </Button>
                   ) : (
                     <Link href="/pricing" className="block w-full">
@@ -831,6 +831,14 @@ export default function DashboardClient({
           </div>
         )}
       </div>
+
+      <SubscriptionManagerDialog
+        open={subscriptionDialogOpen}
+        onOpenChange={setSubscriptionDialogOpen}
+        onChanged={refreshUserData}
+        onOpenBillingPortal={handleManageSubscription}
+        billingPortalLoading={portalLoading}
+      />
     </div>
   );
 }

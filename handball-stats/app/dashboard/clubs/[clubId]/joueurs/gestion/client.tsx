@@ -126,7 +126,7 @@ function HandballCourt({
   };
 
   return (
-    <div className="relative w-full aspect-3/4 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.7)] border-4 border-amber-900/60 select-none">
+    <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.7)] border-4 border-amber-900/60 select-none">
       {/* ── Parquet SVG background ─────────────────────────────────────── */}
       <svg
         className="absolute inset-0 w-full h-full"
@@ -332,7 +332,7 @@ function JoueurCard({
     <div
       onClick={onToggle}
       className={cn(
-        "group flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-150 border-2",
+        "group flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all duration-150 border-2",
         selected
           ? "bg-primary/10 border-primary shadow-lg shadow-primary/10"
           : "bg-slate-900/60 border-transparent hover:bg-slate-800/80 hover:border-slate-700",
@@ -340,7 +340,7 @@ function JoueurCard({
     >
       <div
         className={cn(
-          "w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 transition-all",
+          "w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 transition-all",
           selected ? "text-white scale-105" : "bg-slate-800 text-slate-400",
         )}
         style={selected ? { backgroundColor: pColor ?? "#6366f1" } : {}}
@@ -348,13 +348,13 @@ function JoueurCard({
         {initials}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm text-slate-100 uppercase tracking-tight truncate">
+        <p className="font-bold text-xs text-slate-100 uppercase tracking-tight truncate">
           {joueur.nom_prenom}
         </p>
-        <div className="flex gap-2 mt-0.5 flex-wrap">
+        <div className="flex gap-1.5 mt-0.5 flex-wrap">
           {joueur.postePrincipal ? (
             <span
-              className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full"
+              className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full"
               style={{
                 backgroundColor: `${pColor ?? "#6366f1"}22`,
                 color: pColor ?? "#818cf8",
@@ -363,12 +363,12 @@ function JoueurCard({
               ▲ {joueur.postePrincipal}
             </span>
           ) : (
-            <span className="text-[9px] text-slate-600 italic">
+            <span className="text-[8px] text-slate-600 italic">
               Pas de poste principal
             </span>
           )}
           {joueur.posteSecondaire && (
-            <span className="text-[9px] text-slate-500 uppercase font-bold">
+            <span className="text-[8px] text-slate-500 uppercase font-bold">
               ◆ {joueur.posteSecondaire}
             </span>
           )}
@@ -376,13 +376,13 @@ function JoueurCard({
       </div>
       <div
         className={cn(
-          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+          "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
           selected
             ? "bg-primary border-primary"
             : "border-slate-700 group-hover:border-slate-500",
         )}
       >
-        {selected && <Check size={11} className="text-white" strokeWidth={3} />}
+        {selected && <Check size={10} className="text-white" strokeWidth={3} />}
       </div>
     </div>
   );
@@ -461,9 +461,9 @@ export default function JoueursClient({ initialEquipes }: any) {
   const canAssign = !!selectedPoste && selectedJoueurs.length > 0 && !isPending;
 
   return (
-    <div className="min-h-screen bg-[#080f1a] text-slate-100 font-sans">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#080f1a] text-slate-100 font-sans flex flex-col">
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <header className="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-30 px-6 py-4">
+      <header className="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-30 px-6 py-4 shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
@@ -493,45 +493,16 @@ export default function JoueursClient({ initialEquipes }: any) {
                 )}
               </div>
             )}
-            <Select
-              value={selectedEquipe?.toString() ?? ""}
-              onValueChange={(v) => {
-                setSelectedEquipe(Number(v));
-                setSelectedJoueurs([]);
-                setSelectedPoste("");
-              }}
-            >
-              <SelectTrigger className="w-56 bg-slate-800/80 border-slate-700 h-10 font-bold rounded-xl text-sm">
-                <SelectValue placeholder="Sélectionner une équipe..." />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                {initialEquipes?.map((e: any) => (
-                  <SelectItem
-                    key={e.id}
-                    value={e.id.toString()}
-                    textValue={e.club?.nom ? `${e.club.nom} / ${e.nom}` : e.nom}
-                    className="font-medium"
-                  >
-                    {e.club?.nom && (
-                      <span className="text-slate-400 text-xs mr-1">
-                        {e.club.nom} /
-                      </span>
-                    )}
-                    {e.nom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
       </header>
 
       {/* ── MAIN ───────────────────────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 lg:gap-8 lg:items-start">
+      <main className="max-w-7xl mx-auto w-full p-4 md:p-6 lg:p-8 flex-1 min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px_240px] gap-6 lg:gap-6 lg:flex-1 lg:min-h-0">
           {/* LEFT: Court */}
-          <div className="space-y-5">
-            <div className="flex items-center gap-3 flex-wrap">
+          <div className="space-y-5 lg:space-y-4 lg:h-full lg:flex lg:flex-col lg:min-h-0">
+            <div className="flex items-center gap-3 flex-wrap lg:shrink-0">
               <span className="text-xs font-black uppercase tracking-widest text-slate-500">
                 Mode :
               </span>
@@ -590,50 +561,87 @@ export default function JoueursClient({ initialEquipes }: any) {
               )}
             </div>
 
-            <div className="relative">
-              {isPending && (
-                <div className="absolute inset-0 z-10 bg-black/40 rounded-3xl flex items-center justify-center backdrop-blur-sm">
-                  <Loader2 className="animate-spin text-white" size={32} />
+            <div className="relative lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+              <div className="lg:flex-1 lg:min-h-0 flex items-center justify-center">
+                <div className="relative w-full aspect-3/4 lg:w-auto lg:h-full mx-auto max-w-full">
+                  {isPending && (
+                    <div className="absolute inset-0 z-10 bg-black/40 rounded-3xl flex items-center justify-center backdrop-blur-sm">
+                      <Loader2 className="animate-spin text-white" size={32} />
+                    </div>
+                  )}
+                  <HandballCourt
+                    joueurs={joueurs}
+                    isPostePrincipal={isPostePrincipal}
+                    selectedPoste={selectedPoste}
+                    onPosteSelect={setSelectedPoste}
+                  />
                 </div>
-              )}
-              <HandballCourt
-                joueurs={joueurs}
-                isPostePrincipal={isPostePrincipal}
-                selectedPoste={selectedPoste}
-                onPosteSelect={setSelectedPoste}
-              />
+              </div>
               {!selectedPoste && (
-                <div className="mt-3 text-center text-xs text-slate-600 font-bold uppercase tracking-widest">
+                <div className="mt-3 text-center text-xs text-slate-600 font-bold uppercase tracking-widest lg:shrink-0">
                   Cliquez sur un poste pour le sélectionner
                 </div>
               )}
             </div>
           </div>
 
-          {/* RIGHT: Players + action */}
-          <div className="flex flex-col gap-4 lg:sticky lg:top-[73px]">
-            <div
-              className="bg-slate-900/70 border border-slate-800 rounded-3xl overflow-hidden flex flex-col"
-              style={{ maxHeight: "calc(100vh - 160px)" }}
-            >
-              <div className="p-5 border-b border-slate-800 space-y-3 shrink-0">
+          {/* MIDDLE: Team + Effectif */}
+          <div className="flex flex-col gap-3 lg:h-full lg:min-h-0">
+            {/* Team selector — prominent, sits right above the Effectif card */}
+            <div className="shrink-0">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">
+                Équipe sélectionnée
+              </label>
+              <Select
+                value={selectedEquipe?.toString() ?? ""}
+                onValueChange={(v) => {
+                  setSelectedEquipe(Number(v));
+                  setSelectedJoueurs([]);
+                  setSelectedPoste("");
+                }}
+              >
+                <SelectTrigger className="w-full bg-slate-900 border-2 border-primary/40 h-12 font-black rounded-2xl text-sm shadow-lg shadow-primary/10">
+                  <SelectValue placeholder="Sélectionner une équipe..." />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                  {initialEquipes?.map((e: any) => (
+                    <SelectItem
+                      key={e.id}
+                      value={e.id.toString()}
+                      textValue={e.club?.nom ? `${e.club.nom} / ${e.nom}` : e.nom}
+                      className="font-medium"
+                    >
+                      {e.club?.nom && (
+                        <span className="text-slate-400 text-xs mr-1">
+                          {e.club.nom} /
+                        </span>
+                      )}
+                      {e.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-slate-900/70 border border-slate-800 rounded-3xl overflow-hidden flex flex-col max-h-[70vh] lg:max-h-none lg:flex-1 lg:min-h-0">
+              <div className="p-3 border-b border-slate-800 space-y-2 shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <UserCircle2 size={18} className="text-slate-400" />
-                    <span className="font-sport italic font-black text-xl uppercase text-slate-100">
+                    <UserCircle2 size={16} className="text-slate-400" />
+                    <span className="font-sport italic font-black text-base uppercase text-slate-100">
                       Effectif
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {selectedJoueurs.length > 0 && (
-                      <Badge className="bg-primary/20 text-primary border-primary/30 font-black text-xs">
+                      <Badge className="bg-primary/20 text-primary border-primary/30 font-black text-[10px]">
                         {selectedJoueurs.length} sélectionné
                         {selectedJoueurs.length > 1 ? "s" : ""}
                       </Badge>
                     )}
                     <Badge
                       variant="outline"
-                      className="text-slate-400 border-slate-700 text-xs font-bold"
+                      className="text-slate-400 border-slate-700 text-[10px] font-bold"
                     >
                       {filteredJoueurs.length} joueur
                       {filteredJoueurs.length > 1 ? "s" : ""}
@@ -642,14 +650,14 @@ export default function JoueursClient({ initialEquipes }: any) {
                 </div>
                 <div className="relative">
                   <Search
-                    size={14}
+                    size={13}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
                   />
                   <input
                     placeholder="Rechercher..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl py-2.5 pl-9 pr-4 text-sm focus:border-primary outline-none transition-all placeholder:text-slate-600"
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-xs focus:border-primary outline-none transition-all placeholder:text-slate-600"
                   />
                   {searchTerm && (
                     <button
@@ -663,7 +671,7 @@ export default function JoueursClient({ initialEquipes }: any) {
                 {filteredJoueurs.length > 0 && (
                   <button
                     onClick={toggleAll}
-                    className="w-full text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors py-1.5 flex items-center justify-center gap-1.5 border border-slate-800 rounded-xl hover:border-slate-700"
+                    className="w-full text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors py-1 flex items-center justify-center gap-1.5 border border-slate-800 rounded-xl hover:border-slate-700"
                   >
                     {selectedJoueurs.length === filteredJoueurs.length &&
                     filteredJoueurs.length > 0 ? (
@@ -681,7 +689,7 @@ export default function JoueursClient({ initialEquipes }: any) {
                 )}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+              <div className="flex-1 overflow-y-auto p-2 space-y-1 [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
                 {isPending && joueurs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-slate-600">
                     <Loader2 className="animate-spin mb-3" size={24} />
@@ -714,17 +722,19 @@ export default function JoueursClient({ initialEquipes }: any) {
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Action panel */}
+          {/* RIGHT: Action panel */}
+          <div className="flex flex-col gap-3 lg:h-full lg:min-h-0 lg:justify-end">
             <div
               className={cn(
-                "rounded-3xl border p-5 space-y-4 transition-all duration-300",
+                "rounded-3xl border p-4 space-y-3 transition-all duration-300 lg:shrink-0",
                 canAssign
                   ? "bg-slate-900 border-primary/30 shadow-lg shadow-primary/5"
                   : "bg-slate-900/40 border-slate-800/50",
               )}
             >
-              <div className="flex items-center gap-2 text-sm font-bold flex-wrap">
+              <div className="flex items-center gap-2 text-xs font-bold flex-wrap">
                 <span
                   className={cn(
                     "font-black",
@@ -765,15 +775,15 @@ export default function JoueursClient({ initialEquipes }: any) {
                 disabled={!canAssign}
                 onClick={handleAssign}
                 className={cn(
-                  "w-full h-14 font-sport italic text-lg uppercase tracking-wide transition-all active:scale-[0.98]",
+                  "w-full h-10 font-sport italic text-sm uppercase tracking-wide transition-all active:scale-[0.98]",
                   !canAssign && "opacity-40",
                 )}
               >
                 {isPending ? (
-                  <Loader2 className="animate-spin" size={20} />
+                  <Loader2 className="animate-spin" size={16} />
                 ) : (
                   <>
-                    <Shield size={18} className="mr-2" />
+                    <Shield size={15} className="mr-2" />
                     Assigner{selectedPoste ? ` — ${selectedPoste}` : ""}
                   </>
                 )}

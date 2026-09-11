@@ -3,9 +3,24 @@ import { getUserProfile, getUserTokens } from "@/app/actions";
 import { getEquipesByClub } from "@/app/actions/equipe-actions";
 import { getClubEntraineurs } from "@/app/actions/entraineur-actions";
 import { getFreeTrialStatus } from "@/app/actions/free-trial-actions";
+import { reconcileCheckoutSession } from "@/lib/subscription-sync";
 import DashboardClient from "./client";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string; session_id?: string }>;
+}) {
+  const { checkout, session_id } = await searchParams;
+
+  // Filet de sécurité : resynchronise la BDD immédiatement au retour de Checkout
+  // (achat de jetons), sans dépendre uniquement du webhook.
+  if (checkout === "success" && session_id) {
+    await reconcileCheckoutSession(session_id).catch((error) => {
+      console.error("Erreur réconciliation checkout session:", error);
+    });
+  }
+
   // Récupérer les données utilisateur et tokens via Server Actions
   const [userResult, tokensResult, freeTrialResult] = await Promise.allSettled([
     getUserProfile(),

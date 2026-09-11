@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -36,6 +36,11 @@ model User {
   // Free Trial
   freeTrialStartedAt DateTime? @map("free_trial_started_at")
   freeTrialExpiresAt DateTime? @map("free_trial_expires_at")
+
+  // Limite hebdomadaire de rescrapes ("Tout mettre à jour") : 3 par semaine,
+  // reset chaque lundi (voir weeklyRescrapeWeekStart = lundi 00:00 de la semaine en cours)
+  weeklyRescrapeCount     Int       @default(0) @map("weekly_rescrape_count")
+  weeklyRescrapeWeekStart DateTime? @map("weekly_rescrape_week_start")
 
   // Relations
   clubs             UserClub[]
@@ -242,19 +247,19 @@ model TokenUsageHistory {
 // CODES FREE TRIAL (usage unique, pré-générés)
 // ============================================
 model FreePlanCode {
-  id        Int     @id @default(autoincrement())
-  code      String  @unique @db.VarChar(32)
-  isUsed    Boolean @default(false) @map("is_used")
+  id     Int     @id @default(autoincrement())
+  code   String  @unique @db.VarChar(32)
+  isUsed Boolean @default(false) @map("is_used")
 
   // Qui a utilisé ce code
-  usedById  String? @unique @map("used_by_id")
-  usedAt    DateTime? @map("used_at")
+  usedById String?   @unique @map("used_by_id")
+  usedAt   DateTime? @map("used_at")
 
   // Compétition créée avec ce code
   competition Competition?
 
   // Relations
-  usedBy    User?   @relation(fields: [usedById], references: [id], onDelete: SetNull)
+  usedBy User? @relation(fields: [usedById], references: [id], onDelete: SetNull)
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")

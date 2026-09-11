@@ -1775,7 +1775,10 @@ function StatsIndividuelles({
     const allMatchesSaison = (saison: string | null): typeof statsJoueur => {
       if (!saison || !joueurId || !joueurEquipeId) return [];
       return data.statsJoueurs
-        .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
+        .filter(
+          (s) =>
+            s.id_joueur === joueurId && s.id_match != null && isStatValide(s),
+        )
         .map((s) => {
           const match = data.matchs.find((m) => m.id === s.id_match);
           if (!match) return null;
@@ -1820,7 +1823,10 @@ function StatsIndividuelles({
       labelRef = "Tous matchs (toutes saisons)";
       if (joueurId && joueurEquipeId) {
         periodeRef = data.statsJoueurs
-          .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
+          .filter(
+            (s) =>
+              s.id_joueur === joueurId && s.id_match != null && isStatValide(s),
+          )
           .map((s) => {
             const match = data.matchs.find((m) => m.id === s.id_match);
             if (!match) return null;
@@ -3955,8 +3961,6 @@ function ScatterSection({
 }
 
 function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
-
-
   const equipeColorMap = useMemo(() => {
     const m: Record<number, string> = {};
     data.equipes.forEach((eq, i) => {
@@ -3978,7 +3982,9 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
   // Agrégat exclusions vs matchs joués par joueur
   const exclusionsVsMatchs = useMemo(() => {
-    const equipeMap = Object.fromEntries(data.equipes.map((e) => [e.id, e.nom]));
+    const equipeMap = Object.fromEntries(
+      data.equipes.map((e) => [e.id, e.nom]),
+    );
     const perJoueur: Record<
       number,
       {
@@ -3996,7 +4002,15 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
       const j = joueurMap[s.id_joueur];
       if (!j?.id_equipe) return;
       if (!equipeOk(j.id_equipe, filters.equipeIds)) return;
-      if (!applyMatchFilter(matchMap[s.id_match], filters, [j.id_equipe], data.competitions)) return;
+      if (
+        !applyMatchFilter(
+          matchMap[s.id_match],
+          filters,
+          [j.id_equipe],
+          data.competitions,
+        )
+      )
+        return;
       if (!perJoueur[s.id_joueur]) {
         perJoueur[s.id_joueur] = {
           exclusions: 0,
@@ -4024,7 +4038,6 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
   }, [exclusionsVsMatchs]);
 
   const [gardienSearch, setGardienSearch] = useState("");
-
 
   // Agrégats par nom de joueur — regroupe les joueurs ayant joué dans plusieurs équipes
   const agg = useMemo<AggPlayer[]>(() => {
@@ -4238,7 +4251,6 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
     .sort((a, b) => b.moyButs - a.moyButs)
     .slice(0, 5);
   const top5Pct = [...agg].sort((a, b) => b.pctTir - a.pctTir).slice(0, 5);
-
 
   // Record buts en un seul match — tous joueurs filtrés
   const maxButsData = useMemo(() => {
@@ -4517,7 +4529,9 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
           <div className="md:col-span-2">
             <ChartCard title="Exclusions (2') vs Matchs joués (TOP 5)">
               <ResponsiveContainer width="100%" height={320}>
-                <ScatterChart margin={{ top: 16, right: 32, bottom: 32, left: 32 }}>
+                <ScatterChart
+                  margin={{ top: 16, right: 32, bottom: 32, left: 32 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
                   <XAxis
                     dataKey="matchs"
@@ -4566,11 +4580,17 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                             {d.equipeNom}
                           </p>
                           <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground font-bold uppercase text-[10px]">Exclusions</span>
-                            <span className="font-sport italic font-black text-red-500">{d.exclusions}</span>
+                            <span className="text-muted-foreground font-bold uppercase text-[10px]">
+                              Exclusions
+                            </span>
+                            <span className="font-sport italic font-black text-red-500">
+                              {d.exclusions}
+                            </span>
                           </div>
                           <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground font-bold uppercase text-[10px]">Matchs</span>
+                            <span className="text-muted-foreground font-bold uppercase text-[10px]">
+                              Matchs
+                            </span>
                             <span className="font-bold">{d.matchs}</span>
                           </div>
                         </div>
@@ -4584,7 +4604,15 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                       const { cx, cy, payload } = props;
                       return (
                         <g>
-                          <circle cx={cx} cy={cy} r={7} fill={payload.equipeColor} opacity={1} stroke="white" strokeWidth={1.5} />
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={7}
+                            fill={payload.equipeColor}
+                            opacity={1}
+                            stroke="white"
+                            strokeWidth={1.5}
+                          />
                         </g>
                       );
                     }}
@@ -4857,14 +4885,18 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
               Gardiens — Performance vs Matchs joués
             </h3>
             <p className="text-muted-foreground text-xs mt-0.5">
-              Nuages de points · taille du point proportionnelle au nombre de matchs
+              Nuages de points · taille du point proportionnelle au nombre de
+              matchs
             </p>
           </div>
           {/* Recherche gardien partagée */}
           <div className="relative max-w-xs">
             <svg
               className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
             >
               <circle cx="11" cy="11" r="8" />
               <path strokeLinecap="round" d="m21 21-4.35-4.35" />
@@ -4880,31 +4912,88 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* ── Total Arrêts vs Matchs ── */}
             <ChartCard title="Total Arrêts vs Matchs joués">
-              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
-                <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 16 }}>
+              <ResponsiveContainer
+                width="100%"
+                height={280}
+                style={{ overflow: "visible" }}
+              >
+                <ScatterChart
+                  margin={{ top: 16, right: 24, bottom: 32, left: 16 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                  <XAxis dataKey="matchs" type="number" name="Matchs joués" tick={{ fontSize: 10 }}
-                    label={{ value: "Matchs joués", position: "insideBottom", offset: -16, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  <XAxis
+                    dataKey="matchs"
+                    type="number"
+                    name="Matchs joués"
+                    tick={{ fontSize: 10 }}
+                    label={{
+                      value: "Matchs joués",
+                      position: "insideBottom",
+                      offset: -16,
+                      fontSize: 10,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
-                  <YAxis dataKey="arrets" type="number" name="Total Arrêts" tick={{ fontSize: 10 }}
-                    label={{ value: "Total Arrêts", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  <YAxis
+                    dataKey="arrets"
+                    type="number"
+                    name="Total Arrêts"
+                    tick={{ fontSize: 10 }}
+                    label={{
+                      value: "Total Arrêts",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 14,
+                      fontSize: 10,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
                   <ZAxis dataKey="matchs" range={[40, 160]} />
-                  <Tooltip isAnimationActive={false} cursor={{ strokeDasharray: "3 3" }}
+                  <Tooltip
+                    isAnimationActive={false}
+                    cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={<GardienTooltip />}
                   />
-                  <Scatter name="Gardiens" data={filteredGardiens}
+                  <Scatter
+                    name="Gardiens"
+                    data={filteredGardiens}
                     shape={(props: any) => {
-                      const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
-                      const sorted = [...aggGardiens].sort((a, b) => b.arrets - a.arrets);
-                      const rank = sorted.findIndex((g) => g.id === payload.id) + 1;
+                      const { cx, cy, payload } = props as {
+                        cx: number;
+                        cy: number;
+                        payload: AggGardien;
+                      };
+                      const sorted = [...aggGardiens].sort(
+                        (a, b) => b.arrets - a.arrets,
+                      );
+                      const rank =
+                        sorted.findIndex((g) => g.id === payload.id) + 1;
                       const isTop3 = rank <= 3;
                       return (
                         <g>
                           <circle cx={cx} cy={cy} r={14} fill="transparent" />
-                          <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5} fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75} stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
-                          {isTop3 && <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">#{rank}</text>}
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isTop3 ? 7 : 5}
+                            fill={payload.equipeColor}
+                            opacity={isTop3 ? 1 : 0.75}
+                            stroke={isTop3 ? "white" : "none"}
+                            strokeWidth={1.5}
+                          />
+                          {isTop3 && (
+                            <text
+                              x={cx}
+                              y={cy - 10}
+                              textAnchor="middle"
+                              fontSize={9}
+                              fill={payload.equipeColor}
+                              fontWeight="bold"
+                            >
+                              #{rank}
+                            </text>
+                          )}
                         </g>
                       );
                     }}
@@ -4915,31 +5004,88 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
             {/* ── Moy. Arrêts vs Matchs ── */}
             <ChartCard title="Moy. Arrêts / Match vs Matchs joués">
-              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
-                <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 16 }}>
+              <ResponsiveContainer
+                width="100%"
+                height={280}
+                style={{ overflow: "visible" }}
+              >
+                <ScatterChart
+                  margin={{ top: 16, right: 24, bottom: 32, left: 16 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                  <XAxis dataKey="matchs" type="number" name="Matchs joués" tick={{ fontSize: 10 }}
-                    label={{ value: "Matchs joués", position: "insideBottom", offset: -16, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  <XAxis
+                    dataKey="matchs"
+                    type="number"
+                    name="Matchs joués"
+                    tick={{ fontSize: 10 }}
+                    label={{
+                      value: "Matchs joués",
+                      position: "insideBottom",
+                      offset: -16,
+                      fontSize: 10,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
-                  <YAxis dataKey="moyArrets" type="number" name="Moy. Arrêts" tick={{ fontSize: 10 }}
-                    label={{ value: "Moy. Arrêts", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  <YAxis
+                    dataKey="moyArrets"
+                    type="number"
+                    name="Moy. Arrêts"
+                    tick={{ fontSize: 10 }}
+                    label={{
+                      value: "Moy. Arrêts",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 14,
+                      fontSize: 10,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
                   <ZAxis dataKey="matchs" range={[40, 160]} />
-                  <Tooltip isAnimationActive={false} cursor={{ strokeDasharray: "3 3" }}
+                  <Tooltip
+                    isAnimationActive={false}
+                    cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={<GardienTooltip />}
                   />
-                  <Scatter name="Gardiens" data={filteredGardiens}
+                  <Scatter
+                    name="Gardiens"
+                    data={filteredGardiens}
                     shape={(props: any) => {
-                      const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
-                      const sorted = [...aggGardiens].sort((a, b) => b.moyArrets - a.moyArrets);
-                      const rank = sorted.findIndex((g) => g.id === payload.id) + 1;
+                      const { cx, cy, payload } = props as {
+                        cx: number;
+                        cy: number;
+                        payload: AggGardien;
+                      };
+                      const sorted = [...aggGardiens].sort(
+                        (a, b) => b.moyArrets - a.moyArrets,
+                      );
+                      const rank =
+                        sorted.findIndex((g) => g.id === payload.id) + 1;
                       const isTop3 = rank <= 3;
                       return (
                         <g>
                           <circle cx={cx} cy={cy} r={14} fill="transparent" />
-                          <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5} fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75} stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
-                          {isTop3 && <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">#{rank}</text>}
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isTop3 ? 7 : 5}
+                            fill={payload.equipeColor}
+                            opacity={isTop3 ? 1 : 0.75}
+                            stroke={isTop3 ? "white" : "none"}
+                            strokeWidth={1.5}
+                          />
+                          {isTop3 && (
+                            <text
+                              x={cx}
+                              y={cy - 10}
+                              textAnchor="middle"
+                              fontSize={9}
+                              fill={payload.equipeColor}
+                              fontWeight="bold"
+                            >
+                              #{rank}
+                            </text>
+                          )}
                         </g>
                       );
                     }}
@@ -4950,32 +5096,90 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
 
             {/* ── % Arrêts vs Matchs ── */}
             <ChartCard title="% Arrêts vs Matchs joués">
-              <ResponsiveContainer width="100%" height={280} style={{ overflow: "visible" }}>
-                <ScatterChart margin={{ top: 16, right: 24, bottom: 32, left: 16 }}>
+              <ResponsiveContainer
+                width="100%"
+                height={280}
+                style={{ overflow: "visible" }}
+              >
+                <ScatterChart
+                  margin={{ top: 16, right: 24, bottom: 32, left: 16 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                  <XAxis dataKey="matchs" type="number" name="Matchs joués" tick={{ fontSize: 10 }}
-                    label={{ value: "Matchs joués", position: "insideBottom", offset: -16, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  <XAxis
+                    dataKey="matchs"
+                    type="number"
+                    name="Matchs joués"
+                    tick={{ fontSize: 10 }}
+                    label={{
+                      value: "Matchs joués",
+                      position: "insideBottom",
+                      offset: -16,
+                      fontSize: 10,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
-                  <YAxis dataKey="pctArrets" type="number" name="% Arrêts" domain={[0, 100]} tick={{ fontSize: 10 }}
+                  <YAxis
+                    dataKey="pctArrets"
+                    type="number"
+                    name="% Arrêts"
+                    domain={[0, 100]}
+                    tick={{ fontSize: 10 }}
                     tickFormatter={(v) => `${v}%`}
-                    label={{ value: "% Arrêts", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    label={{
+                      value: "% Arrêts",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 14,
+                      fontSize: 10,
+                      fill: "hsl(var(--muted-foreground))",
+                    }}
                   />
                   <ZAxis dataKey="matchs" range={[40, 160]} />
-                  <Tooltip isAnimationActive={false} cursor={{ strokeDasharray: "3 3" }}
+                  <Tooltip
+                    isAnimationActive={false}
+                    cursor={{ strokeDasharray: "3 3" }}
                     wrapperStyle={{ pointerEvents: "none", zIndex: 9999 }}
                     content={<GardienTooltip />}
                   />
-                  <Scatter name="Gardiens" data={filteredGardiens}
+                  <Scatter
+                    name="Gardiens"
+                    data={filteredGardiens}
                     shape={(props: any) => {
-                      const { cx, cy, payload } = props as { cx: number; cy: number; payload: AggGardien };
-                      const sorted = [...aggGardiens].sort((a, b) => b.pctArrets - a.pctArrets);
-                      const rank = sorted.findIndex((g) => g.id === payload.id) + 1;
+                      const { cx, cy, payload } = props as {
+                        cx: number;
+                        cy: number;
+                        payload: AggGardien;
+                      };
+                      const sorted = [...aggGardiens].sort(
+                        (a, b) => b.pctArrets - a.pctArrets,
+                      );
+                      const rank =
+                        sorted.findIndex((g) => g.id === payload.id) + 1;
                       const isTop3 = rank <= 3;
                       return (
                         <g>
                           <circle cx={cx} cy={cy} r={14} fill="transparent" />
-                          <circle cx={cx} cy={cy} r={isTop3 ? 7 : 5} fill={payload.equipeColor} opacity={isTop3 ? 1 : 0.75} stroke={isTop3 ? "white" : "none"} strokeWidth={1.5} />
-                          {isTop3 && <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fill={payload.equipeColor} fontWeight="bold">#{rank}</text>}
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isTop3 ? 7 : 5}
+                            fill={payload.equipeColor}
+                            opacity={isTop3 ? 1 : 0.75}
+                            stroke={isTop3 ? "white" : "none"}
+                            strokeWidth={1.5}
+                          />
+                          {isTop3 && (
+                            <text
+                              x={cx}
+                              y={cy - 10}
+                              textAnchor="middle"
+                              fontSize={9}
+                              fill={payload.equipeColor}
+                              fontWeight="bold"
+                            >
+                              #{rank}
+                            </text>
+                          )}
                         </g>
                       );
                     }}
@@ -4988,8 +5192,14 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
           {/* Légende équipes */}
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 justify-center">
             {visibleEquipes.map((eq) => (
-              <div key={eq.id} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ background: equipeColorMap[eq.id] }} />
+              <div
+                key={eq.id}
+                className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                  style={{ background: equipeColorMap[eq.id] }}
+                />
                 {eq.nom}
               </div>
             ))}
@@ -5003,27 +5213,43 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                 <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
                   Top 5 — Total Arrêts
                 </CardTitle>
-                <p className="text-[10px] text-muted-foreground mt-0.5">≥ 5 matchs</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  ≥ 5 matchs
+                </p>
               </CardHeader>
               <CardContent className="p-0">
                 {[...aggGardiensQual]
                   .sort((a, b) => b.arrets - a.arrets)
                   .slice(0, 5)
                   .map((g, i) => (
-                    <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+                    <div
+                      key={g.id}
+                      className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+                    >
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
+                      >
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-xs truncate">{g.nom}</p>
                         <div className="flex items-center gap-1 mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.equipeColor }} />
-                          <p className="text-[10px] text-muted-foreground truncate">{g.equipeNom}</p>
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: g.equipeColor }}
+                          />
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {g.equipeNom}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-sport italic font-black text-base text-indigo-500">{g.arrets}</span>
-                        <p className="text-[9px] text-muted-foreground">{g.matchs}m · {g.moyArrets}/m</p>
+                        <span className="font-sport italic font-black text-base text-indigo-500">
+                          {g.arrets}
+                        </span>
+                        <p className="text-[9px] text-muted-foreground">
+                          {g.matchs}m · {g.moyArrets}/m
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -5036,27 +5262,43 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                 <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
                   Top 5 — Moy. Arrêts / Match
                 </CardTitle>
-                <p className="text-[10px] text-muted-foreground mt-0.5">≥ 5 matchs</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  ≥ 5 matchs
+                </p>
               </CardHeader>
               <CardContent className="p-0">
                 {[...aggGardiensQual]
                   .sort((a, b) => b.moyArrets - a.moyArrets)
                   .slice(0, 5)
                   .map((g, i) => (
-                    <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+                    <div
+                      key={g.id}
+                      className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+                    >
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
+                      >
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-xs truncate">{g.nom}</p>
                         <div className="flex items-center gap-1 mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.equipeColor }} />
-                          <p className="text-[10px] text-muted-foreground truncate">{g.equipeNom}</p>
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: g.equipeColor }}
+                          />
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {g.equipeNom}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-sport italic font-black text-base text-indigo-500">{g.moyArrets}</span>
-                        <p className="text-[9px] text-muted-foreground">{g.matchs}m · {g.arrets} total</p>
+                        <span className="font-sport italic font-black text-base text-indigo-500">
+                          {g.moyArrets}
+                        </span>
+                        <p className="text-[9px] text-muted-foreground">
+                          {g.matchs}m · {g.arrets} total
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -5069,27 +5311,46 @@ function Efficacite({ data, filters }: { data: StatsData; filters: Filters }) {
                 <CardTitle className="font-sport italic text-sm uppercase text-muted-foreground">
                   Top 5 — % Arrêts
                 </CardTitle>
-                <p className="text-[10px] text-muted-foreground mt-0.5">≥ 5 matchs</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  ≥ 5 matchs
+                </p>
               </CardHeader>
               <CardContent className="p-0">
                 {[...aggGardiensQual]
                   .sort((a, b) => b.pctArrets - a.pctArrets)
                   .slice(0, 5)
                   .map((g, i) => (
-                    <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}>
+                    <div
+                      key={g.id}
+                      className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+                    >
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i === 0 ? "bg-amber-400 text-white" : i === 1 ? "bg-slate-300 text-slate-700" : i === 2 ? "bg-amber-600/80 text-white" : "bg-muted text-muted-foreground"}`}
+                      >
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-xs truncate">{g.nom}</p>
                         <div className="flex items-center gap-1 mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.equipeColor }} />
-                          <p className="text-[10px] text-muted-foreground truncate">{g.equipeNom}</p>
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: g.equipeColor }}
+                          />
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {g.equipeNom}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-sport italic font-black text-base" style={{ color: arretsColor(g.pctArrets) }}>{g.pctArrets}%</span>
-                        <p className="text-[9px] text-muted-foreground">{g.matchs}m · {g.arrets} arrêts</p>
+                        <span
+                          className="font-sport italic font-black text-base"
+                          style={{ color: arretsColor(g.pctArrets) }}
+                        >
+                          {g.pctArrets}%
+                        </span>
+                        <p className="text-[9px] text-muted-foreground">
+                          {g.matchs}m · {g.arrets} arrêts
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -5623,7 +5884,10 @@ function StatsOffensives({
                   fill: "hsl(var(--muted-foreground))",
                 }}
               />
-              <Tooltip isAnimationActive={false} wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }} />
+              <Tooltip
+                isAnimationActive={false}
+                wrapperStyle={{ pointerEvents: "auto", zIndex: 9999 }}
+              />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {equipeLabels.map((nom, i) => (
                 <Line
@@ -6313,7 +6577,10 @@ function StatsDefensives({
                 tickFormatter={(v) => v.toFixed(1)}
                 tick={{ fontSize: 11 }}
               />
-              <Tooltip isAnimationActive={false} wrapperStyle={{ zIndex: 9999 }} />
+              <Tooltip
+                isAnimationActive={false}
+                wrapperStyle={{ zIndex: 9999 }}
+              />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar
                 yAxisId="left"
@@ -6688,7 +6955,12 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
         const allForSaison = (saison: string | null): typeof statsJoueur => {
           if (!saison) return [];
           return data.statsJoueurs
-            .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
+            .filter(
+              (s) =>
+                s.id_joueur === joueurId &&
+                s.id_match != null &&
+                isStatValide(s),
+            )
             .map((s) => {
               const match = data.matchs.find((m) => m.id === s.id_match);
               if (!match) return null;
@@ -6706,7 +6978,12 @@ function StatsTop({ data, filters }: { data: StatsData; filters: Filters }) {
 
         const allTotal = (): typeof statsJoueur =>
           data.statsJoueurs
-            .filter((s) => s.id_joueur === joueurId && s.id_match != null && isStatValide(s))
+            .filter(
+              (s) =>
+                s.id_joueur === joueurId &&
+                s.id_match != null &&
+                isStatValide(s),
+            )
             .map((s) => {
               const match = data.matchs.find((m) => m.id === s.id_match);
               if (!match) return null;
@@ -9083,7 +9360,6 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
             className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border-2 border-primary/20 font-sport italic uppercase text-xs shadow-sm"
           >
             <div className="flex items-center gap-2">
-              <activeItem.icon size={14} className="shrink-0" />
               {activeItem.label}
             </div>
             <ChevronDown
@@ -9093,7 +9369,7 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
           </button>
           {mobileMenuOpen && (
             <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl bg-background border shadow-xl overflow-hidden z-60">
-              {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
+              {TAB_ITEMS.map(({ value, label }) => (
                 <button
                   key={value}
                   onClick={() => {
@@ -9102,7 +9378,6 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
                   }}
                   className={`w-full flex items-center gap-2 px-4 py-3 text-xs font-sport italic uppercase border-b last:border-0 transition-colors text-left ${activeTab === value ? "bg-primary text-white" : "hover:bg-muted"}`}
                 >
-                  <Icon size={13} className="shrink-0" />
                   {label}
                 </button>
               ))}
@@ -9112,13 +9387,12 @@ export default function StatsRecharts({ data }: { data: StatsData | null }) {
 
         {/* Desktop: tab list */}
         <TabsList className="hidden sm:flex flex-wrap justify-center h-auto rounded-2xl bg-primary/8 border-2 border-primary/20 p-1.5 gap-1 mb-8 shadow-md w-full relative z-10">
-          {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
+          {TAB_ITEMS.map(({ value, label }) => (
             <TabsTrigger
               key={value}
               value={value}
               className="rounded-xl font-sport italic uppercase text-xs px-4 py-2.5 transition-all duration-200 text-primary/70 hover:text-primary hover:bg-primary/10 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-[0_2px_14px_rgba(99,102,241,0.45)]"
             >
-              <Icon size={13} className="mr-1.5 shrink-0" />
               {label}
             </TabsTrigger>
           ))}

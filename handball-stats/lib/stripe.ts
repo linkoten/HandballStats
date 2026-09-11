@@ -204,12 +204,93 @@ export async function getSubscription(subscriptionId: string) {
 }
 
 // Helper pour créer un portal client (gestion abonnement)
+// Le portail Stripe par défaut n'autorise pas forcément le changement/résiliation
+// d'abonnement (dépend de la config Dashboard) : on force une configuration dédiée
+// qui active explicitement ces fonctionnalités, avec les plans de l'app en options
+// de changement.
+let cachedPortalConfigurationId: string | null = null;
+
+async function getOrCreatePortalConfiguration(): Promise<string> {
+  if (cachedPortalConfigurationId) return cachedPortalConfigurationId;
+
+  const existing = await stripe.billingPortal.configurations.list({
+    limit: 100,
+  });
+  const found = existing.data.find(
+    (c) => c.metadata?.app === "handstats" && c.active,
+  );
+  if (found) {
+    cachedPortalConfigurationId = found.id;
+    return found.id;
+  }
+
+  const priceIds = Object.values(SUBSCRIPTION_PLANS).flatMap((plan) => [
+    plan.priceIdMonthly,
+    plan.priceIdYearly,
+  ]);
+  const prices = await Promise.all(
+    priceIds.map((id) => stripe.prices.retrieve(id)),
+  );
+
+  const pricesByProduct = new Map<string, string[]>();
+  for (const price of prices) {
+    const productId =
+      typeof price.product === "string" ? price.product : price.product.id;
+    pricesByProduct.set(productId, [
+      ...(pricesByProduct.get(productId) ?? []),
+      price.id,
+    ]);
+  }
+
+  const configuration = await stripe.billingPortal.configurations.create({
+    metadata: { app: "handstats" },
+    business_profile: {
+      headline: "Gérez votre abonnement Hand Stats",
+    },
+    features: {
+      invoice_history: { enabled: true },
+      payment_method_update: { enabled: true },
+      customer_update: {
+        enabled: true,
+        allowed_updates: ["email", "address"],
+      },
+      subscription_cancel: {
+        enabled: true,
+        mode: "at_period_end",
+        cancellation_reason: {
+          enabled: true,
+          options: [
+            "too_expensive",
+            "missing_features",
+            "switched_service",
+            "unused",
+            "other",
+          ],
+        },
+      },
+      subscription_update: {
+        enabled: true,
+        default_allowed_updates: ["price"],
+        proration_behavior: "create_prorations",
+        products: Array.from(pricesByProduct.entries()).map(
+          ([product, prices]) => ({ product, prices }),
+        ),
+      },
+    },
+  });
+
+  cachedPortalConfigurationId = configuration.id;
+  return configuration.id;
+}
+
 export async function createCustomerPortalSession(
   customerId: string,
   returnUrl: string,
 ) {
+  const configuration = await getOrCreatePortalConfiguration();
   return await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: returnUrl,
+    configuration,
   });
 }

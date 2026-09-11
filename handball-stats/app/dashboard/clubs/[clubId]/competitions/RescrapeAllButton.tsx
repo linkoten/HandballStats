@@ -6,10 +6,11 @@ import { rescrapeClubCurrentSaison } from "@/app/actions/scraping-actions";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { CURRENT_SAISON } from "@/lib/constants";
 
 export default function RescrapeAllButton({
   clubId,
-  saison = "2025-2026",
+  saison = CURRENT_SAISON,
   variant = "default",
   className,
 }: {

@@ -10,7 +10,6 @@ import {
   Loader2,
   Trophy,
   Zap,
-  ArrowRight,
   RotateCcw,
   Clock,
   Database,
@@ -476,14 +475,6 @@ export default function ScrapingProgressClient({
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    onClick={() => router.push("/competitions")}
-                    className="flex-1 h-14 bg-secondary text-black hover:bg-white rounded-2xl font-sport italic text-lg uppercase shadow-xl group"
-                  >
-                    Voir mes compétitions{" "}
-                    <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-
                   {globalStatus === "partial_error" && (
                     <Button
                       onClick={() => router.push("/competitions/create")}

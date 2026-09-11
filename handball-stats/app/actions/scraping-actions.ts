@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { CURRENT_SAISON } from "@/lib/constants";
 
 export type ScrapingStatusResponse = {
   success: boolean;
@@ -25,6 +26,19 @@ export type CompetitionStatus = {
   } | null;
   tokenConsumed: boolean; // Si le token a déjà été consommé pour cette compétition
 };
+
+const WEEKLY_RESCRAPE_LIMIT = 3;
+
+/** Retourne le lundi 00:00 UTC de la semaine contenant `date`. */
+function getMondayOfWeek(date: Date): Date {
+  const d = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const day = d.getUTCDay(); // 0 = dimanche, 1 = lundi, ...
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d;
+}
 
 /**
  * Récupère le statut de scraping pour une liste de compétitions IDs
@@ -409,7 +423,7 @@ export async function rescrapeCompetition(
  */
 export async function rescrapeClubCurrentSaison(
   clubId: number,
-  saison: string = "2025-2026",
+  saison: string = CURRENT_SAISON,
 ): Promise<{ success: boolean; error?: string; data?: any }> {
   try {
     const { userId } = await auth();
@@ -417,7 +431,12 @@ export async function rescrapeClubCurrentSaison(
 
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
-      select: { id: true, role: true },
+      select: {
+        id: true,
+        role: true,
+        weeklyRescrapeCount: true,
+        weeklyRescrapeWeekStart: true,
+      },
     });
 
     if (
@@ -425,6 +444,22 @@ export async function rescrapeClubCurrentSaison(
       (user.role !== "ADMIN_CLUB" && user.role !== "ADMIN_GENERAL")
     ) {
       return { success: false, error: "Accès refusé : rôle admin requis" };
+    }
+
+    // Limite anti-spam : 3 mises à jour "Tout mettre à jour" par semaine et par
+    // Admin Club (reset chaque lundi). L'ADMIN_GENERAL n'est pas limité.
+    const currentWeekStart = getMondayOfWeek(new Date());
+    const sameWeek =
+      user.weeklyRescrapeWeekStart &&
+      getMondayOfWeek(user.weeklyRescrapeWeekStart).getTime() ===
+        currentWeekStart.getTime();
+    const currentWeekCount = sameWeek ? user.weeklyRescrapeCount : 0;
+
+    if (user.role !== "ADMIN_GENERAL" && currentWeekCount >= WEEKLY_RESCRAPE_LIMIT) {
+      return {
+        success: false,
+        error: `Limite de ${WEEKLY_RESCRAPE_LIMIT} mises à jour par semaine atteinte. Réessayez la semaine prochaine.`,
+      };
     }
 
     const competitions = await prisma.competition.findMany({
@@ -482,6 +517,19 @@ export async function rescrapeClubCurrentSaison(
       return { success: false, error: `Erreur scraper: ${errorText}` };
     }
 
+    let remaining = -1;
+    if (user.role !== "ADMIN_GENERAL") {
+      const newCount = currentWeekCount + 1;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          weeklyRescrapeCount: newCount,
+          weeklyRescrapeWeekStart: currentWeekStart,
+        },
+      });
+      remaining = Math.max(0, WEEKLY_RESCRAPE_LIMIT - newCount);
+    }
+
     revalidatePath("/dashboard");
     revalidatePath(`/dashboard/clubs/${clubId}/competitions`);
 
@@ -489,7 +537,9 @@ export async function rescrapeClubCurrentSaison(
       success: true,
       data: {
         count: competitions.length,
-        message: `${competitions.length} compétition(s) ${saison} en cours de mise à jour`,
+        message:
+          `${competitions.length} compétition(s) ${saison} en cours de mise à jour` +
+          (remaining >= 0 ? ` (${remaining} mise(s) à jour restante(s) cette semaine)` : ""),
       },
     };
   } catch (error) {

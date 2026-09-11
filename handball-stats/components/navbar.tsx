@@ -16,10 +16,7 @@ import { getUserProfile } from "@/app/actions";
 import {
   Trophy,
   LayoutDashboard,
-  Users,
-  Calendar,
   BarChart3,
-  Gem,
   Zap,
   Crown,
   Menu,
@@ -59,24 +56,28 @@ export function Navbar() {
   }, [isLoaded, isSignedIn]);
 
   const clubId = userData?.clubs?.[0]?.id;
-  const equipesUrl = clubId ? `/dashboard/clubs/${clubId}/equipes` : "/equipes";
-  const competitionsUrl = clubId
-    ? `/dashboard/clubs/${clubId}/competitions`
-    : "/competitions";
-  const matchsUrl = clubId ? `/dashboard/clubs/${clubId}/matchs` : "/matchs";
   const statsUrl = clubId
     ? `/dashboard/clubs/${clubId}/statistiques`
     : "/statistiques";
+  // Équipes/Compétitions/Matchs restent accessibles uniquement depuis le Dashboard,
+  // pour orienter l'utilisateur vers la page Stats en priorité.
   const allNavLinks = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, requiresClub: false },
-    { href: equipesUrl, label: "Équipes", icon: Users, requiresClub: true },
-    { href: competitionsUrl, label: "Compétitions", icon: Trophy, requiresClub: true },
-    { href: matchsUrl, label: "Matchs", icon: Calendar, requiresClub: true },
-    { href: statsUrl, label: "Stats", icon: BarChart3, requiresClub: true, featured: true },
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      requiresClub: false,
+    },
+    {
+      href: statsUrl,
+      label: "Stats",
+      icon: BarChart3,
+      requiresClub: true,
+      featured: true,
+    },
     {
       href: "/pricing",
       label: "Abonnement",
-      icon: Gem,
       highlight: true,
       requiresClub: false,
     },
@@ -94,7 +95,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-100 w-full border-b-2 border-primary/10 bg-background/60 backdrop-blur-2xl">
       <div className="w-full pl-3 pr-5 sm:pl-4 sm:pr-7 md:pl-5 md:pr-8 h-20 flex items-center justify-between gap-4">
         {/* Logo Section */}
-        <div className="flex items-center gap-10">
+        <div className="flex items-center">
           <Link href="/" className="group flex items-center gap-2">
             <Logo
               size={40}
@@ -107,40 +108,42 @@ export function Navbar() {
               </span>
             </span>
           </Link>
+        </div>
 
-          {/* Navigation Links - Desktop */}
-          <SignedIn>
-            <div className="hidden lg:flex items-center gap-1">
-              {navLinks.map((link) => {
-                const isActive = pathname === link.href;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      "px-4 py-2 rounded-xl flex items-center gap-2 font-sport text-[11px] uppercase tracking-wider italic transition-all",
-                      isActive
-                        ? "bg-primary text-white shadow-lg shadow-primary/20 scale-105"
-                        : "text-muted-foreground hover:text-primary hover:bg-primary/5",
-                      link.highlight &&
-                        !isActive &&
-                        "text-secondary hover:text-secondary hover:bg-secondary/5",
-                      (link as any).featured &&
-                        !isActive &&
-                        "text-primary ring-2 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/15 hover:ring-primary/50 hover:bg-primary/10",
-                    )}
-                  >
+        {/* Navigation Links - Desktop */}
+        <SignedIn>
+          <div className="hidden lg:flex flex-1 items-center justify-center gap-6">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "px-4 py-2 rounded-xl flex items-center gap-2 font-sport text-[11px] uppercase tracking-wider italic transition-all",
+                    isActive
+                      ? "bg-primary text-white shadow-lg shadow-primary/20 scale-105"
+                      : "text-muted-foreground hover:text-primary hover:bg-primary/5",
+                    link.highlight &&
+                      !isActive &&
+                      "text-secondary hover:text-secondary hover:bg-secondary/5",
+                    (link as any).featured &&
+                      !isActive &&
+                      "text-primary ring-2 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/15 hover:ring-primary/50 hover:bg-primary/10",
+                  )}
+                >
+                  {link.icon && (
                     <link.icon
                       size={14}
                       className={cn(isActive ? "animate-pulse" : "")}
                     />
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </SignedIn>
-        </div>
+                  )}
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        </SignedIn>
 
         {/* Action Section (Right) */}
         <div className="flex items-center gap-3">
@@ -239,7 +242,7 @@ export function Navbar() {
                       "text-secondary hover:bg-secondary/5",
                   )}
                 >
-                  <link.icon size={16} />
+                  {link.icon && <link.icon size={16} />}
                   {link.label}
                 </Link>
               );

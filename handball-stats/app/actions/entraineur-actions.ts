@@ -116,7 +116,7 @@ export async function getClubEntraineurs(
 // ──────────────────────────────────────────────
 
 /**
- * Rétrograde un entraîneur en UTILISATEUR (il reste membre du club).
+ * Rétrograde un entraîneur en JOUEUR (il reste membre du club, côté joueur).
  */
 export async function removeEntraineurRole(
   targetUserId: string,
@@ -156,14 +156,14 @@ export async function removeEntraineurRole(
 
     await prisma.user.update({
       where: { id: targetUserId },
-      data: { role: "UTILISATEUR" },
+      data: { role: "JOUEUR" },
     });
 
     revalidatePath(`/dashboard/clubs/${clubId}/entraineurs`);
 
     return {
       success: true,
-      data: { message: `L'entraîneur est maintenant UTILISATEUR` },
+      data: { message: `L'entraîneur est maintenant Joueur du club` },
     };
   } catch (error) {
     console.error("Erreur removeEntraineurRole:", error);

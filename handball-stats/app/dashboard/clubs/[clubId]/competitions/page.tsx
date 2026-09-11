@@ -5,6 +5,7 @@ import { CompetitionsClient } from "./competitions-client";
 import { getCurrentUser } from "@/app/actions/user-actions";
 import RescrapeAllButton from "./RescrapeAllButton";
 import { getClubSubscriptionStatus } from "@/lib/access-control";
+import { CURRENT_SAISON } from "@/lib/constants";
 
 interface Props {
   params: Promise<{ clubId: string }>;
@@ -34,7 +35,7 @@ export default async function CompetitionsPage({ params }: Props) {
   const canRescrape =
     currentUser?.role === "ADMIN_CLUB" || currentUser?.role === "ADMIN_GENERAL";
 
-  const hasSaison2526 = competitions.some((c) => c.saison === "2025-2026");
+  const hasSaison2526 = competitions.some((c) => c.saison === CURRENT_SAISON);
 
   // IDs des compétitions verrouillées selon le plan (ADMIN_GENERAL bypass)
   const lockedIds =
@@ -64,7 +65,7 @@ export default async function CompetitionsPage({ params }: Props) {
           </div>
 
           {canRescrape && hasSaison2526 && (
-            <RescrapeAllButton clubId={clubIdNum} saison="2025-2026" />
+            <RescrapeAllButton clubId={clubIdNum} saison={CURRENT_SAISON} />
           )}
         </div>
       </div>

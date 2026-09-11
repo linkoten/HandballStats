@@ -61,12 +61,11 @@ import {
 import { cn } from "@/lib/utils";
 import { formatNomPrenom } from "@/lib/utils";
 import { toast } from "sonner";
+import { CURRENT_SAISON } from "@/lib/constants";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-
-const CURRENT_SAISON = "2025-2026";
 
 const OBJECTIF_LABELS: Record<ObjectifType, string> = {
   buts: "Buts",

@@ -16,10 +16,15 @@ const stripe = {
     sessions: {
       create: jest.fn(),
       retrieve: jest.fn(),
+      listLineItems: jest.fn(),
     },
   },
   billingPortal: {
     sessions: {
+      create: jest.fn(),
+    },
+    configurations: {
+      list: jest.fn(),
       create: jest.fn(),
     },
   },
@@ -29,6 +34,9 @@ const stripe = {
   prices: {
     retrieve: jest.fn(),
     list: jest.fn(),
+  },
+  invoices: {
+    createPreview: jest.fn(),
   },
 };
 
@@ -80,4 +88,26 @@ const SUBSCRIPTION_PLANS = {
   },
 };
 
-module.exports = { stripe, PLAN_LIMITS, SUBSCRIPTION_PLANS };
+const TOKEN_PACKS = {
+  SINGLE: { priceId: "price_token_single", tokens: 1, price: 5, savings: 0 },
+  PACK_3: { priceId: "price_token_pack3", tokens: 3, price: 12, savings: 3 },
+  PACK_5: { priceId: "price_token_pack5", tokens: 5, price: 18, savings: 7 },
+};
+
+const createStripeCustomer = jest.fn();
+const createSubscriptionCheckoutSession = jest.fn();
+const createTokenCheckoutSession = jest.fn();
+const createCustomerPortalSession = jest.fn();
+const cancelSubscription = jest.fn();
+
+module.exports = {
+  stripe,
+  PLAN_LIMITS,
+  SUBSCRIPTION_PLANS,
+  TOKEN_PACKS,
+  createStripeCustomer,
+  createSubscriptionCheckoutSession,
+  createTokenCheckoutSession,
+  createCustomerPortalSession,
+  cancelSubscription,
+};

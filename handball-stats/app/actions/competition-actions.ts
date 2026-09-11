@@ -325,7 +325,13 @@ export async function createCompetition(
     if (user.subscription === "FREE_TRIAL") {
       const existingCount = await prisma.competition.count({
         where: {
-          equipe: { clubId: { in: (await prisma.userClub.findMany({ where: { userId: user.id } })).map((uc) => uc.clubId) } },
+          equipe: {
+            clubId: {
+              in: (
+                await prisma.userClub.findMany({ where: { userId: user.id } })
+              ).map((uc) => uc.clubId),
+            },
+          },
         },
       });
       if (existingCount >= 1) {

@@ -36,12 +36,17 @@ export function FreeTrialBanner({ daysRemaining, expiresAt }: Props) {
       <div className="flex items-center gap-3">
         <Clock
           size={16}
-          className={isUrgent ? "text-destructive shrink-0" : "text-secondary shrink-0"}
+          className={
+            isUrgent ? "text-destructive shrink-0" : "text-secondary shrink-0"
+          }
         />
         <span>
           {isUrgent ? (
             <>
-              <strong>Plus que {daysRemaining} jour{daysRemaining > 1 ? "s" : ""}</strong> sur votre Free Trial
+              <strong>
+                Plus que {daysRemaining} jour{daysRemaining > 1 ? "s" : ""}
+              </strong>{" "}
+              sur votre Free Trial
               {expiryLabel && (
                 <span className="text-xs ml-1 opacity-70">
                   (expire le {expiryLabel})
@@ -51,10 +56,7 @@ export function FreeTrialBanner({ daysRemaining, expiresAt }: Props) {
             </>
           ) : (
             <>
-              Free Trial actif —{" "}
-              <strong>
-                {daysRemaining} jours restants
-              </strong>
+              Free Trial actif — <strong>{daysRemaining} jours restants</strong>
               {expiryLabel && (
                 <span className="text-xs ml-1 opacity-70">
                   (jusqu'au {expiryLabel})

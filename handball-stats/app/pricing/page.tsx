@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -15,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Loader2 } from "lucide-react";
+import { SubscriptionManagerDialog } from "@/components/SubscriptionManagerDialog";
+import { getSubscriptionStatus } from "@/app/actions/subscription-actions";
 
 const PLANS = [
   {
@@ -105,10 +108,40 @@ export default function PricingPage() {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly",
   );
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    getSubscriptionStatus().then((res) => {
+      if (res.success && res.data) setHasActiveSubscription(true);
+    });
+  }, [isLoaded, user]);
+
+  const handleOpenBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const response = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   const handleSubscribe = async (planId: string) => {
     if (!isLoaded || !user) {
       router.push("/sign-in?redirect_url=/pricing");
+      return;
+    }
+
+    // Un abonnement existe déjà : on change de plan directement dans l'app,
+    // sans repasser par un nouveau Checkout (évite les doublons de facturation).
+    if (hasActiveSubscription) {
+      setSubscriptionDialogOpen(true);
       return;
     }
 
@@ -128,12 +161,16 @@ export default function PricingPage() {
 
       if (data.url) {
         window.location.href = data.url;
+      } else if (data.error === "ALREADY_SUBSCRIBED") {
+        setHasActiveSubscription(true);
+        setSubscriptionDialogOpen(true);
       } else {
         throw new Error("Pas d'URL de checkout");
       }
     } catch (error) {
       console.error("Erreur création checkout:", error);
       alert("Erreur lors de la création de la session de paiement");
+    } finally {
       setLoading(null);
     }
   };
@@ -222,7 +259,6 @@ export default function PricingPage() {
 
         {/* Plans d'abonnement avec nouveau design */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-16">
-
           {/* Carte Free Trial */}
           <Card className="relative transition-all duration-300 hover:scale-105 hover:shadow-2xl bg-card/40 backdrop-blur-md overflow-hidden border-2 border-dashed border-secondary/50 hover:border-secondary">
             <div className="absolute top-0 right-0">
@@ -243,23 +279,39 @@ export default function PricingPage() {
             <CardContent className="relative z-10">
               <div className="mb-6 pb-6 border-b border-border/50">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-mono font-black tracking-tighter text-foreground">0</span>
-                  <span className="text-xl font-bold text-muted-foreground">€</span>
+                  <span className="text-5xl font-mono font-black tracking-tighter text-foreground">
+                    0
+                  </span>
+                  <span className="text-xl font-bold text-muted-foreground">
+                    €
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Sans carte bancaire</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sans carte bancaire
+                </p>
               </div>
               <ul className="space-y-3 mb-6">
-                {["1 compétition scrapée", "1 club + 1 équipe", "30 jours d'accès complet", "Données officielles FFHB"].map((feature) => (
+                {[
+                  "1 compétition scrapée",
+                  "1 club + 1 équipe",
+                  "30 jours d'accès complet",
+                  "Données officielles FFHB",
+                ].map((feature) => (
                   <li key={feature} className="flex items-start gap-3 text-sm">
                     <span className="text-secondary mt-0.5">✓</span>
-                    <span className="text-muted-foreground font-medium">{feature}</span>
+                    <span className="text-muted-foreground font-medium">
+                      {feature}
+                    </span>
                   </li>
                 ))}
               </ul>
             </CardContent>
             <CardFooter className="relative z-10">
               <Link href="/onboarding" className="w-full">
-                <Button variant="outline" className="w-full font-sport uppercase tracking-wide text-sm py-6 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-all">
+                <Button
+                  variant="outline"
+                  className="w-full font-sport uppercase tracking-wide text-sm py-6 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-all"
+                >
                   🎟️ Obtenir un code
                 </Button>
               </Link>
@@ -443,6 +495,14 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+
+      <SubscriptionManagerDialog
+        open={subscriptionDialogOpen}
+        onOpenChange={setSubscriptionDialogOpen}
+        onChanged={() => router.refresh()}
+        onOpenBillingPortal={handleOpenBillingPortal}
+        billingPortalLoading={portalLoading}
+      />
     </div>
   );
 }

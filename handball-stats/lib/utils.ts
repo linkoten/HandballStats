@@ -17,7 +17,12 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatNomPrenom(raw: string | null | undefined): string {
   if (!raw) return "";
-  const s = raw.trim();
+  // Retire les mentions entre parenthèses (ex: nom de naissance "(Né.e FLIPPES)")
+  const s = raw.replace(/\s*\([^)]*\)/g, "").trim();
+
+  // Si le nom contient déjà un espace, il est saisi manuellement au format
+  // "NOM Prénom" attendu : on ne touche à rien pour éviter de le corrompre.
+  if (/\s/.test(s)) return s;
 
   // Find the first lowercase letter — that is where the firstname starts
   const firstLowerIndex = s.search(/[a-zàâäéèêëîïôùûüçœæ]/);

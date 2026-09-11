@@ -57,8 +57,7 @@ export default function FreeTrialCodeForm({ onSuccess, onSkip }: Props) {
           <Ticket size={16} /> FREE TRIAL
         </div>
         <h2 className="text-3xl font-sport font-black italic uppercase tracking-tighter">
-          Saisir votre code{" "}
-          <span className="text-primary">gratuit</span>
+          Saisir votre code <span className="text-primary">gratuit</span>
         </h2>
         <p className="text-secondary-foreground/70 text-sm">
           Accédez à 1 compétition pendant <strong>30 jours</strong>, sans
